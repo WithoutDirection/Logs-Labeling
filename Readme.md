@@ -39,8 +39,8 @@
   - `reference_resources/`: 參考資源，如MITRE ATT&CK文本
   - `Intermediate_data/`: 各步驟產生的中間數據
   - `processed_logs/`: 預處理後的日誌數據
-- `pipelines/`: 包含各個處理步驟的具體程式碼
-  - `data_preprocessing.py`: 數據預處理
+- `Logs Labeling/`: 包含各個處理步驟的具體程式碼
+  - `preprocess/`: 數據預處理
   - `sequence_blocking.py`: 序列區塊化
   - `anomaly_detection.py`: 異常資料篩選
   - `concept_extraction.py`: 概念提取
