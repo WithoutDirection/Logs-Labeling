@@ -39,6 +39,10 @@
   - `reference_resources/`: 參考資源，如MITRE ATT&CK文本
   - `Intermediate_data/`: 各步驟產生的中間數據
   - `processed_logs/`: 預處理後的日誌數據
+- `Text_Mining/`: 獲得外部參考文本的模組
+  - `Mitre_ATTCK/`: Mitre ATT&CK相關文本處理
+  - `LLM_Generation/`: 大型語言模型生成文本
+  - `Web_Scraping/`: 網頁爬取相關模組
 - `Logs Labeling/`: 包含各個處理步驟的具體程式碼
   - `preprocess/`: 數據預處理
   - `sequence_blocking.py`: 序列區塊化
@@ -115,6 +119,12 @@
 ## Update & Changelog (更新日誌)
 
 * 2025-11-16: Init
+* 2025-11-21: 
+  * 創立專案架構: Readme.md
+  * 新建preprocess與Drain作為預設parser for Logs
+* 2025-11-25: 
+  * 更新 Readme.md，補充外部文件爬蟲相關架構
+  *  
 
 ---
 
