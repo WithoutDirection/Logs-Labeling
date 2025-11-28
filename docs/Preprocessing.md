@@ -2,7 +2,7 @@
 
 ## 概述
 
-日誌模板化流程透過可插拔的解析器將原始日誌事件轉換為結構化的模板與參數，支援多種解析演算法（如 Drain、Spell、LenMa）以及可選的解析器停用模式。
+日誌模板化流程透過可插拔的解析器將原始日誌事件轉換為結構化的模板與參數，(可)支援多種解析演算法（如 Drain、LenMa...）以及可選的解析器停用模式。
 
 ---
 
@@ -181,10 +181,10 @@ loader.load_logs(columns=["Operation", "Path", "Result"])
 
 ---
 
-## 技術細節
+## Detail
 
 ### 動態載入機制
-系統使用 Python `importlib` 實現解析器的動態載入：
+系統使用 `importlib` 實現解析器的動態載入：
 
 ```python
 parser_module = importlib.import_module(f'preprocess.{parser_name}')
@@ -198,6 +198,6 @@ parser_module = importlib.import_module(f'preprocess.{parser_name}')
 ```
 
 ### 錯誤處理
-- 解析器模組不存在 → 自動回退至 `drain`
+- 解析器模組不存在 → 自動使用 `drain`
 - 類別名稱不符 → 拋出 `AttributeError`
 - CSV 讀取失敗 → 跳過該檔案並記錄錯誤
