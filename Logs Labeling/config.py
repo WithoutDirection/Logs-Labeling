@@ -15,6 +15,10 @@ ENABLE_PARSER = True  # Whether to parse raw events (True) or keep original (Fal
 PARSER_LIST = ["drain", "spell", "lenma"]  # Available parser modules (lowercase)
 DEFAULT_PARSER = "drain"
 
+# Zipf's Law Preprocessing 
+ZIPF_PERCENTILE = 0.05  # Filter top 5% high-frequency words
+USE_LOG_HIGH_FREQ = True  # Include common log words (Authority, System, etc.)
+
 # 參數設定
 BERT_MODEL_NAME = "sentice-bert"
 CHUNK_MODEL_PATH = os.path.join(BERT_MODEL_DIR, "chunk_model.pt")

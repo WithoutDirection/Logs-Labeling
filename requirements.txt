@@ -1,2 +1,7 @@
 pandas
 numpy
+scikit-learn
+sentence-transformers
+requests
+pyyaml
+tqdm
