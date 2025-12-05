@@ -15,11 +15,18 @@ from sklearn.feature_extraction.text import CountVectorizer
 
 # Support both package and standalone imports
 try:
-    from .text_processor import TextProcessor, preprocess_external_source
     from .fetchers import MitreFetcher, CapecFetcher, NvdFetcher, SigmaRulesFetcher
 except ImportError:
-    from text_processor import TextProcessor, preprocess_external_source
     from fetchers import MitreFetcher, CapecFetcher, NvdFetcher, SigmaRulesFetcher
+
+# Import BERT API from models
+try:
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    from models.bert import get_bert_model, BaseBERTModel
+except ImportError:
+    # Fallback for different project structures
+    from bert import get_bert_model, BaseBERTModel
 
 
 class ExternalSourceManager:
@@ -45,20 +52,23 @@ class ExternalSourceManager:
     def __init__(
         self,
         data_dir: Optional[str] = None,
-        bert_model: str = 'bert-base-nli-mean-tokens',
-        nmf_components: int = 10
+        bert_model: str = 'sentence-bert',
+        nmf_components: int = 10,
+        bert_cache_dir: Optional[str] = None
     ):
         """
         Initialize ExternalSourceManager.
         
         Args:
             data_dir: Base directory for external source data
-            bert_model: SentenceTransformer model name
+            bert_model: BERT model key or custom model name
             nmf_components: Number of NMF components for topic modeling
+            bert_cache_dir: Cache directory for BERT models
         """
         self.data_dir = data_dir or os.path.join('data', 'reference_resources')
         self.bert_model_name = bert_model
         self.nmf_components = nmf_components
+        self.bert_cache_dir = bert_cache_dir
         
         # Storage
         self.sources: Dict[str, pd.DataFrame] = {}
@@ -67,7 +77,11 @@ class ExternalSourceManager:
         self.vocabularies: Dict[str, List[str]] = {}
         
         # Components
-        self.text_processor = TextProcessor(bert_model_name=bert_model)
+        self.bert: BaseBERTModel = get_bert_model(
+            self.bert_model_name,
+            cache_dir=self.bert_cache_dir,
+            auto_load=True
+        )
         self._global_vocabulary: Optional[List[str]] = None
         self._nmf_model: Optional[NMF] = None
         self._vectorizer: Optional[CountVectorizer] = None
@@ -105,11 +119,9 @@ class ExternalSourceManager:
         df = pd.read_csv(filepath)
         
         if preprocess:
-            df = preprocess_external_source(
-                df, 
-                description_col=description_col,
-                processor=self.text_processor
-            )
+            # Simple preprocessing: fill NaN and strip whitespace
+            if description_col in df.columns:
+                df[description_col] = df[description_col].fillna('').astype(str).str.strip()
         
         self.sources[name] = df
         print(f"  Loaded {len(df)} entries from {name}")
@@ -134,11 +146,9 @@ class ExternalSourceManager:
         df = fetcher.fetch(**kwargs)
         
         if not df.empty:
-            df = preprocess_external_source(
-                df,
-                description_col='description',
-                processor=self.text_processor
-            )
+            # Simple preprocessing
+            if 'description' in df.columns:
+                df['description'] = df['description'].fillna('').astype(str).str.strip()
             self.sources[name] = df
         
         return df
@@ -215,7 +225,7 @@ class ExternalSourceManager:
             raise ValueError(f"Column '{description_col}' not found in {name}")
         
         print(f"Computing BERT embeddings for {name} ({len(texts)} entries)...")
-        embeddings = self.text_processor.generate_embeddings(texts)
+        embeddings = self.bert.embed(texts, show_progress=True)
         
         self.embeddings[name] = embeddings
         print(f"  Embedding shape: {embeddings.shape}")
@@ -253,11 +263,12 @@ class ExternalSourceManager:
                         except:
                             tokens = tokens.split()
                     if isinstance(tokens, list):
-                        all_tokens.append(tokens)
+                        all_tokens.extend(tokens)
         
-        self._global_vocabulary = self.text_processor.create_bow_vocabulary(
-            all_tokens, min_freq=min_freq
-        )
+        # Build vocabulary from token frequency
+        from collections import Counter
+        token_counts = Counter(all_tokens)
+        self._global_vocabulary = [token for token, count in token_counts.items() if count >= min_freq]
         
         print(f"Built vocabulary with {len(self._global_vocabulary)} words")
         return self._global_vocabulary
@@ -435,7 +446,8 @@ class ExternalSourceManager:
         scores = np.zeros(len(df))
         
         query_lower = query_text.lower()
-        query_tokens = set(self.text_processor.tokenize(query_text, remove_stopwords=True))
+        # Simple tokenization
+        query_tokens = set(query_lower.split())
         
         # Check technique/name column
         name_col = 'technique' if 'technique' in df.columns else 'name' if 'name' in df.columns else None
@@ -487,7 +499,7 @@ class ExternalSourceManager:
             List of dicts with match info
         """
         # Compute query embedding
-        query_emb = self.text_processor.generate_embeddings([query_text], show_progress=False)[0]
+        query_emb = self.bert.embed([query_text], show_progress=False)[0]
         
         return self.compute_similarity(
             query_emb, 

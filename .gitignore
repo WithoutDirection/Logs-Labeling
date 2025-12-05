@@ -2,6 +2,7 @@ local/
 data/
 .venv/
 __pycache__/
+bert_model/
 *.pyc
 *.pyo
 *.pyd

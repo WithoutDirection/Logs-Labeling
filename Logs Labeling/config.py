@@ -20,7 +20,13 @@ ZIPF_PERCENTILE = 0.05  # Filter top 5% high-frequency words
 USE_LOG_HIGH_FREQ = True  # Include common log words (Authority, System, etc.)
 
 # 參數設定
-BERT_MODEL_NAME = "sentice-bert"
+# BERT Model Configuration
+# Available options: 'sentence-bert', 'sentence-bert-multilingual', 'sentence-bert-large',
+#                   'bert-base-nli', 'bert-base', 'distilbert', 'roberta'
+# Or use custom model name from HuggingFace
+BERT_MODEL_NAME = "sentence-bert"
+BERT_CACHE_DIR = os.path.join(BERT_MODEL_DIR, "cache")  # Cache directory for downloaded models
+BERT_AUTO_LOAD = True  # Whether to automatically load model on initialization
 CHUNK_MODEL_PATH = os.path.join(BERT_MODEL_DIR, "chunk_model.pt")
 ISOLATION_FOREST_PARAMS = {
 	"n_estimators": 100,

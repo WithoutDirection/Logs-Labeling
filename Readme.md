@@ -8,6 +8,8 @@
     - [Stucture of whole project (專案整體結構)](#stucture-of-whole-project-專案整體結構)
     - [Details of Each Step (各步驟細節)](#details-of-each-step-各步驟細節)
       - [Preprocessing](#preprocessing)
+      - [Embedding](#embedding)
+      - [External Sources](#external-sources)
       - [Weighting](#weighting)
       - [Concept Extraction](#concept-extraction)
       - [Sequence Clustering](#sequence-clustering)
@@ -50,10 +52,11 @@
   - `anomaly_detection.py`: 異常資料篩選
   - `concept_extraction.py`: 概念提取
   - `auto_labeling.py`: 自動化標記
-- `models/`: 儲存模型和相關資源
-  - `bert_model/`: Bert Embedding 模型
-  - `Unsupervised/`: 無監督學習模型
-  - `HMM/`: 隱馬可夫模型相關
+  - `models/`: 儲存模型和相關資源
+    - `bert_model/`: Bert Embedding 模型
+    - `bert.py`: 提供Bert Embedding的API
+    - `Unsupervised/`: 無監督學習模型
+    - `HMM/`: 隱馬可夫模型相關
 - `Visualization/`: 視覺化工具
 - `config.py`: 專案參數配置
 - `docs/`: 專案文件和說明
@@ -77,6 +80,19 @@
 2. **Tokenization**: 將文本分割成詞語或子詞單位，便於後續的語言模型處理。
 3. **Embedding**: 使用 Bert 模型將文本轉換為向量表示。
 4. **Save**: 將預處理後的參考文本保存，以供概念提取步驟使用。
+
+#### Embedding
+> [詳見 Embedding.md](./docs/Embedding.md)
+提供BERT嵌入模組 (`models/bert.py`)，用於載入和使用不同的BERT模型進行文本嵌入。
+支援多種BERT使用，特別整合了針對網路安全領域優化的模型（如SecBERT），將非結構化的日誌文本或威脅情報轉換為高維度的語義向量，以利後續的相似度計算與分類。
+
+#### External Sources
+> [詳見 External_Sources.md](./docs/External_Sources.md)
+提供整合外部威脅情資（如MITRE ATT&CK、CAPEC）的文本作為參考基準，用於增強日誌標註與分析的證據能力。
+主要功能包括:
+- **載入外部知識庫**: 支援MITRE ATT&CK (戰術與技術)、CAPEC (攻擊模式)、NVD/CVE (漏洞資料)等。
+- **文本預處理**: 實作ConceptUML論文中的預處理流程，包含Zipf's Law過濾。
+- **語義檢索**: 利用BERT Embedding與NMF主題模型進行相似度比對。 **之後要改到concept_extraction**
 
 #### Weighting
 > [詳見 Weighting.md](./docs/Weighting.md)
@@ -125,7 +141,10 @@
   * 新建preprocess與Drain作為預設parser for Logs
 * 2025-11-25: 
   * 更新 Readme.md，補充外部文件爬蟲相關架構
-  *  
+* 2025-12-05:
+  * 新增 BERT 嵌入模組 (`models/bert.py`) 及相關文件說明
+  * 整合 BERT API 至 ExternalSourceManager 模組
+ 
 
 ---
 
