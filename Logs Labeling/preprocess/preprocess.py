@@ -5,6 +5,7 @@ from tqdm import tqdm
 import os
 import sys
 from typing import List, Tuple, Optional
+from datasets import Dataset
 
 # 調整匯入路徑，確保能載入同專案上層的 config.py
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -249,15 +250,150 @@ class LogLoader:
         
         return parsed_dfs
 
+class LogEmbedder:
+    """根據 LogLoader 的輸出計算嵌入向量並儲存。"""
+    
+    def __init__(
+        self,
+        intermediate_dir: str = LOG_INTERMEDIATE_PATH,
+        output_dir: str = None,
+        model_name: str = config.BERT_MODEL_NAME,
+        cache_dir: str = config.BERT_CACHE_DIR,
+        batch_size: int = 32,
+        normalize: bool = True
+    ):
+        self.intermediate_dir = intermediate_dir
+        self.output_dir = output_dir or os.path.join(config.DATA_DIR, "Embeddings")
+        self.model_name = model_name
+        self.cache_dir = cache_dir
+        self.batch_size = batch_size
+        self.normalize = normalize
+        self.bert_model = None
+    
+    def _load_model(self):
+        """載入 BERT 模型。"""
+        # * 步驟 1: 動態載入 BERT 模型
+        from models.bert import get_bert_model
+        print(f"正在載入 BERT 模型: {self.model_name}...")
+        self.bert_model = get_bert_model(
+            self.model_name, 
+            cache_dir=self.cache_dir, 
+            auto_load=True
+        )
+    
+    def _prepare_text(self, df: pd.DataFrame) -> List[str]:
+        """根據 DataFrame 欄位決定嵌入內容。"""
+        # * 步驟 2: 判斷使用 Template+Parameters 或 ConcatenatedLog
+        if 'Template' in df.columns and 'Parameters' in df.columns:
+            # 有 Parsing: 合併 Template 與 Parameters
+            texts = []
+            for _, row in df.iterrows():
+                template = str(row['Template']) if pd.notna(row['Template']) else ""
+                params = str(row['Parameters']) if pd.notna(row['Parameters']) else ""
+                texts.append(f"{template} {params}".strip())
+            return texts
+        elif 'ConcatenatedLog' in df.columns:
+            # 無 Parsing: 直接使用 ConcatenatedLog
+            return df['ConcatenatedLog'].fillna("").astype(str).tolist()
+        else:
+            raise ValueError("DataFrame 必須包含 'Template'+'Parameters' 或 'ConcatenatedLog' 欄位")
+    
+    def embed_file(self, file_path: str) -> Tuple[pd.DataFrame, np.ndarray]:
+        """對單一檔案進行嵌入計算。"""
+        df = pd.read_csv(file_path, encoding='utf-8')
+        texts = self._prepare_text(df)
+        
+        # * 步驟 3: 使用 BERT 模型計算嵌入向量
+        embeddings = self.bert_model.embed(
+            texts, 
+            batch_size=self.batch_size, 
+            normalize=self.normalize
+        )
+        return df, embeddings
+    
+    def _save_embeddings(self, df: pd.DataFrame, embeddings: np.ndarray, output_path: str):
+        """將嵌入向量儲存為 Hugging Face Dataset 格式。"""
+        # * 步驟 4: 建立帶有 LogID 與嵌入向量的 Dataset 並儲存
+        
+        
+        # 建立包含 LogID 與嵌入向量的字典
+        data_dict = {'LogID': df['LogID'].tolist(), 'embedding': embeddings.tolist()}
+        dataset = Dataset.from_dict(data_dict)
+        dataset.save_to_disk(output_path)
+    
+    def embed_logs(self, **kwargs):
+        """
+        批次處理所有中間資料並計算嵌入向量。
+        
+        Args:
+            num: 要處理的檔案數量
+            ratio: 要處理的檔案比例 (0-1)
+        """
+        # * 步驟 1: 載入 BERT 模型
+        if self.bert_model is None:
+            self._load_model()
+        
+        # * 步驟 2: 確定檔案選擇範圍
+        num = kwargs.get("num")
+        ratio = kwargs.get("ratio")
+        
+        all_files = [f for f in os.listdir(self.intermediate_dir) if f.endswith(".csv")]
+        
+        if num:
+            files = all_files[:num]
+            print(f"嵌入 {num} 個日誌檔案...")
+        elif ratio:
+            files = all_files[:int(len(all_files) * ratio)]
+            print(f"嵌入 {ratio*100:.1f}% 的日誌檔案...")
+        else:
+            files = all_files
+            print("嵌入所有日誌檔案...")
+        
+        # * 步驟 3: 建立輸出目錄
+        os.makedirs(self.output_dir, exist_ok=True)
+        
+        # * 步驟 4: 批次處理檔案
+        processed_count = 0
+        
+        with tqdm(files, desc="計算嵌入中", unit="檔案", dynamic_ncols=True) as pbar:
+            for file in pbar:
+                file_path = os.path.join(self.intermediate_dir, file)
+                short_name = file if len(file) <= 40 else file[:37] + "..."
+                pbar.set_postfix({"模型": self.model_name, "檔案": short_name}, refresh=False)
+                
+                try:
+                    # * 步驟 5: 計算嵌入並儲存
+                    df, embeddings = self.embed_file(file_path)
+                    
+                    # 輸出檔名: 原檔名加上 _embeddings 後綴
+                    output_name = os.path.splitext(file)[0] + "_embeddings"
+                    output_path = os.path.join(self.output_dir, output_name)
+                    self._save_embeddings(df, embeddings, output_path)
+                    processed_count += 1
+                    
+                except Exception as e:
+                    print(f"\n處理 {file} 時發生錯誤: {e}")
+        
+        # * 步驟 6: 顯示處理統計
+        print(f"\n嵌入完成！")
+        print(f"  已處理: {processed_count}/{len(files)} 個檔案")
+        print(f"  輸出位置: {self.output_dir}")
+        print(f"  模型: {self.model_name}")
+        print(f"  嵌入維度: {self.bert_model.get_embedding_dim()}")
+
 
 def main():
     # 1: 啟用解析 (預設)
     loader = LogLoader(enable_parser=True)
-    loader.load_logs()
+    loader.load_logs(num=10)
     
     # 2: 不解析 (保留原始日誌)
     # loader = LogLoader(enable_parser=False)
     # loader.load_logs(ratio=0.3)
+    
+    # 3: 計算嵌入向量
+    embedder = LogEmbedder()
+    embedder.embed_logs()
 
 if __name__ == "__main__":
     main()

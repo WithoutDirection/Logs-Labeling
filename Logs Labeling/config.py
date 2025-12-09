@@ -27,6 +27,9 @@ USE_LOG_HIGH_FREQ = True  # Include common log words (Authority, System, etc.)
 BERT_MODEL_NAME = "sentence-bert"
 BERT_CACHE_DIR = os.path.join(BERT_MODEL_DIR, "cache")  # Cache directory for downloaded models
 BERT_AUTO_LOAD = True  # Whether to automatically load model on initialization
+
+
+
 CHUNK_MODEL_PATH = os.path.join(BERT_MODEL_DIR, "chunk_model.pt")
 ISOLATION_FOREST_PARAMS = {
 	"n_estimators": 100,
