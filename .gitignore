@@ -9,4 +9,4 @@ bert_model/
 *.pyd
 .Python
 
-.pdf
+*.pdf
