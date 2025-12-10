@@ -385,7 +385,7 @@ class LogEmbedder:
 def main():
     # 1: 啟用解析 (預設)
     loader = LogLoader(enable_parser=True)
-    loader.load_logs(num=10)
+    loader.load_logs(num=100)
     
     # 2: 不解析 (保留原始日誌)
     # loader = LogLoader(enable_parser=False)
