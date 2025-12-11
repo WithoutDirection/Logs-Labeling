@@ -774,8 +774,9 @@ class BiLSTMAttention:
 
 def main():
     # 1: 啟用解析 (預設)
+    N = 30
     loader = LogLoader(enable_parser=True)
-    loader.load_logs(num=100)
+    loader.load_logs(num=N)
     
     # 2: 不解析 (保留原始日誌)
     # loader = LogLoader(enable_parser=False)
@@ -783,11 +784,11 @@ def main():
     
     # 3: 計算嵌入向量
     embedder = LogEmbedder()
-    embedder.embed_logs()
+    embedder.embed_logs(num=N)
     
     # 4: 生成 Log Vector
     chunker = LogChunker()
-    chunker.chunk_logs()
+    chunker.chunk_logs(num=N)
 
 if __name__ == "__main__":
     main()

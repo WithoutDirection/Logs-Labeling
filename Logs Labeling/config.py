@@ -33,12 +33,12 @@ BERT_AUTO_LOAD = True  # Whether to automatically load model on initialization
 CHUNK_MODEL_PATH = os.path.join(BERT_MODEL_DIR, "chunk_model.pt")
 
 # LogChunker 設定
-SEQUENCE_WINDOW_SIZE = 50  # 視窗大小
-SEQUENCE_STRIDE = 25  # 滑動步長 (重疊量 = window_size - stride)
+SEQUENCE_WINDOW_SIZE = 5  # 視窗大小
+SEQUENCE_STRIDE = 3  # 滑動步長 (重疊量 = window_size - stride)
 BILSTM_HIDDEN_SIZE = 128  # BiLSTM 隱藏層維度
 BILSTM_NUM_LAYERS = 2  # BiLSTM 層數
 BILSTM_DROPOUT = 0.3  # Dropout 比例
-FUSION_ENABLE = True  # 是否啟用融合層
+FUSION_ENABLE = False  # 是否啟用融合層
 FUSION_OUTPUT_DIM = 256  # 融合層輸出維度
 LOG_VECTORS_DIR = os.path.join(DATA_DIR, "LogVectors")  # Log Vector 儲存目錄
 
