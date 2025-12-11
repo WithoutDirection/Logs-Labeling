@@ -42,10 +42,48 @@ FUSION_ENABLE = False  # 是否啟用融合層
 FUSION_OUTPUT_DIM = 256  # 融合層輸出維度
 LOG_VECTORS_DIR = os.path.join(DATA_DIR, "LogVectors")  # Log Vector 儲存目錄
 
+# ==================== 異常偵測設定 ====================
+
+# Isolation Forest 設定
+IF_N_ESTIMATORS = 100
+IF_CONTAMINATION = 0.05  # 預期異常比例，可設為 "auto"
+IF_MAX_SAMPLES = "auto"
+IF_RANDOM_STATE = 42
+
+# COPOD 設定
+COPOD_CONTAMINATION = 0.05
+
+# AutoEncoder 設定
+AE_LATENT_DIM = 32
+AE_HIDDEN_DIMS = [128, 64]
+AE_EPOCHS = 50
+AE_BATCH_SIZE = 64
+AE_LEARNING_RATE = 1e-3
+
+# PCA + GMM 設定
+PCA_EXPLAINED_VAR = 0.95
+GMM_N_COMPONENTS_RANGE = (2, 10)
+GMM_COVARIANCE_TYPE = "full"
+GMM_USE_BIC = True
+
+# Log Detector 整合設定
+DETECTION_MODELS = ["isolation_forest", "copod", "autoencoder", "pca_gmm"]
+SCORE_SCALER = "minmax"  # 可選: "minmax", "rank", "zscore"
+THRESHOLDING_METHOD = "percentile"  # 可選: "percentile", "std", "top_n"
+THRESHOLDING_PARAMS = {"percentile": 95}  # 根據方法調整
+ENSEMBLE_WEIGHTS = {
+    "isolation_forest": 0.25,
+    "copod": 0.25,
+    "autoencoder": 0.25,
+    "pca_gmm": 0.25
+}
+DETECTION_RESULTS_DIR = os.path.join(DATA_DIR, "Detection_Results")
+
+# 舊版相容設定
 ISOLATION_FOREST_PARAMS = {
-	"n_estimators": 100,
-	"contamination": 0.05,
-	"random_state": 42
+	"n_estimators": IF_N_ESTIMATORS,
+	"contamination": IF_CONTAMINATION,
+	"random_state": IF_RANDOM_STATE
 }
 NMF_COMPONENTS = 10
 HMM_STATES = 5

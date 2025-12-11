@@ -8,3 +8,5 @@ requests==2.32.5
 pyyaml==6.0.3
 tqdm==4.67.1
 datasets==4.4.1
+pyod>=1.1.0
+matplotlib>=3.7.0
