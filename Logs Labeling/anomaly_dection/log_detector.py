@@ -326,107 +326,103 @@ def detect_anomalies(
     return result_dataset
 
 
-def visualize_anomaly_distribution(results: Dict[str, Any], title: str = "Anomaly Score Distribution"):
-    """視覺化各模型的異常分數分佈"""
-
-    model_names = [k for k in results.keys() if k != "ensemble"]
-    n_models = len(model_names) + 1  # +1 for ensemble
-    
-    fig, axes = plt.subplots(2, (n_models + 1) // 2, figsize=(14, 8))
-    axes = axes.flatten()
-    
-    for i, model_name in enumerate(model_names):
-        ax = axes[i]
-        scores = results[model_name]["normalized_scores"]
-        labels = results[model_name]["labels"]
-        
-        # * 繪製正常與異常分數直方圖
-        ax.hist(scores[labels == 0], bins=50, alpha=0.7, label="Normal", color="steelblue")
-        ax.hist(scores[labels == 1], bins=50, alpha=0.7, label="Anomaly", color="crimson")
-        ax.set_title(model_name.replace("_", " ").title())
-        ax.set_xlabel("Score")
-        ax.legend()
-    
-    # Ensemble
-    ax = axes[len(model_names)]
-    scores = results["ensemble"]["scores"]
-    labels = results["ensemble"]["labels"]
-    ax.hist(scores[labels == 0], bins=50, alpha=0.7, label="Normal", color="steelblue")
-    ax.hist(scores[labels == 1], bins=50, alpha=0.7, label="Anomaly", color="crimson")
-    ax.set_title("Ensemble")
-    ax.set_xlabel("Score")
-    ax.legend()
-    
-    for j in range(len(model_names) + 1, len(axes)):
-        axes[j].axis("off")
-    
-    plt.suptitle(title)
-    plt.tight_layout()
-    os.makedirs(RESULT_FIG_DIR, exist_ok=True)
-    plt.savefig(os.path.join(RESULT_FIG_DIR, "anomaly_distribution.png"), dpi=150)
-    plt.show()
-
-
 if __name__ == "__main__":
+    from visualization.aggregator import ResultAggregator
+    from visualization.trend_analysis import plot_trend_analysis, plot_anomaly_count_trend
+    from visualization.distribution_plot import (
+        plot_score_histogram, plot_distribution_evolution, plot_comparison_violin
+    )
 
     _set_global_seed(SEED)
     print("=" * 60)
-    print("異常偵測模組測試")
+    print("多規模異常偵測實驗")
     print("=" * 60)
     
-    # * 載入所有 Log Vector Dataset 並合併
-    print("\n[1] 載入所有 Log Vector Dataset...")
-    logvector_dirs = [
+    # * 載入所有可用的 Log Vector Dataset
+    print("\n[1] 掃描 Log Vector Dataset...")
+    logvector_dirs = sorted([
         os.path.join(config.LOG_VECTORS_DIR, d)
         for d in os.listdir(config.LOG_VECTORS_DIR)
         if d.endswith("_logvectors") and os.path.isdir(os.path.join(config.LOG_VECTORS_DIR, d))
-    ]
+    ])
 
     if not logvector_dirs:
         raise RuntimeError(f"在 {config.LOG_VECTORS_DIR} 下找不到任何 *_logvectors 資料夾")
 
-    datasets_list = [load_from_disk(path) for path in logvector_dirs]
-    dataset = concatenate_datasets(datasets_list)
-
-    X = np.array(dataset["log_vector"])
-    print(f"    資料形狀: {X.shape}，來自 {len(logvector_dirs)} 個資料夾")
+    total_datasets = len(logvector_dirs)
+    print(f"    找到 {total_datasets} 個資料集")
     
-    # * 測試各獨立偵測器
-    print("\n[2] 測試 Isolation Forest...")
-    if_detector = IsolationForestDetector()
-    if_results = if_detector.fit_predict(X)
-    print(f"    異常數量: {if_results['labels'].sum()}")
+    # * 定義實驗規模：1, 5, 10, 15, 20...
+    EXPERIMENT_SIZES = [1, 5, 10, 15, 20, 25, total_datasets]
+    EXPERIMENT_SIZES = [s for s in EXPERIMENT_SIZES if s <= total_datasets]
+    EXPERIMENT_SIZES = sorted(set(EXPERIMENT_SIZES))
+    print(f"    實驗規模: {EXPERIMENT_SIZES}")
     
-    print("\n[3] 測試 COPOD...")
-    copod_detector = COPODDetector()
-    copod_results = copod_detector.fit_predict(X)
-    print(f"    異常數量: {copod_results['labels'].sum()}")
+    # * 結果聚合器
+    aggregator = ResultAggregator(scaler_type="minmax")
     
-    print("\n[4] 測試 AutoEncoder...")
-    ae_detector = AutoEncoderDetector(AutoEncoderConfig(epochs=10))
-    ae_results = ae_detector.fit_predict(X)
-    print(f"    異常數量: {ae_results['labels'].sum()}")
+    # * 執行多規模實驗
+    for n_datasets in EXPERIMENT_SIZES:
+        print(f"\n{'='*40}")
+        print(f"[實驗] 使用 {n_datasets} 個資料集")
+        print("="*40)
+        
+        # * 載入並合併指定數量的資料集
+        selected_dirs = logvector_dirs[:n_datasets]
+        datasets_list = [load_from_disk(path) for path in selected_dirs]
+        dataset = concatenate_datasets(datasets_list)
+        X = np.array(dataset["log_vector"])
+        print(f"    樣本數: {X.shape[0]}, 維度: {X.shape[1]}")
+        
+        # * 執行異常偵測
+        detector = LogDetector()
+        results = detector.fit_predict(X)
+        
+        # * 記錄結果
+        aggregator.add_experiment(results, dataset_size=n_datasets)
+        
+        # * 輸出摘要
+        print("    各模型異常數:")
+        for model_name, model_results in results.items():
+            n_anomalies = model_results["labels"].sum()
+            print(f"      - {model_name}: {n_anomalies}")
     
-    print("\n[5] 測試 PCA + GMM...")
-    pca_gmm_detector = PCAGMMDetector()
-    pca_gmm_results = pca_gmm_detector.fit_predict(X)
-    print(f"    異常數量: {pca_gmm_results['labels'].sum()}")
-    print(f"    PCA 維度: {pca_gmm_detector.n_pca_components}, GMM 元件: {pca_gmm_detector.n_gmm_components}")
+    # * 生成視覺化
+    print("\n" + "="*60)
+    print("生成視覺化報告")
+    print("="*60)
     
-    # * 測試整合偵測器
-    print("\n[6] 測試 LogDetector 整合模組...")
-    detector = LogDetector()
-    results = detector.fit_predict(X)
+    print("\n[1] 效能趨勢分析...")
+    path = plot_trend_analysis(aggregator, RESULT_FIG_DIR)
+    print(f"    儲存至: {path}")
     
-    print("\n    各模型異常統計:")
-    for model_name, model_results in results.items():
-        labels = model_results.get("labels", model_results.get("labels"))
-        print(f"    - {model_name}: {labels.sum()} 異常")
+    print("\n[2] 異常數量趨勢...")
+    path = plot_anomaly_count_trend(aggregator, RESULT_FIG_DIR)
+    print(f"    儲存至: {path}")
     
-    # * 視覺化
-    print("\n[7] 生成視覺化...")
-    visualize_anomaly_distribution(results, "Anomaly Detection Results")
+    print("\n[3] 分佈演變圖...")
+    paths = plot_distribution_evolution(aggregator, RESULT_FIG_DIR)
+    for p in paths:
+        print(f"    儲存至: {p}")
     
-    print("\n" + "=" * 60)
-    print("測試完成！")
-    print("=" * 60)
+    print("\n[4] 小提琴對比圖...")
+    path = plot_comparison_violin(aggregator, RESULT_FIG_DIR)
+    print(f"    儲存至: {path}")
+    
+    # * 最大規模的直方圖
+    print("\n[5] 最大規模分數分佈...")
+    largest_results = {
+        r.model_name: {
+            "normalized_scores": r.normalized_scores,
+            "labels": r.labels,
+            "scores": r.normalized_scores
+        }
+        for r in aggregator.get_by_size(max(EXPERIMENT_SIZES))
+    }
+    path = plot_score_histogram(largest_results, RESULT_FIG_DIR, 
+                                f"Score Distribution ({max(EXPERIMENT_SIZES)} Datasets)")
+    print(f"    儲存至: {path}")
+    
+    print("\n" + "="*60)
+    print("實驗完成！")
+    print("="*60)

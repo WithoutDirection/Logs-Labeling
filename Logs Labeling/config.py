@@ -70,7 +70,7 @@ GMM_USE_BIC = True
 DETECTION_MODELS = ["isolation_forest", "copod", "autoencoder", "pca_gmm"]
 SCORE_SCALER = "minmax"  # 可選: "minmax", "rank", "zscore"
 THRESHOLDING_METHOD = "percentile"  # 可選: "percentile", "std", "top_n"
-THRESHOLDING_PARAMS = {"percentile": 95}  # 根據方法調整
+THRESHOLDING_PARAMS = {"percentile": 98}  # 根據方法調整
 ENSEMBLE_WEIGHTS = {
     "isolation_forest": 0.25,
     "copod": 0.25,
