@@ -9,7 +9,8 @@ import sys
 from typing import Dict, List, Optional, Literal, Any
 from dataclasses import dataclass, field
 from enum import Enum
-from datasets import Dataset, load_from_disk
+from datasets import Dataset, load_from_disk, concatenate_datasets
+import matplotlib.pyplot as plt
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
@@ -21,6 +22,22 @@ from anomaly_dection.isolation_forest import IsolationForestDetector, IsolationF
 from anomaly_dection.copod import COPODDetector, COPODConfig
 from anomaly_dection.autoencoder import AutoEncoderDetector, AutoEncoderConfig
 from anomaly_dection.pca_gmm import PCAGMMDetector, PCAGMMConfig
+
+SEED = getattr(config, "SEED", 42)
+RESULT_FIG_DIR = os.path.join("result", "unsupervised_anomaly_dection")
+
+
+def _set_global_seed(seed: int):
+    """Set seeds for reproducibility across numpy/torch."""
+    np.random.seed(seed)
+    try:
+        import torch
+
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+    except ImportError:
+        pass
 
 
 class ScalerType(str, Enum):
@@ -74,6 +91,7 @@ class LogDetector:
     }
     
     def __init__(self, config: Optional[LogDetectorConfig] = None):
+        _set_global_seed(SEED)
         self.config = config or LogDetectorConfig()
         self.detectors: Dict[str, Any] = {}
         self.results: Dict[str, Dict[str, np.ndarray]] = {}
@@ -84,6 +102,10 @@ class LogDetector:
             if model_name in self.MODEL_REGISTRY:
                 detector_cls, config_attr = self.MODEL_REGISTRY[model_name]
                 model_config = getattr(self.config, config_attr)
+                if hasattr(model_config, "random_state"):
+                    model_config.random_state = SEED
+                if hasattr(model_config, "gmm_random_state"):
+                    model_config.gmm_random_state = SEED
                 self.detectors[model_name] = detector_cls(model_config)
     
     def _normalize_scores(self, scores: np.ndarray) -> np.ndarray:
@@ -306,8 +328,7 @@ def detect_anomalies(
 
 def visualize_anomaly_distribution(results: Dict[str, Any], title: str = "Anomaly Score Distribution"):
     """視覺化各模型的異常分數分佈"""
-    import matplotlib.pyplot as plt
-    
+
     model_names = [k for k in results.keys() if k != "ensemble"]
     n_models = len(model_names) + 1  # +1 for ensemble
     
@@ -341,25 +362,34 @@ def visualize_anomaly_distribution(results: Dict[str, Any], title: str = "Anomal
     
     plt.suptitle(title)
     plt.tight_layout()
-    plt.savefig(os.path.join(config.DATA_DIR, "anomaly_distribution.png"), dpi=150)
+    os.makedirs(RESULT_FIG_DIR, exist_ok=True)
+    plt.savefig(os.path.join(RESULT_FIG_DIR, "anomaly_distribution.png"), dpi=150)
     plt.show()
 
 
 if __name__ == "__main__":
-    from datasets import load_from_disk
-    
-    # * 測試資料路徑
-    TEST_DATASET = os.path.join(config.LOG_VECTORS_DIR, "0223d96d-40c2-44dc-b006-887cc322b025_logvectors")
-    
+
+    _set_global_seed(SEED)
     print("=" * 60)
     print("異常偵測模組測試")
     print("=" * 60)
     
-    # * 載入測試資料
-    print("\n[1] 載入 Log Vector Dataset...")
-    dataset = load_from_disk(TEST_DATASET)
+    # * 載入所有 Log Vector Dataset 並合併
+    print("\n[1] 載入所有 Log Vector Dataset...")
+    logvector_dirs = [
+        os.path.join(config.LOG_VECTORS_DIR, d)
+        for d in os.listdir(config.LOG_VECTORS_DIR)
+        if d.endswith("_logvectors") and os.path.isdir(os.path.join(config.LOG_VECTORS_DIR, d))
+    ]
+
+    if not logvector_dirs:
+        raise RuntimeError(f"在 {config.LOG_VECTORS_DIR} 下找不到任何 *_logvectors 資料夾")
+
+    datasets_list = [load_from_disk(path) for path in logvector_dirs]
+    dataset = concatenate_datasets(datasets_list)
+
     X = np.array(dataset["log_vector"])
-    print(f"    資料形狀: {X.shape}")
+    print(f"    資料形狀: {X.shape}，來自 {len(logvector_dirs)} 個資料夾")
     
     # * 測試各獨立偵測器
     print("\n[2] 測試 Isolation Forest...")
