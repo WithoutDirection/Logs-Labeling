@@ -86,6 +86,13 @@ ISOLATION_FOREST_PARAMS = {
 	"random_state": IF_RANDOM_STATE
 }
 NMF_COMPONENTS = 10
+NMF_MAX_ITER = 200
+NMF_TOL = 1e-4
+NMF_INIT = "nndsvd"
+CONCEPT_SAMPLE_RATIO = 0.1
+NMF_MODEL_PATH = os.path.join("models", "nmf_concept_model.pkl")
+CONCEPT_VECTORS_DIR = os.path.join(DATA_DIR, "ConceptVectors")
+EXTERNAL_KNOWLEDGE_DIR = os.path.join(DATA_DIR, "ExternalKnowledge")
 HMM_STATES = 5
 
 # 其他設定
