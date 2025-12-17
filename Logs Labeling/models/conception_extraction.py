@@ -7,13 +7,13 @@ import os
 import json
 import shutil
 import pickle
-import logging
 from pathlib import Path
 from typing import Optional, List, Literal, Union
 
 import numpy as np
 import pyarrow as pa
 import pyarrow.feather as feather
+from datasets import load_from_disk
 from sklearn.decomposition import NMF, LatentDirichletAllocation
 from sklearn.preprocessing import MinMaxScaler
 
@@ -32,9 +32,6 @@ from config import (
     EXTERNAL_KNOWLEDGE_DIR,
     SEED,
 )
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 class ConceptExtractor:
@@ -98,7 +95,7 @@ class ConceptExtractor:
                 vectors = self._load_arrow_data(ext_path)
                 if vectors is not None:
                     all_vectors.append(vectors)
-                    logger.info(f"Loaded external knowledge: {subdir}, shape={vectors.shape}")
+                    print(f"Loaded external knowledge: {subdir}, shape={vectors.shape}")
         
         # * 從每個 LogVectors 資料集進行抽樣
         if os.path.exists(log_vectors_dir):
@@ -115,37 +112,73 @@ class ConceptExtractor:
                 indices = np.random.choice(len(vectors), n_samples, replace=False)
                 sampled = vectors[indices]
                 all_vectors.append(sampled)
-                logger.debug(f"Sampled {n_samples}/{len(vectors)} from {log_id_dir}")
+                print(f"Sampled {n_samples}/{len(vectors)} from {log_id_dir}")
         
         if not all_vectors:
             raise ValueError("No training data found. Check input directories.")
         
         # * 將所有向量垂直堆疊
         X_train = np.vstack(all_vectors)
-        logger.info(f"Training data prepared: {X_train.shape}")
+        print(f"Training data prepared: {X_train.shape}")
         return X_train
     
     def _load_arrow_data(self, dir_path: str) -> Optional[np.ndarray]:
-        """從指定資料夾的 Arrow 檔案載入向量。"""
-        # 處理不同的 Arrow 檔名慣例
+        """從指定資料夾載入向量，支援 Feather、IPC file/stream 與 HF datasets。"""
         possible_names = ["data.arrow", "data-00000-of-00001.arrow"]
         
         for fname in possible_names:
             fpath = os.path.join(dir_path, fname)
-            if os.path.exists(fpath):
-                try:
-                    table = feather.read_table(fpath)
-                    # 假設向量儲存在欄位中（根據實際結構調整）
-                    if "embedding" in table.column_names:
-                        return np.array(table["embedding"].to_pylist())
-                    elif "vector" in table.column_names:
-                        return np.array(table["vector"].to_pylist())
-                    else:
-                        # 後備做法：嘗試將整張表轉換為 numpy
-                        return table.to_pandas().values
-                except Exception as e:
-                    logger.warning(f"Failed to load {fpath}: {e}")
+            if not os.path.exists(fpath):
+                continue
+
+            try:
+                table = feather.read_table(fpath)
+                return self._table_to_numpy(table)
+            except Exception as e:
+                print(f"Feather load failed for {fpath}: {e}")
+
+            try:
+                with pa.memory_map(fpath, "r") as source:
+                    reader = pa.ipc.open_file(source)
+                    table = reader.read_all()
+                return self._table_to_numpy(table)
+            except Exception as e:
+                print(f"IPC file load failed for {fpath}: {e}")
+
+            try:
+                with pa.memory_map(fpath, "r") as source:
+                    reader = pa.ipc.open_stream(source)
+                    table = reader.read_all()
+                return self._table_to_numpy(table)
+            except Exception as e:
+                print(f"IPC stream load failed for {fpath}: {e}")
+
+        # HF datasets.save_to_disk 產生的資料夾（無法直接以 Arrow 讀取時）
+        try:
+            ds = load_from_disk(dir_path)
+            return self._dataset_to_numpy(ds)
+        except Exception as e:
+            print(f"Failed to load dataset at {dir_path}: {e}")
         return None
+
+    def _table_to_numpy(self, table: pa.Table) -> np.ndarray:
+        """將 Arrow 表格轉換為 numpy 陣列，支援常見欄位名稱。"""
+        if "embedding" in table.column_names:
+            data = table["embedding"].to_pylist()
+        elif "vector" in table.column_names:
+            data = table["vector"].to_pylist()
+        elif "log_vector" in table.column_names:
+            data = table["log_vector"].to_pylist()
+        else:
+            return table.to_pandas().values
+        return np.array(data)
+
+    def _dataset_to_numpy(self, ds) -> np.ndarray:
+        """將 HF Dataset 轉為 numpy，優先回傳向量欄位。"""
+        for key in ("embedding", "vector", "log_vector"):
+            if key in ds.column_names:
+                return np.array(ds[key])
+        return ds.to_pandas().values
     
     # ======================== 模型訓練（Model Training） ========================
     
@@ -186,7 +219,7 @@ class ConceptExtractor:
         
         self.model.fit(X_scaled)
         self._is_fitted = True
-        logger.info(f"Global {self.method.upper()} model fitted with {self.n_concepts} concepts")
+        print(f"Global {self.method.upper()} model fitted with {self.n_concepts} concepts")
         return self
     
     def save_model(self, path: Optional[str] = None) -> None:
@@ -201,7 +234,7 @@ class ConceptExtractor:
                 "n_concepts": self.n_concepts,
                 "method": self.method,
             }, f)
-        logger.info(f"Model saved to {save_path}")
+        print(f"Model saved to {save_path}")
     
     def load_model(self, path: Optional[str] = None) -> "ConceptExtractor":
         """從磁碟載入已訓練模型。"""
@@ -215,7 +248,7 @@ class ConceptExtractor:
         self.n_concepts = data["n_concepts"]
         self.method = data["method"]
         self._is_fitted = True
-        logger.info(f"Model loaded from {load_path}")
+        print(f"Model loaded from {load_path}")
         return self
     
     # ======================== 資料轉換（Transformation） ========================
@@ -259,7 +292,7 @@ class ConceptExtractor:
         # * 載入輸入向量
         X = self._load_arrow_data(input_path)
         if X is None:
-            logger.warning(f"在 {input_path} 找不到資料，已跳過。")
+            print(f"在 {input_path} 找不到資料，已跳過。")
             return
         
         # * 轉換至概念空間
@@ -271,7 +304,7 @@ class ConceptExtractor:
         
         table = pa.table({"concept_vector": H.tolist()})
         feather.write_feather(table, output_arrow)
-        logger.info(f"Transformed {input_path} -> {output_path}, shape={H.shape}")
+        print(f"Transformed {input_path} -> {output_path}, shape={H.shape}")
         
         # * 複製中繼資料（metadata）檔案
         if copy_metadata:
@@ -309,7 +342,7 @@ class ConceptExtractor:
             
             self.transform_dataset(input_path, output_path)
         
-        logger.info(f"Batch transformation complete: {concept_vectors_dir}")
+        print(f"Batch transformation complete: {concept_vectors_dir}")
     
     # ======================== 分析工具（Analysis Utilities） ========================
     

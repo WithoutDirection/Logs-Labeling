@@ -110,12 +110,14 @@ NMF 因其出色的降維能力與直觀的「基於組件（Part-based）」表
     * **場景**：若需要機率分佈解釋（Soft Clustering）時使用。需注意輸入特徵需轉換為適合 LDA 的格式（如虛擬詞頻）。
 
 ### API 設計(`ConceptExtractor`)
-應封裝以下高階方法供 API 呼叫：
+下列方法為主要API call，方便其他模組直接引用：
 
-* `prepare_training_data(source_paths, sample_ratio)`: 負責聚合與採樣邏輯。
-* `fit_global_model(X_train, n_concepts)`: 執行 NMF 訓練。
-* `transform_dataset(input_path, output_path)`: 執行單一資料集的讀取、轉換與存檔。
-* `get_concept_basis()`: 回傳 $W$ 矩陣，供後續分析使用。
+* `prepare_training_data(log_vectors_dir, external_knowledge_dir, sample_ratio)`: 依據設定的日誌向量目錄與外部知識目錄載入向量，逐資料集採樣後垂直堆疊成訓練矩陣。
+* `fit_global_model(X_train)`: 以 Min-Max 縮放後的 `X_train` 擬合 NMF/LDA 模型並凍結基矩陣；概念數、收斂條件等超參數來自初始化。
+* `transform_dataset(input_path, output_path, copy_metadata=True)`: 讀取單一資料集向量、投影至概念空間並輸出 Feather，必要時一併複製 `state.json`/`dataset_info.json`。
+* `batch_transform(log_vectors_dir, concept_vectors_dir)`: 對 `log_vectors_dir` 下所有子資料夾批次轉換，維持 `{LogID}_logvectors -> {LogID}_concepts` 目錄對應。
+* `get_concept_basis()`: 回傳已訓練的 $W$ 基矩陣（或 LDA 主題-詞彙分佈），供分析或視覺化使用。
+> train_concept_extractor(...)` 執行資料準備、模型訓練與儲存；`transform_all_datasets(...)` 讀取既有模型後批次轉換所有資料集。
 
 ---
 
