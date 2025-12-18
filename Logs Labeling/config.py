@@ -95,5 +95,21 @@ CONCEPT_VECTORS_DIR = os.path.join(DATA_DIR, "ConceptVectors")
 EXTERNAL_KNOWLEDGE_DIR = os.path.join(DATA_DIR, "ExternalKnowledge")
 HMM_STATES = 5
 
+# ==================== 序列分群設定 (Sequence Clustering) ====================
+
+# HMM 模型架構參數
+HMM_K_MIN = 2  # 隱藏狀態數量下界
+HMM_K_MAX = 10  # 隱藏狀態數量上界
+HMM_COVARIANCE_TYPE = "diag"  # 共變異數類型: "diag" 或 "full"
+
+# HMM 訓練與優化參數
+HMM_N_STARTS = 10  # 隨機初始化次數 (緩解局部最佳解)
+HMM_N_ITER = 100  # Baum-Welch 最大迭代次數
+HMM_TOL = 1e-3  # 收斂閾值
+
+# HMM 模型儲存路徑
+HMM_MODEL_PATH = os.path.join(HMM_MODEL_DIR, "best_hmm_model.pkl")
+CLUSTER_RESULTS_DIR = os.path.join(DATA_DIR, "ClusterResults")
+
 # 其他設定
 SEED = 42
