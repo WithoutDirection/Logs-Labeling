@@ -172,9 +172,13 @@ try:
     import config
     DEFAULT_ZIPF_PERCENTILE = getattr(config, 'ZIPF_PERCENTILE', 0.05)
     DEFAULT_USE_LOG_HIGH_FREQ = getattr(config, 'USE_LOG_HIGH_FREQ', True)
+    DEFAULT_BERT_MODEL_NAME = getattr(config, 'BERT_MODEL_NAME', 'sentence-bert')
+    DEFAULT_BERT_CACHE_DIR = getattr(config, 'BERT_CACHE_DIR', None)
 except ImportError:
     DEFAULT_ZIPF_PERCENTILE = 0.05
     DEFAULT_USE_LOG_HIGH_FREQ = True
+    DEFAULT_BERT_MODEL_NAME = 'bert-base-nli-mean-tokens'
+    DEFAULT_BERT_CACHE_DIR = None
 
 
 def create_text_processor(
@@ -193,11 +197,23 @@ def create_text_processor(
     Returns:
         Configured TextProcessor instance
     """
-    return TextProcessor(
-        bert_model_name=bert_model_name or 'bert-base-nli-mean-tokens',
-        zipf_percentile=zipf_percentile if zipf_percentile is not None else DEFAULT_ZIPF_PERCENTILE,
-        use_log_high_freq=use_log_high_freq if use_log_high_freq is not None else DEFAULT_USE_LOG_HIGH_FREQ
-    )
+    kwargs = {
+        'bert_model_name': bert_model_name or DEFAULT_BERT_MODEL_NAME,
+        'zipf_percentile': zipf_percentile if zipf_percentile is not None else DEFAULT_ZIPF_PERCENTILE,
+        'use_log_high_freq': use_log_high_freq if use_log_high_freq is not None else DEFAULT_USE_LOG_HIGH_FREQ,
+    }
+
+    # Only pass args supported by the concrete TextProcessor implementation.
+    try:
+        import inspect
+
+        params = inspect.signature(TextProcessor.__init__).parameters
+        if 'bert_cache_dir' in params:
+            kwargs['bert_cache_dir'] = DEFAULT_BERT_CACHE_DIR
+    except Exception:
+        pass
+
+    return TextProcessor(**kwargs)
 
 
 __all__ = [
@@ -210,4 +226,6 @@ __all__ = [
     'SECURITY_TERMS',
     'DEFAULT_ZIPF_PERCENTILE',
     'DEFAULT_USE_LOG_HIGH_FREQ',
+    'DEFAULT_BERT_MODEL_NAME',
+    'DEFAULT_BERT_CACHE_DIR',
 ]
