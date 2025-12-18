@@ -6,27 +6,39 @@ external threat intelligence sources for concept extraction.
 """
 
 import os
+import sys
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.decomposition import NMF
 from sklearn.feature_extraction.text import CountVectorizer
 
-# Support both package and standalone imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import config
+
+# Optional fetchers (may not exist in minimal installs)
+MitreFetcher = None
+CapecFetcher = None
+NvdFetcher = None
+
 try:
-    from .fetchers import MitreFetcher, CapecFetcher, NvdFetcher, SigmaRulesFetcher
-except ImportError:
-    from fetchers import MitreFetcher, CapecFetcher, NvdFetcher, SigmaRulesFetcher
+    from .fetchers import MitreFetcher, CapecFetcher, NvdFetcher
+except Exception:
+    try:
+        from fetchers import MitreFetcher, CapecFetcher, NvdFetcher
+    except Exception:
+        pass
 
 # Import BERT API from models
 try:
-    import sys
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
     from models.bert import get_bert_model, BaseBERTModel
-except ImportError:
-    # Fallback for different project structures
-    from bert import get_bert_model, BaseBERTModel
+except Exception as e:
+    raise ImportError(
+        "Failed to import `models.bert`. Ensure the project root 'Logs Labeling' "
+        "is on PYTHONPATH (or run from the repository root)."
+    ) from e
 
 
 class ExternalSourceManager:
@@ -52,8 +64,8 @@ class ExternalSourceManager:
     def __init__(
         self,
         data_dir: Optional[str] = None,
-        bert_model: str = 'sentence-bert',
-        nmf_components: int = 10,
+        bert_model: Optional[str] = None,
+        nmf_components: Optional[int] = None,
         bert_cache_dir: Optional[str] = None
     ):
         """
@@ -65,10 +77,19 @@ class ExternalSourceManager:
             nmf_components: Number of NMF components for topic modeling
             bert_cache_dir: Cache directory for BERT models
         """
-        self.data_dir = data_dir or os.path.join('data', 'reference_resources')
-        self.bert_model_name = bert_model
-        self.nmf_components = nmf_components
-        self.bert_cache_dir = bert_cache_dir
+
+        self.data_dir = data_dir or getattr(config, "REFERENCE_RESOURCES_DIR", None) or os.path.join('data', 'reference_resources')
+
+        self.bert_model_name = bert_model or getattr(config, "EXTERNAL_SOURCES_BERT_MODEL_NAME", None) or 'sentence-bert'
+        self.nmf_components = int(
+            nmf_components
+            if nmf_components is not None
+            else getattr(config, "NMF_COMPONENTS", 10)
+        )
+
+        self.bert_cache_dir = bert_cache_dir if bert_cache_dir is not None else (
+            getattr(config, "EXTERNAL_SOURCES_BERT_CACHE_DIR", None)
+        )
         
         # Storage
         self.sources: Dict[str, pd.DataFrame] = {}
@@ -83,15 +104,20 @@ class ExternalSourceManager:
             auto_load=True
         )
         self._global_vocabulary: Optional[List[str]] = None
-        self._nmf_model: Optional[NMF] = None
         self._vectorizer: Optional[CountVectorizer] = None
         
         # Fetchers
-        self.fetchers = {
-            'MITRE': MitreFetcher(cache_dir=os.path.join(self.data_dir, 'cache')),
-            'CAPEC': CapecFetcher(cache_dir=os.path.join(self.data_dir, 'cache')),
-            'NVD': NvdFetcher(cache_dir=os.path.join(self.data_dir, 'cache')),
-        }
+        # Fetchers (optional)
+        self.fetchers = {}
+        cache_dir = (
+            getattr(config, "EXTERNAL_SOURCES_CACHE_DIR", None) if config else None
+        ) or os.path.join(self.data_dir, 'cache')
+        if MitreFetcher is not None:
+            self.fetchers['MITRE'] = MitreFetcher(cache_dir=cache_dir)
+        if CapecFetcher is not None:
+            self.fetchers['CAPEC'] = CapecFetcher(cache_dir=cache_dir)
+        if NvdFetcher is not None:
+            self.fetchers['NVD'] = NvdFetcher(cache_dir=cache_dir)
     
     # ==================== Loading Methods ====================
     

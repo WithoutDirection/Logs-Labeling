@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import requests
 from bs4 import BeautifulSoup
 from io import BytesIO
@@ -10,15 +11,31 @@ import urllib3
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Configuration
-INPUT_DIR = "data/mitre_data"   # Reads from the JSONs created in Step 1
-OUTPUT_DIR = "data/cti_code_only" # Outputs to this new folder
-TIMEOUT = 15
-MAX_WORKERS = 10 
+def _ensure_project_root_on_path():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(current_dir)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
 
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-}
+
+_ensure_project_root_on_path()
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import config
+
+
+# Configuration
+INPUT_DIR = getattr(config, "CODE_EXTRACTOR_INPUT_DIR", os.path.join("data", "mitre_data"))
+OUTPUT_DIR = getattr(config, "CODE_EXTRACTOR_OUTPUT_DIR", os.path.join("data", "cti_code_only"))
+TIMEOUT = int(getattr(config, "CODE_EXTRACTOR_TIMEOUT_SECONDS", 15))
+MAX_WORKERS = int(getattr(config, "CODE_EXTRACTOR_MAX_WORKERS", 10))
+HEADERS = getattr(
+    config,
+    "CODE_EXTRACTOR_HEADERS",
+    {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    },
+)
 
 def extract_text_from_pdf(content_bytes):
     """
