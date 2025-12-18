@@ -4,10 +4,15 @@ Provides tokenization, cleaning, and embedding generation for threat intelligenc
 """
 
 import re
-import string
 from typing import List, Optional, Set, Dict
 from collections import Counter
 import numpy as np
+
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import config
+
 
 # Stopwords for text cleaning
 DEFAULT_STOPWORDS = {
@@ -66,10 +71,13 @@ class TextProcessor:
     def __init__(
         self, 
         stopwords: Optional[Set[str]] = None,
-        keep_security_terms: bool = True,
-        bert_model_name: str = 'bert-base-nli-mean-tokens',
-        zipf_percentile: float = 0.05,
-        use_log_high_freq: bool = True
+        keep_security_terms: Optional[bool] = None,
+        bert_model_name: Optional[str] = None,
+        zipf_percentile: Optional[float] = None,
+        use_log_high_freq: Optional[bool] = None,
+        bert_cache_dir: Optional[str] = None,
+        embedding_normalize: Optional[bool] = None,
+        embedding_batch_size: Optional[int] = None,
     ):
         """
         Initialize TextProcessor.
@@ -82,10 +90,37 @@ class TextProcessor:
             use_log_high_freq: If True, include common log high-frequency words
         """
         self.stopwords = stopwords or DEFAULT_STOPWORDS.copy()
-        self.keep_security_terms = keep_security_terms
-        self.bert_model_name = bert_model_name
-        self.zipf_percentile = zipf_percentile
-        self._bert_model = None  # Lazy loading
+        self.keep_security_terms = (
+            keep_security_terms
+            if keep_security_terms is not None
+            else getattr(config, "EXTERNAL_SOURCES_KEEP_SECURITY_TERMS", True)
+        )
+        self.bert_model_name = (
+            bert_model_name
+            if bert_model_name is not None
+            else getattr(config, "EXTERNAL_SOURCES_BERT_MODEL_NAME", "sentence-bert")
+        )
+        self.bert_cache_dir = (
+            bert_cache_dir
+            if bert_cache_dir is not None
+            else getattr(config, "EXTERNAL_SOURCES_BERT_CACHE_DIR", None)
+        )
+        self.embedding_normalize = (
+            embedding_normalize
+            if embedding_normalize is not None
+            else getattr(config, "EXTERNAL_SOURCES_EMBED_NORMALIZE", True)
+        )
+        self.embedding_batch_size = (
+            int(embedding_batch_size)
+            if embedding_batch_size is not None
+            else int(getattr(config, "EXTERNAL_SOURCES_EMBED_BATCH_SIZE", 32))
+        )
+        self.zipf_percentile = (
+            float(zipf_percentile)
+            if zipf_percentile is not None
+            else float(getattr(config, "EXTERNAL_SOURCES_ZIPF_PERCENTILE", 0.05))
+        )
+        self._bert_model = None  # Lazy loading (BaseBERTModel)
         
         # Zipf's law filtering state
         self._word_frequencies: Counter = Counter()
@@ -93,7 +128,13 @@ class TextProcessor:
         self._corpus_fitted = False
         
         # Include predefined log high-frequency words
-        if use_log_high_freq:
+        resolved_use_log_high_freq = (
+            use_log_high_freq
+            if use_log_high_freq is not None
+            else (getattr(config, "EXTERNAL_SOURCES_USE_LOG_HIGH_FREQ", True) if config else True)
+        )
+
+        if resolved_use_log_high_freq:
             self._zipf_filter_words.update(LOG_HIGH_FREQ_WORDS)
         
         if keep_security_terms:
@@ -101,17 +142,42 @@ class TextProcessor:
     
     @property
     def bert_model(self):
-        """Lazy load BERT model."""
+        """Lazy-load the unified BERT embedding model (models.bert)."""
         if self._bert_model is None:
-            try:
-                from sentence_transformers import SentenceTransformer
-                self._bert_model = SentenceTransformer(self.bert_model_name)
-            except ImportError:
-                raise ImportError(
-                    "sentence-transformers is required for BERT embeddings. "
-                    "Install with: pip install sentence-transformers"
-                )
+            # Make project root importable when running as a script
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(current_dir)
+            if project_root not in sys.path:
+                sys.path.insert(0, project_root)
+
+            from models.bert import get_bert_model
+
+            self._bert_model = get_bert_model(
+                self.bert_model_name,
+                cache_dir=self.bert_cache_dir,
+                auto_load=True,
+            )
         return self._bert_model
+
+    def generate_embeddings(
+        self,
+        texts: List[str],
+        show_progress: bool = True,
+        batch_size: Optional[int] = None,
+        normalize: Optional[bool] = None,
+    ) -> np.ndarray:
+        """Generate embeddings for texts using the unified BERT backend."""
+        if texts is None:
+            return np.empty((0, 0), dtype=float)
+
+        batch_size = batch_size if batch_size is not None else self.embedding_batch_size
+        normalize = normalize if normalize is not None else self.embedding_normalize
+        return self.bert_model.embed(
+            texts,
+            batch_size=batch_size,
+            show_progress=show_progress,
+            normalize=normalize,
+        )
     
     def fit_zipf_filter(self, texts: List[str], percentile: Optional[float] = None) -> Set[str]:
         """
@@ -324,29 +390,6 @@ class TextProcessor:
                 unique_tokens.append(t)
         
         return unique_tokens
-    
-    def generate_embeddings(
-        self, 
-        texts: List[str], 
-        show_progress: bool = True,
-        batch_size: int = 32
-    ) -> np.ndarray:
-        """
-        Generate BERT embeddings for a list of texts.
-        
-        Args:
-            texts: List of text strings
-            show_progress: Show progress bar
-            batch_size: Batch size for encoding
-            
-        Returns:
-            Numpy array of embeddings (N x embedding_dim)
-        """
-        return self.bert_model.encode(
-            texts, 
-            show_progress_bar=show_progress,
-            batch_size=batch_size
-        )
     
     def extract_attack_patterns(self, text: str) -> List[str]:
         """

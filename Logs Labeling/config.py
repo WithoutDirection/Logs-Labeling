@@ -111,5 +111,37 @@ HMM_TOL = 1e-3  # 收斂閾值
 HMM_MODEL_PATH = os.path.join(HMM_MODEL_DIR, "best_hmm_model.pkl")
 CLUSTER_RESULTS_DIR = os.path.join(DATA_DIR, "ClusterResults")
 
+
+
+# ==================== External Sources (Threat Intel) ====================
+
+# Reference CSVs
+MITRE_TECHNIQUES_CSV = os.path.join(REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_WithDB_V1.csv")
+MITRE_CODE_TOKENS_CSV = os.path.join(REFERENCE_RESOURCES_DIR, "MitreCodeTokens_V1.csv")
+
+
+# External knowledge datasets (vector-space artifacts)
+MITRE_EXTERNAL_KNOWLEDGE_DIR = os.path.join(EXTERNAL_KNOWLEDGE_DIR, "MITRE_ATTACK")
+
+# Embedding defaults for external sources
+EXTERNAL_SOURCES_BERT_MODEL_NAME = BERT_MODEL_NAME
+EXTERNAL_SOURCES_BERT_CACHE_DIR = BERT_CACHE_DIR
+EXTERNAL_SOURCES_EMBED_BATCH_SIZE = 32
+EXTERNAL_SOURCES_EMBED_NORMALIZE = True
+
+# External fetchers/cache
+EXTERNAL_SOURCES_CACHE_DIR = os.path.join(REFERENCE_RESOURCES_DIR, "cache")
+FETCHER_REQUEST_TIMEOUT_SECONDS = 60
+CODE_EXTRACTOR_INPUT_DIR = os.path.join(DATA_DIR, "mitre_data")
+CODE_EXTRACTOR_OUTPUT_DIR = os.path.join(DATA_DIR, "cti_code_only")
+CODE_EXTRACTOR_TIMEOUT_SECONDS = 15
+CODE_EXTRACTOR_MAX_WORKERS = 10
+CODE_EXTRACTOR_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+}
+
+# Results/output
+RESULT_DIR = "result"
+
 # 其他設定
 SEED = 42
