@@ -8,6 +8,7 @@ import pickle
 import numpy as np
 from typing import Optional, Tuple, List, Dict
 from hmmlearn import hmm
+import pyarrow.feather as feather
 
 import config
 
@@ -165,17 +166,34 @@ def load_concept_vectors(dataset_ids: Optional[List[str]] = None) -> Dict[str, n
         raise FileNotFoundError(f"Concept vectors directory not found: {vectors_dir}")
 
     result = {}
-    files = os.listdir(vectors_dir)
     
-    for filename in files:
-        if not filename.endswith(".npy"):
+    # * 遍歷子目錄（每個資料集儲存為獨立資料夾）
+    for subdir in os.listdir(vectors_dir):
+        subdir_path = os.path.join(vectors_dir, subdir)
+        if not os.path.isdir(subdir_path):
             continue
-        dataset_id = filename.replace("_concepts.npy", "").replace(".npy", "")
+        
+        # 解析 dataset_id：移除 _concepts 後綴
+        dataset_id = subdir.replace("_concepts", "")
         if dataset_ids is not None and dataset_id not in dataset_ids:
             continue
         
-        filepath = os.path.join(vectors_dir, filename)
-        result[dataset_id] = np.load(filepath)
+        # * 載入 Arrow/Feather 格式的概念向量
+        arrow_path = os.path.join(subdir_path, "data-00000-of-00001.arrow")
+        if not os.path.exists(arrow_path):
+            print(f"[Warning] Arrow file not found: {arrow_path}")
+            continue
+        
+        try:
+            table = feather.read_table(arrow_path)
+            if "concept_vector" in table.column_names:
+                vectors = np.array(table["concept_vector"].to_pylist())
+            else:
+                vectors = table.to_pandas().values
+            result[dataset_id] = vectors
+        except Exception as e:
+            print(f"[Warning] Failed to load {arrow_path}: {e}")
+            continue
     
     return result
 
