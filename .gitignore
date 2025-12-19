@@ -4,6 +4,7 @@ data/
 .vscode/
 __pycache__/
 bert_model/
+HMM/
 *.pyc
 *.pyo
 *.pyd
