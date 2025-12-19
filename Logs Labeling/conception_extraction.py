@@ -123,7 +123,27 @@ class ConceptExtractor:
         return X_train
     
     def _load_arrow_data(self, dir_path: str) -> Optional[np.ndarray]:
-        """從指定資料夾載入向量，支援 Feather、IPC file/stream 與 HF datasets。"""
+        """
+        從指定資料夾載入向量，支援 HF datasets、Feather、IPC file/stream。
+        
+        優先檢查是否為 HF datasets 格式（含 dataset_info.json 或 state.json），
+        避免對 HF 分片檔案進行無意義的 Feather/IPC 嘗試。
+        """
+        # * 優先判斷是否為 HF datasets 格式
+        hf_markers = ["dataset_info.json", "state.json"]
+        is_hf_dataset = any(
+            os.path.exists(os.path.join(dir_path, marker)) for marker in hf_markers
+        )
+        
+        if is_hf_dataset:
+            try:
+                ds = load_from_disk(dir_path)
+                return self._dataset_to_numpy(ds)
+            except Exception as e:
+                print(f"HF load_from_disk failed for {dir_path}: {e}")
+                # 若 HF 載入失敗，仍可嘗試其他方式
+        
+        # * 嘗試以 Feather/IPC 格式讀取單一 Arrow 檔案
         possible_names = ["data.arrow", "data-00000-of-00001.arrow"]
         
         for fname in possible_names:
@@ -134,31 +154,33 @@ class ConceptExtractor:
             try:
                 table = feather.read_table(fpath)
                 return self._table_to_numpy(table)
-            except Exception as e:
-                print(f"Feather load failed for {fpath}: {e}")
+            except Exception:
+                pass  # 靜默失敗，嘗試下一種方式
 
             try:
                 with pa.memory_map(fpath, "r") as source:
                     reader = pa.ipc.open_file(source)
                     table = reader.read_all()
                 return self._table_to_numpy(table)
-            except Exception as e:
-                print(f"IPC file load failed for {fpath}: {e}")
+            except Exception:
+                pass
 
             try:
                 with pa.memory_map(fpath, "r") as source:
                     reader = pa.ipc.open_stream(source)
                     table = reader.read_all()
                 return self._table_to_numpy(table)
-            except Exception as e:
-                print(f"IPC stream load failed for {fpath}: {e}")
+            except Exception:
+                pass
 
-        # HF datasets.save_to_disk 產生的資料夾（無法直接以 Arrow 讀取時）
-        try:
-            ds = load_from_disk(dir_path)
-            return self._dataset_to_numpy(ds)
-        except Exception as e:
-            print(f"Failed to load dataset at {dir_path}: {e}")
+        # * 最後嘗試 HF datasets（若前面未嘗試過）
+        if not is_hf_dataset:
+            try:
+                ds = load_from_disk(dir_path)
+                return self._dataset_to_numpy(ds)
+            except Exception as e:
+                print(f"Failed to load dataset at {dir_path}: {e}")
+        
         return None
 
     def _table_to_numpy(self, table: pa.Table) -> np.ndarray:

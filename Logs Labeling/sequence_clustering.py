@@ -36,6 +36,8 @@ class SequenceClustering:
         random_state: int = config.SEED,
         enable_parallel: bool = config.HMM_ENABLE_PARALLEL,
         n_jobs: int = config.HMM_PARALLEL_N_JOBS,
+        failure_warning_limit: int = 4,
+        failure_per_k_limit: int = 2,
     ):
         self.k_min = k_min
         self.k_max = k_max
@@ -49,18 +51,26 @@ class SequenceClustering:
         # 並行優化設定
         self.enable_parallel = enable_parallel
         self.n_jobs = n_jobs
+        self.failure_warning_limit = failure_warning_limit
+        self.failure_per_k_limit = failure_per_k_limit
+        self._warning_counter: Dict[str, int] = {}
         
         # Per-Dataset 模型儲存
         self.current_model: Optional[hmm.GaussianHMM] = None
         self.current_k: Optional[int] = None
         self.current_score: float = float("-inf")
+        
+        # 標準化參數（雙軌策略）
+        self._scaler_mean: Optional[np.ndarray] = None
+        self._scaler_std: Optional[np.ndarray] = None
 
     def _train_single_hmm(
         self,
+        dataset_id: str,
         X: np.ndarray,
         n_components: int,
         seed: int,
-    ) -> Tuple[Optional[hmm.GaussianHMM], float]:
+    ) -> Tuple[Optional[hmm.GaussianHMM], float, Optional[str]]:
         """
         訓練單一 HMM 模型並回傳其對數概似度。
         
@@ -78,13 +88,19 @@ class SequenceClustering:
             )
             model.fit(X)
             score = model.score(X)
-            return model, score
+            return model, score, None
         except Exception as e:
-            print(f"    [Warning] HMM 訓練失敗 (K={n_components}, seed={seed}): {e}")
-            return None, float("-inf")
+            key = f"{dataset_id}|K={n_components}"
+            self._warning_counter[key] = self._warning_counter.get(key, 0) + 1
+            msg = f"HMM 訓練失敗 dataset={dataset_id} (K={n_components}, seed={seed}): {e}"
+            # 僅前幾次打印，之後靜音避免刷屏
+            if self._warning_counter[key] <= 2:
+                print(f"    [Warning] {msg}")
+            return None, float("-inf"), msg
 
     def _grid_search(
         self,
+        dataset_id: str,
         X: np.ndarray,
         k_min: int,
         k_max: int,
@@ -94,31 +110,43 @@ class SequenceClustering:
         執行 Grid Search 尋找最佳 K 值。
         針對單一 Dataset 內部並行化，加速優化過程。
         """
-        from joblib import Parallel, delayed
-        
-        # * 建立所有 (K, seed) 組合的任務列表
-        tasks = [
-            (k, self.random_state + k * n_starts + i)
-            for k in range(k_min, k_max + 1)
-            for i in range(n_starts)
-        ]
-        
-        n_jobs = self.n_jobs if self.enable_parallel else 1
-        
-        # * 並行/串行訓練（由 n_jobs 決定）
-        results = Parallel(n_jobs=n_jobs, backend=config.HMM_PARALLEL_BACKEND)(
-            delayed(self._train_single_hmm)(X, k, seed)
-            for k, seed in tasks
-        )
-        
-        # * 選出最佳模型
         best_model, best_k, best_score = None, None, float("-inf")
-        for (model, score), (k, _) in zip(results, tasks):
-            if score > best_score:
-                best_score = score
-                best_model = model
-                best_k = k
-        
+        failure_logs: List[str] = []
+
+        for k in range(k_min, k_max + 1):
+            consecutive_fail = 0
+            for i in range(n_starts):
+                seed = self.random_state + k * n_starts + i
+                model, score, err_msg = self._train_single_hmm(dataset_id, X, k, seed)
+                if model is not None and score > best_score:
+                    best_score = score
+                    best_model = model
+                    best_k = k
+                if err_msg:
+                    failure_logs.append(err_msg)
+                    consecutive_fail += 1
+                    if consecutive_fail >= self.failure_per_k_limit:
+                        # 這個 K 多次失敗，提早跳下一個 K
+                        break
+                else:
+                    consecutive_fail = 0
+
+            if best_model is not None and best_k == k:
+                # 若該 K 已獲得成功模型且得分最佳，繼續嘗試下一個 K 以尋找更佳結果
+                continue
+
+        if failure_logs and len(failure_logs) >= self.failure_warning_limit and best_model is None:
+            print(f"    [Warning] {dataset_id}: 超過 {self.failure_warning_limit} 次失敗，嘗試縮減 K={k_min} 單次重試")
+            fallback_model, fallback_score, err = self._train_single_hmm(
+                dataset_id,
+                X,
+                k_min,
+                self.random_state,
+            )
+            if fallback_model is not None:
+                return fallback_model, k_min, fallback_score
+            raise RuntimeError(f"{dataset_id}: HMM 訓練多次失敗，已跳過。最後錯誤: {err}")
+
         return best_model, best_k, best_score
 
     def optimize_local_hmm(
@@ -127,6 +155,7 @@ class SequenceClustering:
         k_min: Optional[int] = None,
         k_max: Optional[int] = None,
         n_starts: Optional[int] = None,
+        dataset_id: str = "unknown_dataset",
     ) -> hmm.GaussianHMM:
         """
         針對單一 Dataset 執行局部模型優化。
@@ -151,8 +180,16 @@ class SequenceClustering:
         X = np.asarray(X, dtype=np.float64)
         n_samples = len(X)
         
-        # * 調整 K 上界：避免狀態數大於樣本數
-        effective_k_max = min(k_max, n_samples - 1)
+        # * 根據資料量動態收斂 K 上界，避免樣本過少仍嘗試高 K
+        dynamic_k_max = min(k_max, max(2, n_samples // 5))
+        effective_k_max = min(dynamic_k_max, n_samples - 1)
+
+        # * 變異度過低時，鎖定最低 K，避免無意義的多狀態嘗試
+        variance = np.var(X)
+        if variance < 1e-8:
+            print(f"    [Warning] 特徵變異度極低，鎖定 K={k_min} (var={variance:.2e})")
+            effective_k_max = k_min
+
         if effective_k_max < k_min:
             print(f"    [Warning] 樣本數過少 ({n_samples})，使用 K={k_min}")
             effective_k_max = k_min
@@ -162,7 +199,11 @@ class SequenceClustering:
         
         # * 執行 Grid Search
         best_model, best_k, best_score = self._grid_search(
-            X, k_min, effective_k_max, n_starts
+            dataset_id,
+            X,
+            k_min,
+            effective_k_max,
+            n_starts,
         )
         
         if best_model is None:
@@ -222,19 +263,27 @@ class SequenceClustering:
         n_rows = len(concept_matrix)
         print(f"\n[Processing] {dataset_id} ({n_rows} 筆資料)")
         
-        # * Step 1: 局部模型優化
-        model = self.optimize_local_hmm(concept_matrix)
+        # * Step 1: 資料清理與標準化（雙軌策略）
+        clean_matrix = np.nan_to_num(concept_matrix, nan=0.0, posinf=0.0, neginf=0.0)
         
-        # * Step 2: Viterbi 解碼
-        labels = self.decode_sequences(concept_matrix, model)
+        # * 計算 Z-Score 標準化參數（用於 HMM 訓練軌道）
+        self._scaler_mean = np.mean(clean_matrix, axis=0)
+        self._scaler_std = np.std(clean_matrix, axis=0) + 1e-8
+        X_scaled = (clean_matrix - self._scaler_mean) / self._scaler_std
+
+        # * Step 2: 使用標準化資料進行 HMM 訓練
+        model = self.optimize_local_hmm(X_scaled, dataset_id=dataset_id)
         
-        # * Step 3: 追溯性驗證 (Traceability Check)
+        # * Step 3: 使用標準化資料進行 Viterbi 解碼
+        labels = self.decode_sequences(X_scaled, model)
+        
+        # * Step 4: 追溯性驗證 (Traceability Check)
         if len(labels) != n_rows:
             raise ValueError(
                 f"追溯性驗證失敗: 標籤數={len(labels)}, 原始長度={n_rows}"
             )
         
-        # * Step 4: 存檔（模型 + 標籤）
+        # * Step 5: 存檔（模型 + 標籤 + 標準化參數）
         dataset_output_dir = os.path.join(output_dir, dataset_id)
         os.makedirs(dataset_output_dir, exist_ok=True)
         
@@ -242,17 +291,29 @@ class SequenceClustering:
         labels_path = os.path.join(dataset_output_dir, "labels.npy")
         np.save(labels_path, labels)
         
-        # 儲存模型
+        # 儲存模型（含標準化參數，供未來預測新資料使用）
         model_path = os.path.join(dataset_output_dir, "model.pkl")
         with open(model_path, "wb") as f:
             pickle.dump({
                 "model": model,
                 "best_k": self.current_k,
                 "best_score": self.current_score,
+                "scaler_mean": self._scaler_mean,
+                "scaler_std": self._scaler_std,
             }, f)
         
         n_clusters = len(np.unique(labels))
         print(f"    [完成] {n_clusters} 個群集，已存至 {dataset_output_dir}")
+
+        # * Step 6: 警告摘要
+        warning_total = sum(
+            count for key, count in self._warning_counter.items()
+            if key.startswith(f"{dataset_id}|")
+        )
+        if warning_total:
+            print(f"    [Warning-Summary] {dataset_id}: 累計 {warning_total} 次訓練失敗/警告")
+        else:
+            print(f"    [Warning-Summary] {dataset_id}: 無訓練警告")
         
         return labels
 
@@ -313,6 +374,8 @@ class SequenceClustering:
         self.current_model = data["model"]
         self.current_k = data["best_k"]
         self.current_score = data["best_score"]
+        self._scaler_mean = data.get("scaler_mean")
+        self._scaler_std = data.get("scaler_std")
         
         print(f"[Info] 已載入 {dataset_id} 模型: K={self.current_k}, "
               f"Score={self.current_score:.4f}")
