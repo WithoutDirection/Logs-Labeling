@@ -16,16 +16,36 @@ from .text_processor import (
     preprocess_log_corpus,
     DEFAULT_STOPWORDS,
     LOG_HIGH_FREQ_WORDS,
-    SECURITY_TERMS
+    SECURITY_TERMS,
 )
-from .fetchers import MitreFetcher, CapecFetcher, NvdFetcher
-from .hmm_clustering import (
-    HMMClusterer,
-    compute_cluster_similarity,
-    rank_suspicious_clusters,
-    rank_samples_in_cluster
-)
-from .concept_uml_pipeline import ConceptUMLPipeline
+
+# Optional modules (may not exist on this branch)
+MitreFetcher = CapecFetcher = NvdFetcher = None
+HMMClusterer = None
+compute_cluster_similarity = None
+rank_suspicious_clusters = None
+rank_samples_in_cluster = None
+ConceptUMLPipeline = None
+
+try:
+    from .fetchers import MitreFetcher, CapecFetcher, NvdFetcher
+except Exception:
+    pass
+
+try:
+    from .hmm_clustering import (
+        HMMClusterer,
+        compute_cluster_similarity,
+        rank_suspicious_clusters,
+        rank_samples_in_cluster,
+    )
+except Exception:
+    pass
+
+try:
+    from .concept_uml_pipeline import ConceptUMLPipeline
+except Exception:
+    pass
 
 __all__ = [
     # Core managers
@@ -38,18 +58,18 @@ __all__ = [
     'DEFAULT_STOPWORDS',
     'LOG_HIGH_FREQ_WORDS',
     'SECURITY_TERMS',
-    
-    # Data fetchers
-    'MitreFetcher',
-    'CapecFetcher', 
-    'NvdFetcher',
-    
-    # HMM clustering
-    'HMMClusterer',
-    'compute_cluster_similarity',
-    'rank_suspicious_clusters',
-    'rank_samples_in_cluster',
-    
-    # Full pipeline
-    'ConceptUMLPipeline',
 ]
+
+if MitreFetcher is not None:
+    __all__ += ['MitreFetcher', 'CapecFetcher', 'NvdFetcher']
+
+if HMMClusterer is not None:
+    __all__ += [
+        'HMMClusterer',
+        'compute_cluster_similarity',
+        'rank_suspicious_clusters',
+        'rank_samples_in_cluster',
+    ]
+
+if ConceptUMLPipeline is not None:
+    __all__ += ['ConceptUMLPipeline']
