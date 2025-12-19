@@ -96,28 +96,26 @@ EXTERNAL_KNOWLEDGE_DIR = os.path.join(DATA_DIR, "ExternalKnowledge")
 HMM_STATES = 10
 
 # ==================== 序列分群設定 (Sequence Clustering) ====================
+# 採用 Per-Dataset HMM 策略：為每個資料集獨立訓練 HMM 模型
 
 # HMM 模型架構參數
 HMM_K_MIN = 2  # 隱藏狀態數量下界
-HMM_K_MAX = 30  # 隱藏狀態數量上界
+HMM_K_MAX = 10  # 隱藏狀態數量上界 (單一攻擊行為通常 3-5 個階段)
 HMM_COVARIANCE_TYPE = "diag"  # 共變異數類型: "diag" 或 "full"
+HMM_MIN_COVAR = 1e-3  # 最小共變異數 (防止特徵稀疏導致矩陣奇異)
 
 # HMM 訓練與優化參數
-HMM_N_STARTS = 10  # 隨機初始化次數 (緩解局部最佳解)
+HMM_N_STARTS = 20  # 隨機初始化次數 (單一資料集運算快，增加重試提升穩定性)
 HMM_N_ITER = 1000  # Baum-Welch 最大迭代次數
-HMM_TOL = 1e-2  # 收斂閾值
+HMM_TOL = 1e-4  # 收斂閾值 (更嚴格，確保模型收斂精確)
 
 # HMM 效能優化參數
 HMM_ENABLE_PARALLEL = True  # 啟用並行 Grid Search
 HMM_PARALLEL_N_JOBS = -1  # CPU 核心數 (-1 = 全部)
 HMM_PARALLEL_BACKEND = "loky"  # joblib 後端: "loky" 或 "threading"
-HMM_ENABLE_TWO_STAGE = True  # 啟用兩階段分層訓練
-HMM_TWO_STAGE_THRESHOLD = 50000  # 觸發兩階段訓練的樣本數門檻
-HMM_TWO_STAGE_SAMPLE_RATIO = 0.4  # Phase 1 採樣比例
-HMM_MAX_TRAIN_SAMPLES = 1000000  # 訓練樣本數上限 (防 OOM)
 
-# HMM 模型儲存路徑
-HMM_MODEL_PATH = os.path.join(HMM_MODEL_DIR, "best_hmm_model.pkl")
+# HMM 模型儲存路徑 (Per-Dataset 策略下，模型儲存於各資料集目錄)
+HMM_MODEL_DIR_PER_DATASET = True  # 啟用 Per-Dataset 模型儲存
 CLUSTER_RESULTS_DIR = os.path.join(DATA_DIR, "SequenceClusters")
 
 
