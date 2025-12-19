@@ -1,7 +1,7 @@
 """
 SequenceClustering：以隱馬可夫模型 (HMM) 進行事件日誌序列分群。
-使用概念矩陣 H_E 作為輸入，辨識同質群體。
-支援並行化 Grid Search、兩階段分層訓練與批次推論。
+採用 Per-Dataset HMM 策略：針對每一個 Dataset 獨立訓練 HMM 模型，
+精確識別該特定攻擊行為內部的演變階段（如：初始存取 → 執行 → 清理）。
 """
 
 import os
@@ -15,7 +15,14 @@ import config
 
 
 class SequenceClustering:
-    """基於 HMM 的事件日誌序列分群，支援加速優化機制。"""
+    """
+    基於 HMM 的事件日誌序列分群（Per-Dataset 策略）。
+    
+    核心策略：
+    - 每個 Dataset 獨立訓練專屬 HMM 模型
+    - 高頻隨機初始化確保收斂穩定性
+    - 數值穩定性保護（min_covar）防止矩陣奇異
+    """
 
     def __init__(
         self,
@@ -25,13 +32,10 @@ class SequenceClustering:
         n_iter: int = config.HMM_N_ITER,
         tol: float = config.HMM_TOL,
         covariance_type: str = config.HMM_COVARIANCE_TYPE,
+        min_covar: float = config.HMM_MIN_COVAR,
         random_state: int = config.SEED,
         enable_parallel: bool = config.HMM_ENABLE_PARALLEL,
         n_jobs: int = config.HMM_PARALLEL_N_JOBS,
-        enable_two_stage: bool = config.HMM_ENABLE_TWO_STAGE,
-        two_stage_threshold: int = config.HMM_TWO_STAGE_THRESHOLD,
-        two_stage_sample_ratio: float = config.HMM_TWO_STAGE_SAMPLE_RATIO,
-        max_train_samples: int = config.HMM_MAX_TRAIN_SAMPLES,
     ):
         self.k_min = k_min
         self.k_max = k_max
@@ -39,28 +43,30 @@ class SequenceClustering:
         self.n_iter = n_iter
         self.tol = tol
         self.covariance_type = covariance_type
+        self.min_covar = min_covar  # 數值穩定性保護
         self.random_state = random_state
         
-        # 加速優化設定
+        # 並行優化設定
         self.enable_parallel = enable_parallel
         self.n_jobs = n_jobs
-        self.enable_two_stage = enable_two_stage
-        self.two_stage_threshold = two_stage_threshold
-        self.two_stage_sample_ratio = two_stage_sample_ratio
-        self.max_train_samples = max_train_samples
         
-        self.best_model: Optional[hmm.GaussianHMM] = None
-        self.best_k: Optional[int] = None
-        self.best_score: float = float("-inf")
+        # Per-Dataset 模型儲存
+        self.current_model: Optional[hmm.GaussianHMM] = None
+        self.current_k: Optional[int] = None
+        self.current_score: float = float("-inf")
 
     def _train_single_hmm(
         self,
         X: np.ndarray,
-        lengths: Optional[List[int]],
         n_components: int,
         seed: int,
     ) -> Tuple[Optional[hmm.GaussianHMM], float]:
-        """訓練單一 HMM 模型並回傳其對數概似度。"""
+        """
+        訓練單一 HMM 模型並回傳其對數概似度。
+        
+        注意：Per-Dataset 策略下，單一資料集視為完整序列，
+        不使用 lengths 參數（無跨資料集問題）。
+        """
         try:
             model = hmm.GaussianHMM(
                 n_components=n_components,
@@ -68,25 +74,25 @@ class SequenceClustering:
                 n_iter=self.n_iter,
                 tol=self.tol,
                 random_state=seed,
+                min_covar=self.min_covar,  # 防止特徵稀疏導致矩陣奇異
             )
-            # * 使用 lengths 參數防止跨序列轉移學習
-            model.fit(X, lengths=lengths)
-            score = model.score(X, lengths=lengths)
+            model.fit(X)
+            score = model.score(X)
             return model, score
         except Exception as e:
+            print(f"    [Warning] HMM 訓練失敗 (K={n_components}, seed={seed}): {e}")
             return None, float("-inf")
 
     def _grid_search(
         self,
         X: np.ndarray,
-        lengths: Optional[List[int]],
         k_min: int,
         k_max: int,
         n_starts: int,
     ) -> Tuple[Optional[hmm.GaussianHMM], int, float]:
         """
-        統一的 Grid Search 實作。
-        joblib 在 n_jobs=1 時自動切換為串行模式，無需額外判斷。
+        執行 Grid Search 尋找最佳 K 值。
+        針對單一 Dataset 內部並行化，加速優化過程。
         """
         from joblib import Parallel, delayed
         
@@ -101,7 +107,7 @@ class SequenceClustering:
         
         # * 並行/串行訓練（由 n_jobs 決定）
         results = Parallel(n_jobs=n_jobs, backend=config.HMM_PARALLEL_BACKEND)(
-            delayed(self._train_single_hmm)(X, lengths, k, seed)
+            delayed(self._train_single_hmm)(X, k, seed)
             for k, seed in tasks
         )
         
@@ -115,141 +121,63 @@ class SequenceClustering:
         
         return best_model, best_k, best_score
 
-    def _sample_sequences(
+    def optimize_local_hmm(
         self,
         X: np.ndarray,
-        lengths: List[int],
-        sample_ratio: float,
-    ) -> Tuple[np.ndarray, List[int]]:
-        """序列感知採樣：隨機選取部分序列而非隨機樣本。"""
-        np.random.seed(self.random_state)
-        n_sequences = len(lengths)
-        n_sample = max(1, int(n_sequences * sample_ratio))
-        
-        # * 隨機選取完整序列，保持序列結構
-        selected_indices = np.random.choice(n_sequences, n_sample, replace=False)
-        selected_indices = np.sort(selected_indices)
-        
-        cumsum = np.cumsum([0] + lengths)
-        
-        sampled_X_list = []
-        sampled_lengths = []
-        for idx in selected_indices:
-            start, end = cumsum[idx], cumsum[idx + 1]
-            sampled_X_list.append(X[start:end])
-            sampled_lengths.append(lengths[idx])
-        
-        sampled_X = np.vstack(sampled_X_list)
-        return sampled_X, sampled_lengths
-
-    def _prepare_search_data(
-        self,
-        X: np.ndarray,
-        lengths: Optional[List[int]],
-    ) -> Tuple[np.ndarray, Optional[List[int]]]:
-        """準備搜尋用資料：根據設定決定是否採樣。"""
-        n_samples = len(X)
-        use_two_stage = (
-            self.enable_two_stage 
-            and n_samples > self.two_stage_threshold 
-            and lengths is not None
-        )
-        
-        if use_two_stage:
-            print(f"[Phase 1] 子集採樣，快速搜索最佳 K...")
-            X_search, lengths_search = self._sample_sequences(
-                X, lengths, self.two_stage_sample_ratio
-            )
-            print(f"  採樣後: {len(X_search)} 樣本, {len(lengths_search)} 序列")
-            return X_search, lengths_search
-        
-        return X, lengths
-
-    def optimize_global_hmm(
-        self,
-        X_train: np.ndarray,
-        lengths: Optional[List[int]] = None,
         k_min: Optional[int] = None,
         k_max: Optional[int] = None,
         n_starts: Optional[int] = None,
     ) -> hmm.GaussianHMM:
         """
-        透過網格搜索與穩定性迴圈尋找最佳 HMM。
-        流程：資料準備 -> Grid Search -> 最終訓練（若兩階段）。
+        針對單一 Dataset 執行局部模型優化。
+        
+        與 optimize_global_hmm 不同，此方法：
+        - 不使用 lengths 參數（單一資料集為完整序列）
+        - 不進行兩階段訓練（單一資料集資料量小，直接全量訓練）
+        - 使用更高的 n_starts 確保穩定性
 
         Args:
-            X_train: 聚合後的概念矩陣 H_E，形狀 (n_samples, n_features)
-            lengths: 每個序列的長度列表，用於防止跨序列轉移學習
+            X: 單一 Dataset 的概念矩陣，形狀 (n_samples, n_features)
             k_min: 隱藏狀態數量下界
             k_max: 隱藏狀態數量上界
             n_starts: 每個 K 的隨機初始化次數
 
         Returns:
-            最佳的 GaussianHMM 模型
+            該 Dataset 的最佳 GaussianHMM 模型
         """
         k_min = k_min or self.k_min
         k_max = k_max or self.k_max
         n_starts = n_starts or self.n_starts
-        X = np.asarray(X_train, dtype=np.float64)
+        X = np.asarray(X, dtype=np.float64)
         n_samples = len(X)
         
-        # * Step 1: 資料前處理（截斷過大資料集）
-        if n_samples > self.max_train_samples:
-            print(f"[Warning] 樣本數 {n_samples} 超過上限，進行截斷")
-            if lengths:
-                X, lengths = self._truncate_to_limit(X, lengths, self.max_train_samples)
-            else:
-                X = X[:self.max_train_samples]
-            n_samples = len(X)
+        # * 調整 K 上界：避免狀態數大於樣本數
+        effective_k_max = min(k_max, n_samples - 1)
+        if effective_k_max < k_min:
+            print(f"    [Warning] 樣本數過少 ({n_samples})，使用 K={k_min}")
+            effective_k_max = k_min
         
-        use_two_stage = (
-            self.enable_two_stage 
-            and n_samples > self.two_stage_threshold 
-            and lengths is not None
+        print(f"    [Grid Search] K 範圍=[{k_min}, {effective_k_max}], "
+              f"n_starts={n_starts}, 並行={self.enable_parallel}")
+        
+        # * 執行 Grid Search
+        best_model, best_k, best_score = self._grid_search(
+            X, k_min, effective_k_max, n_starts
         )
-        print(f"[Info] 樣本數={n_samples}, 並行={self.enable_parallel}, 兩階段={use_two_stage}")
         
-        # * Step 2: 準備搜尋資料（若兩階段則採樣）
-        X_search, lengths_search = self._prepare_search_data(X, lengths)
+        if best_model is None:
+            raise RuntimeError("所有 HMM 訓練均失敗，請檢查資料品質或調整 min_covar")
         
-        # * Step 3: 執行 Grid Search
-        _, best_k, _ = self._grid_search(X_search, lengths_search, k_min, k_max, n_starts)
-        print(f"  Grid Search 最佳 K = {best_k}")
+        self.current_model = best_model
+        self.current_k = best_k
+        self.current_score = best_score
         
-        # * Step 4: 最終訓練（兩階段時用全量資料重訓練）
-        if use_two_stage:
-            print(f"[Phase 2] 使用 K={best_k} 在全量資料上訓練...")
-            self.best_model, self.best_score = self._train_single_hmm(
-                X, lengths, best_k, self.random_state
-            )
-        else:
-            self.best_model, self.best_score = self._train_single_hmm(
-                X, lengths, best_k, self.random_state
-            )
-        self.best_k = best_k
-        
-        print(f"[Info] 最佳 K={self.best_k}, Log-Likelihood={self.best_score:.4f}")
-        return self.best_model
-
-    def _truncate_to_limit(
-        self,
-        X: np.ndarray,
-        lengths: List[int],
-        limit: int,
-    ) -> Tuple[np.ndarray, List[int]]:
-        """截斷資料至樣本數上限，保持序列完整性。"""
-        cumsum = np.cumsum(lengths)
-        valid_idx = np.searchsorted(cumsum, limit, side='right')
-        if valid_idx == 0:
-            valid_idx = 1
-        
-        total_samples = cumsum[valid_idx - 1]
-        return X[:total_samples], lengths[:valid_idx]
+        print(f"    [結果] 最佳 K={best_k}, Log-Likelihood={best_score:.4f}")
+        return best_model
 
     def decode_sequences(
         self,
         concept_vectors: np.ndarray,
-        lengths: Optional[List[int]] = None,
         model: Optional[hmm.GaussianHMM] = None,
     ) -> np.ndarray:
         """
@@ -257,55 +185,138 @@ class SequenceClustering:
 
         Args:
             concept_vectors: 單一資料集的概念矩陣，形狀 (n_samples, n_features)
-            lengths: 序列長度列表（通常單一資料集為 None）
-            model: 已訓練的 HMM 模型（若為 None 則使用 best_model）
+            model: 已訓練的 HMM 模型（若為 None 則使用 current_model）
 
         Returns:
             分群標籤（隱藏狀態序列）
         """
-        model = model or self.best_model
+        model = model or self.current_model
         if model is None:
-            raise ValueError("尚無可用模型，請先執行 optimize_global_hmm")
+            raise ValueError("尚無可用模型，請先執行 optimize_local_hmm")
 
         X = np.asarray(concept_vectors, dtype=np.float64)
         
         # * Viterbi 演算法：預測最可能的隱藏狀態路徑
-        labels = model.predict(X, lengths=lengths)
+        labels = model.predict(X)
         return labels
 
-    def save_model(self, path: str = config.HMM_MODEL_PATH) -> None:
-        """將最佳 HMM 模型儲存到磁碟。"""
-        if self.best_model is None:
-            raise ValueError("尚無模型可儲存，請先執行 optimize_global_hmm")
+    def process_single_dataset(
+        self,
+        dataset_id: str,
+        concept_matrix: np.ndarray,
+        output_dir: str = config.CLUSTER_RESULTS_DIR,
+    ) -> np.ndarray:
+        """
+        處理單一 Dataset 的完整流程：優化、訓練、解碼、存檔。
         
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "wb") as f:
-            pickle.dump({
-                "model": self.best_model,
-                "best_k": self.best_k,
-                "best_score": self.best_score,
-            }, f)
-        print(f"[Info] 模型已儲存至 {path}")
+        這是 Per-Dataset 策略的主控函式，包含追溯性驗證。
 
-    def load_model(self, path: str = config.HMM_MODEL_PATH) -> hmm.GaussianHMM:
-        """從磁碟載入已訓練的 HMM 模型。"""
-        with open(path, "rb") as f:
+        Args:
+            dataset_id: 資料集 ID
+            concept_matrix: 概念矩陣，形狀 (n_samples, n_features)
+            output_dir: 輸出目錄
+
+        Returns:
+            分群標籤陣列
+        """
+        n_rows = len(concept_matrix)
+        print(f"\n[Processing] {dataset_id} ({n_rows} 筆資料)")
+        
+        # * Step 1: 局部模型優化
+        model = self.optimize_local_hmm(concept_matrix)
+        
+        # * Step 2: Viterbi 解碼
+        labels = self.decode_sequences(concept_matrix, model)
+        
+        # * Step 3: 追溯性驗證 (Traceability Check)
+        if len(labels) != n_rows:
+            raise ValueError(
+                f"追溯性驗證失敗: 標籤數={len(labels)}, 原始長度={n_rows}"
+            )
+        
+        # * Step 4: 存檔（模型 + 標籤）
+        dataset_output_dir = os.path.join(output_dir, dataset_id)
+        os.makedirs(dataset_output_dir, exist_ok=True)
+        
+        # 儲存標籤
+        labels_path = os.path.join(dataset_output_dir, "labels.npy")
+        np.save(labels_path, labels)
+        
+        # 儲存模型
+        model_path = os.path.join(dataset_output_dir, "model.pkl")
+        with open(model_path, "wb") as f:
+            pickle.dump({
+                "model": model,
+                "best_k": self.current_k,
+                "best_score": self.current_score,
+            }, f)
+        
+        n_clusters = len(np.unique(labels))
+        print(f"    [完成] {n_clusters} 個群集，已存至 {dataset_output_dir}")
+        
+        return labels
+
+    def batch_process_all(
+        self,
+        vectors_dict: Dict[str, np.ndarray],
+        output_dir: str = config.CLUSTER_RESULTS_DIR,
+    ) -> Dict[str, np.ndarray]:
+        """
+        批次處理所有 Dataset。
+
+        Args:
+            vectors_dict: dataset_id 對應的概念矩陣字典
+            output_dir: 輸出目錄
+
+        Returns:
+            dataset_id 對應的標籤字典
+        """
+        results = {}
+        total = len(vectors_dict)
+        
+        for idx, (dataset_id, concept_matrix) in enumerate(vectors_dict.items(), 1):
+            print(f"\n=== [{idx}/{total}] ===")
+            try:
+                labels = self.process_single_dataset(
+                    dataset_id, concept_matrix, output_dir
+                )
+                results[dataset_id] = labels
+            except Exception as e:
+                print(f"    [Error] 處理失敗: {e}")
+                continue
+        
+        return results
+
+    def load_model(
+        self,
+        dataset_id: str,
+        input_dir: str = config.CLUSTER_RESULTS_DIR,
+    ) -> hmm.GaussianHMM:
+        """
+        載入特定 Dataset 的已訓練模型。
+
+        Args:
+            dataset_id: 資料集 ID
+            input_dir: 模型儲存目錄
+
+        Returns:
+            該 Dataset 的 GaussianHMM 模型
+        """
+        model_path = os.path.join(input_dir, dataset_id, "model.pkl")
+        
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"找不到模型: {model_path}")
+        
+        with open(model_path, "rb") as f:
             data = pickle.load(f)
         
-        self.best_model = data["model"]
-        self.best_k = data["best_k"]
-        self.best_score = data["best_score"]
-        print(f"[Info] 已載入模型: K={self.best_k}, Score={self.best_score:.4f}")
-        return self.best_model
-
-    def fit_predict(
-        self,
-        X_train: np.ndarray,
-        lengths: Optional[List[int]] = None,
-    ) -> np.ndarray:
-        """便捷方法：先優化模型再解碼序列。"""
-        self.optimize_global_hmm(X_train, lengths)
-        return self.decode_sequences(X_train, lengths)
+        self.current_model = data["model"]
+        self.current_k = data["best_k"]
+        self.current_score = data["best_score"]
+        
+        print(f"[Info] 已載入 {dataset_id} 模型: K={self.current_k}, "
+              f"Score={self.current_score:.4f}")
+        return self.current_model
 
 
 # ======================== 資料載入與處理函式 ========================
@@ -358,62 +369,14 @@ def load_concept_vectors(
     return result
 
 
-def prepare_training_data(
-    vectors_dict: Dict[str, np.ndarray],
-) -> Tuple[np.ndarray, List[int]]:
-    """
-    準備訓練資料：堆疊矩陣並建立 lengths 列表。
-
-    Args:
-        vectors_dict: dataset_id 對應的概念矩陣字典
-
-    Returns:
-        X_train: 聚合後的訓練矩陣
-        lengths: 每個序列的長度列表
-    """
-    # * 建立 lengths 列表，記錄每個序列長度以防止跨序列轉移
-    X_list = []
-    lengths = []
-    
-    for dataset_id, vectors in vectors_dict.items():
-        X_list.append(vectors)
-        lengths.append(len(vectors))
-    
-    X_train = np.vstack(X_list)
-    return X_train, lengths
-
-
-def save_cluster_results(
-    dataset_id: str,
-    labels: np.ndarray,
-    original_length: int,
-    output_dir: str = config.CLUSTER_RESULTS_DIR,
-) -> None:
-    """
-    將分群標籤儲存至資料集輸出，並驗證長度一致性。
-
-    Args:
-        dataset_id: 資料集 ID
-        labels: 分群標籤陣列
-        original_length: 原始資料集長度（用於驗證）
-        output_dir: 輸出目錄
-    """
-    # * 驗證分群結果與原始資料集長度一致
-    if len(labels) != original_length:
-        raise ValueError(
-            f"長度不一致: 標籤數={len(labels)}, 原始長度={original_length}"
-        )
-    
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, f"{dataset_id}_clusters.npy")
-    np.save(output_path, labels)
-    print(f"  已儲存: {output_path}")
-
-
 # ======================== 主程式 ========================
 
 if __name__ == "__main__":
-    print("載入概念向量...")
+    print("=" * 60)
+    print("序列分群 - Per-Dataset HMM 策略")
+    print("=" * 60)
+    
+    print("\n載入概念向量...")
     vectors = load_concept_vectors()
     
     if not vectors:
@@ -422,27 +385,21 @@ if __name__ == "__main__":
     
     print(f"已載入 {len(vectors)} 個資料集")
     
-    # ===== 階段 A：全域模型優化訓練 =====
-    print("\n=== 階段 A：全域模型優化訓練 ===")
-    
-    # * 準備訓練資料並建立 lengths 列表
-    X_train, lengths = prepare_training_data(vectors)
-    print(f"訓練資料: {X_train.shape}, 序列數: {len(lengths)}")
-    
+    # ===== 批次處理所有資料集 =====
     clusterer = SequenceClustering()
-    clusterer.optimize_global_hmm(X_train, lengths)
-    clusterer.save_model()
+    results = clusterer.batch_process_all(vectors)
     
-    # ===== 階段 B：獨立序列標註（批次推論） =====
-    print("\n=== 階段 B：獨立序列標註 ===")
+    # ===== 統計摘要 =====
+    print("\n" + "=" * 60)
+    print("處理摘要")
+    print("=" * 60)
     
-    # * 批次推論：逐個 Dataset 載入解碼，避免 OOM
-    for dataset_id, concept_matrix in vectors.items():
-        original_length = len(concept_matrix)
-        labels = clusterer.decode_sequences(concept_matrix)
-        
-        save_cluster_results(dataset_id, labels, original_length)
-        n_clusters = len(np.unique(labels))
-        print(f"  {dataset_id}: {original_length} 條目 -> {n_clusters} 個群集")
+    success_count = len(results)
+    total_count = len(vectors)
+    print(f"成功處理: {success_count}/{total_count} 個資料集")
+    
+    if results:
+        avg_clusters = np.mean([len(np.unique(labels)) for labels in results.values()])
+        print(f"平均群集數: {avg_clusters:.2f}")
     
     print("\n[完成] 序列分群已完成。")
