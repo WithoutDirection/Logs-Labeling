@@ -265,11 +265,16 @@ class SequenceClustering:
         
         # * Step 1: 資料清理與標準化（雙軌策略）
         clean_matrix = np.nan_to_num(concept_matrix, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # * 先對極端值做截斷，避免過大值拉高標準差
+        lower = np.percentile(clean_matrix, 0.5)
+        upper = np.percentile(clean_matrix, 99.5)
+        clipped_matrix = np.clip(clean_matrix, lower, upper)
         
         # * 計算 Z-Score 標準化參數（用於 HMM 訓練軌道）
-        self._scaler_mean = np.mean(clean_matrix, axis=0)
-        self._scaler_std = np.std(clean_matrix, axis=0) + 1e-8
-        X_scaled = (clean_matrix - self._scaler_mean) / self._scaler_std
+        self._scaler_mean = np.mean(clipped_matrix, axis=0)
+        self._scaler_std = np.std(clipped_matrix, axis=0) + 1e-8
+        X_scaled = (clipped_matrix - self._scaler_mean) / self._scaler_std
 
         # * Step 2: 使用標準化資料進行 HMM 訓練
         model = self.optimize_local_hmm(X_scaled, dataset_id=dataset_id)

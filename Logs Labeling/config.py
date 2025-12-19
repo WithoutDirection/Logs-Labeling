@@ -93,20 +93,20 @@ CONCEPT_SAMPLE_RATIO = 1.0 # 用於 NMF 訓練的樣本比例
 NMF_MODEL_PATH = os.path.join("models", "nmf_concept_model.pkl")
 CONCEPT_VECTORS_DIR = os.path.join(DATA_DIR, "ConceptVectors")
 EXTERNAL_KNOWLEDGE_DIR = os.path.join(DATA_DIR, "ExternalKnowledge")
-HMM_STATES = 2
+HMM_STATES = 3
 
 # ==================== 序列分群設定 (Sequence Clustering) ====================
 # 採用 Per-Dataset HMM 策略：為每個資料集獨立訓練 HMM 模型
 
 # HMM 模型架構參數
 HMM_K_MIN = 1  # 隱藏狀態數量下界
-HMM_K_MAX = 4  # 隱藏狀態數量上界 (單一攻擊行為通常 3-5 個階段)
+HMM_K_MAX = 10  # 隱藏狀態數量上界 (單一攻擊行為通常 3-5 個階段)
 HMM_COVARIANCE_TYPE = "diag"  # 共變異數類型: "diag" 或 "full"
-HMM_MIN_COVAR = 1e-2  # 最小共變異數 (防止特徵稀疏導致矩陣奇異)
+HMM_MIN_COVAR = 0.1  # 最小共變異數 (防止特徵稀疏導致矩陣奇異)
 
 # HMM 訓練與優化參數
 HMM_N_STARTS = 4  # 隨機初始化次數 (控制耗時，仍保留多次嘗試)
-HMM_N_ITER = 50  # Baum-Welch 最大迭代次數
+HMM_N_ITER = 100  # Baum-Welch 最大迭代次數
 HMM_TOL = 0.5  # 收斂閾值 (放寬以提早停)
 
 # HMM 效能優化參數
