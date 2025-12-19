@@ -2,16 +2,22 @@
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-import os
 import sys
+from pathlib import Path
 from typing import List, Tuple, Optional
-from datasets import Dataset
 
-# 調整匯入路徑，確保能載入同專案上層的 config.py
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+# * 調整匯入路徑，確保能載入同專案上層的 config.py
+CURRENT_DIR = str(Path(__file__).resolve().parent)
+PROJECT_ROOT = str(Path(CURRENT_DIR).parent)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+
+from utils.path import (
+    join_path, get_stem, split_extension, ensure_dir, 
+    get_filtered_files, get_filtered_dirs
+)
+from utils.dataset import save_dataset, load_embeddings
+from models.BiLSTMAttention import BiLSTMAttention
 
 import config
 import importlib
@@ -127,7 +133,7 @@ class LogLoader:
             print(f"讀取檔案錯誤 {file_path}: {e}")
             return None
         
-        file_name = os.path.basename(file_path).split('.')[0]
+        file_name = get_stem(file_path)
         
         # * 步驟 3.2: 若解析器停用，直接合併選定欄位
         if not self.enable_parser:
@@ -193,9 +199,10 @@ class LogLoader:
         if columns is None:
             columns = ["Operation", "Path", "Result", "Command Line"]
         
-        # * 步驟 4.2: 確定檔案選擇範圍
+        # * 步驟 4.2: 獲取篩選後的檔案列表
         num = kwargs.get("num")
         ratio = kwargs.get("ratio")
+        files = get_filtered_files(self.input_dir, ".csv", num=num, ratio=ratio)
         
         if num:
             print(f"載入 {num} 個日誌檔案...")
@@ -204,25 +211,15 @@ class LogLoader:
         else:
             print("載入所有日誌檔案...")
         
-        # * 步驟 4.3: 獲取檔案列表
-        all_files = [f for f in os.listdir(self.input_dir) if f.endswith(".csv")]
-        
-        if num:
-            files = all_files[:num]
-        elif ratio:
-            files = all_files[:int(len(all_files) * ratio)]
-        else:
-            files = all_files
-        
         # * 步驟 4.4: 建立輸出目錄
-        os.makedirs(LOG_INTERMEDIATE_PATH, exist_ok=True)
+        ensure_dir(LOG_INTERMEDIATE_PATH)
         
         # * 步驟 4.5: 處理檔案
         parsed_dfs = []
         
         with tqdm(files, desc="解析日誌中", unit="檔案", dynamic_ncols=True) as pbar:
             for file in pbar:
-                file_path = os.path.join(self.input_dir, file)
+                file_path = join_path(self.input_dir, file)
                 short_name = file if len(file) <= 40 else file[:37] + "..."
                 pbar.set_postfix({"解析器": self.parser_name, "檔案": short_name}, refresh=False)
                 
@@ -231,7 +228,7 @@ class LogLoader:
                 
                 if parsed_df is not None:
                     # * 步驟 4.7: 儲存解析結果
-                    output_path = os.path.join(LOG_INTERMEDIATE_PATH, file)
+                    output_path = join_path(LOG_INTERMEDIATE_PATH, file)
                     parsed_df.to_csv(output_path, index=False, encoding='utf-8')
                     parsed_dfs.append(parsed_df)
         
@@ -263,7 +260,7 @@ class LogEmbedder:
         normalize: bool = True
     ):
         self.intermediate_dir = intermediate_dir
-        self.output_dir = output_dir or os.path.join(config.DATA_DIR, "Embeddings")
+        self.output_dir = output_dir or join_path(config.DATA_DIR, "Embeddings")
         self.model_name = model_name
         self.cache_dir = cache_dir
         self.batch_size = batch_size
@@ -345,23 +342,18 @@ class LogEmbedder:
         output_path: str
     ):
         """將嵌入向量儲存為 Hugging Face Dataset 格式。"""
-        # * 步驟 4: 建立帶有 LogID 與嵌入向量的 Dataset 並儲存
         if has_parsing and param_embeddings is not None:
-            # 有 Parsing: 分別儲存 template_embedding 與 param_embedding
             data_dict = {
                 'LogID': df['LogID'].tolist(),
                 'template_embedding': template_embeddings.tolist(),
                 'param_embedding': param_embeddings.tolist()
             }
         else:
-            # 無 Parsing: 僅儲存單一 embedding
             data_dict = {
                 'LogID': df['LogID'].tolist(),
                 'embedding': template_embeddings.tolist()
             }
-        
-        dataset = Dataset.from_dict(data_dict)
-        dataset.save_to_disk(output_path)
+        save_dataset(data_dict, output_path)
     
     def embed_logs(self, **kwargs):
         """
@@ -375,31 +367,27 @@ class LogEmbedder:
         if self.bert_model is None:
             self._load_model()
         
-        # * 步驟 2: 確定檔案選擇範圍
+        # * 步驟 2: 獲取篩選後的檔案列表
         num = kwargs.get("num")
         ratio = kwargs.get("ratio")
-        
-        all_files = [f for f in os.listdir(self.intermediate_dir) if f.endswith(".csv")]
+        files = get_filtered_files(self.intermediate_dir, ".csv", num=num, ratio=ratio)
         
         if num:
-            files = all_files[:num]
             print(f"嵌入 {num} 個日誌檔案...")
         elif ratio:
-            files = all_files[:int(len(all_files) * ratio)]
             print(f"嵌入 {ratio*100:.1f}% 的日誌檔案...")
         else:
-            files = all_files
             print("嵌入所有日誌檔案...")
         
         # * 步驟 3: 建立輸出目錄
-        os.makedirs(self.output_dir, exist_ok=True)
+        ensure_dir(self.output_dir)
         
         # * 步驟 4: 批次處理檔案
         processed_count = 0
         
         with tqdm(files, desc="計算嵌入中", unit="檔案", dynamic_ncols=True) as pbar:
             for file in pbar:
-                file_path = os.path.join(self.intermediate_dir, file)
+                file_path = join_path(self.intermediate_dir, file)
                 short_name = file if len(file) <= 40 else file[:37] + "..."
                 pbar.set_postfix({"模型": self.model_name, "檔案": short_name}, refresh=False)
                 
@@ -408,8 +396,8 @@ class LogEmbedder:
                     df, template_emb, param_emb, has_parsing = self.embed_file(file_path)
                     
                     # 輸出檔名: 原檔名加上 _embeddings 後綴
-                    output_name = os.path.splitext(file)[0] + "_embeddings"
-                    output_path = os.path.join(self.output_dir, output_name)
+                    output_name = split_extension(file)[0] + "_embeddings"
+                    output_path = join_path(self.output_dir, output_name)
                     self._save_embeddings(df, template_emb, param_emb, has_parsing, output_path)
                     processed_count += 1
                     
@@ -439,7 +427,7 @@ class LogChunker:
         fusion_enable: bool = None,
         fusion_dim: int = None
     ):
-        self.embeddings_dir = embeddings_dir or os.path.join(config.DATA_DIR, "Embeddings")
+        self.embeddings_dir = embeddings_dir or join_path(config.DATA_DIR, "Embeddings")
         self.output_dir = output_dir or config.LOG_VECTORS_DIR
         self.window_size = window_size or config.SEQUENCE_WINDOW_SIZE
         self.stride = stride or config.SEQUENCE_STRIDE
@@ -472,23 +460,8 @@ class LogChunker:
         self.model.eval()
     
     def _load_embeddings(self, embedding_path: str) -> Tuple[List[str], np.ndarray, Optional[np.ndarray], bool]:
-        """載入嵌入向量資料。
-        
-        Returns:
-            (log_ids, template_embeddings, param_embeddings, has_parsing)
-        """
-        # * 步驟 1.1: 從 Hugging Face Dataset 載入嵌入向量並偵測模式
-        dataset = Dataset.load_from_disk(embedding_path)
-        log_ids = dataset['LogID']
-        
-        # 判斷是否有雙欄位嵌入 (has_parsing)
-        if 'template_embedding' in dataset.column_names and 'param_embedding' in dataset.column_names:
-            template_embeddings = np.array(dataset['template_embedding'])
-            param_embeddings = np.array(dataset['param_embedding'])
-            return log_ids, template_embeddings, param_embeddings, True
-        else:
-            embeddings = np.array(dataset['embedding'])
-            return log_ids, embeddings, None, False
+        """載入嵌入向量資料。"""
+        return load_embeddings(embedding_path)
     
     def _create_windows(
         self, 
@@ -561,7 +534,6 @@ class LogChunker:
     
     def _save_log_vectors(self, log_vectors: np.ndarray, window_info: List[dict], output_path: str):
         """儲存 Log Vector 至 Hugging Face Dataset 格式。"""
-        # * 步驟 3: 建立 Dataset 並儲存
         data_dict = {
             'window_idx': list(range(len(log_vectors))),
             'start_idx': [info['start_idx'] for info in window_info],
@@ -570,8 +542,7 @@ class LogChunker:
             'end_log_id': [info['end_log_id'] for info in window_info],
             'log_vector': log_vectors.tolist()
         }
-        dataset = Dataset.from_dict(data_dict)
-        dataset.save_to_disk(output_path)
+        save_dataset(data_dict, output_path)
     
     def chunk_logs(self, **kwargs):
         """
@@ -585,29 +556,23 @@ class LogChunker:
         
         num = kwargs.get("num")
         ratio = kwargs.get("ratio")
-        
-        # 獲取所有嵌入資料夾
-        all_dirs = [d for d in os.listdir(self.embeddings_dir) 
-                    if os.path.isdir(os.path.join(self.embeddings_dir, d)) and d.endswith('_embeddings')]
+        dirs = get_filtered_dirs(self.embeddings_dir, '_embeddings', num=num, ratio=ratio)
         
         if num:
-            dirs = all_dirs[:num]
             print(f"處理 {num} 個嵌入檔案...")
         elif ratio:
-            dirs = all_dirs[:int(len(all_dirs) * ratio)]
             print(f"處理 {ratio*100:.1f}% 的嵌入檔案...")
         else:
-            dirs = all_dirs
             print("處理所有嵌入檔案...")
         
-        os.makedirs(self.output_dir, exist_ok=True)
+        ensure_dir(self.output_dir)
         
         processed_count = 0
         total_windows = 0
         
         with tqdm(dirs, desc="生成 Log Vector", unit="檔案", dynamic_ncols=True) as pbar:
             for dir_name in pbar:
-                embedding_path = os.path.join(self.embeddings_dir, dir_name)
+                embedding_path = join_path(self.embeddings_dir, dir_name)
                 short_name = dir_name if len(dir_name) <= 35 else dir_name[:32] + "..."
                 pbar.set_postfix({"檔案": short_name}, refresh=False)
                 
@@ -635,7 +600,7 @@ class LogChunker:
                     
                     # 儲存結果
                     output_name = dir_name.replace('_embeddings', '_logvectors')
-                    output_path = os.path.join(self.output_dir, output_name)
+                    output_path = join_path(self.output_dir, output_name)
                     self._save_log_vectors(log_vectors, window_info, output_path)
                     
                     processed_count += 1
@@ -655,127 +620,10 @@ class LogChunker:
             print(f"  Log Vector 維度: {self.model.output_dim}")
 
 
-class BiLSTMAttention:
-    """BiLSTM + Attention 模型，用於將日誌序列轉換為 Log Vector。"""
-    
-    def __new__(cls, *args, **kwargs):
-        """動態建立 PyTorch 模型類別。"""
-        import torch
-        import torch.nn as nn
-        
-        class _BiLSTMAttentionModel(nn.Module):
-            def __init__(
-                self,
-                embedding_dim: int,
-                hidden_size: int = 128,
-                num_layers: int = 2,
-                dropout: float = 0.3,
-                has_parsing: bool = False,
-                fusion_enable: bool = True,
-                fusion_dim: int = 256
-            ):
-                super().__init__()
-                self.embedding_dim = embedding_dim
-                self.hidden_size = hidden_size
-                self.has_parsing = has_parsing
-                self.fusion_enable = fusion_enable
-                
-                # * Template BiLSTM + Attention
-                self.template_bilstm = nn.LSTM(
-                    input_size=embedding_dim,
-                    hidden_size=hidden_size,
-                    num_layers=num_layers,
-                    batch_first=True,
-                    bidirectional=True,
-                    dropout=dropout if num_layers > 1 else 0
-                )
-                self.template_attention = nn.Sequential(
-                    nn.Linear(hidden_size * 2, hidden_size),
-                    nn.Tanh(),
-                    nn.Linear(hidden_size, 1, bias=False)
-                )
-                
-                # * Parameters BiLSTM + Attention (僅在 has_parsing=True 時使用)
-                if has_parsing:
-                    self.param_bilstm = nn.LSTM(
-                        input_size=embedding_dim,
-                        hidden_size=hidden_size,
-                        num_layers=num_layers,
-                        batch_first=True,
-                        bidirectional=True,
-                        dropout=dropout if num_layers > 1 else 0
-                    )
-                    self.param_attention = nn.Sequential(
-                        nn.Linear(hidden_size * 2, hidden_size),
-                        nn.Tanh(),
-                        nn.Linear(hidden_size, 1, bias=False)
-                    )
-                    bilstm_output_dim = hidden_size * 4  # 串接 Template 與 Parameters
-                else:
-                    self.param_bilstm = None
-                    self.param_attention = None
-                    bilstm_output_dim = hidden_size * 2
-                
-                # * 融合層 (可選)
-                if fusion_enable:
-                    self.fusion = nn.Sequential(
-                        nn.Linear(bilstm_output_dim, fusion_dim),
-                        nn.ReLU(),
-                        nn.Dropout(dropout)
-                    )
-                    self.output_dim = fusion_dim
-                else:
-                    self.fusion = None
-                    self.output_dim = bilstm_output_dim
-            
-            def _apply_bilstm_attention(
-                self, 
-                x: torch.Tensor, 
-                bilstm: nn.LSTM, 
-                attention: nn.Sequential
-            ) -> torch.Tensor:
-                """對輸入應用 BiLSTM + Attention。"""
-                lstm_out, _ = bilstm(x)  # (batch, seq_len, hidden*2)
-                attn_weights = attention(lstm_out)  # (batch, seq_len, 1)
-                attn_weights = torch.softmax(attn_weights, dim=1)
-                context = torch.sum(lstm_out * attn_weights, dim=1)  # (batch, hidden*2)
-                return context
-            
-            def forward(
-                self, 
-                template_x: torch.Tensor, 
-                param_x: Optional[torch.Tensor] = None
-            ) -> torch.Tensor:
-                # * Template BiLSTM + Attention
-                template_context = self._apply_bilstm_attention(
-                    template_x, self.template_bilstm, self.template_attention
-                )
-                
-                # * Parameters BiLSTM + Attention (若有 parsing)
-                if self.has_parsing and param_x is not None and self.param_bilstm is not None:
-                    param_context = self._apply_bilstm_attention(
-                        param_x, self.param_bilstm, self.param_attention
-                    )
-                    # 串接 Template 與 Parameters 的輸出
-                    combined = torch.cat([template_context, param_context], dim=1)
-                else:
-                    combined = template_context
-                
-                # * 融合層 (可選)
-                if self.fusion:
-                    output = self.fusion(combined)
-                else:
-                    output = combined
-                
-                return output
-        
-        return _BiLSTMAttentionModel(*args, **kwargs)
-
-
 def main():
     # 1: 啟用解析 (預設)
-    N = 30
-    loader = LogLoader(enable_parser=True)
+    N = -1  # 處理所有檔案
+    loader = LogLoader(enable_parser=False)
     loader.load_logs(num=N)
     
     # 2: 不解析 (保留原始日誌)
@@ -783,7 +631,7 @@ def main():
     # loader.load_logs(ratio=0.3)
     
     # 3: 計算嵌入向量
-    embedder = LogEmbedder()
+    embedder = LogEmbedder(normalize=False)
     embedder.embed_logs(num=N)
     
     # 4: 生成 Log Vector

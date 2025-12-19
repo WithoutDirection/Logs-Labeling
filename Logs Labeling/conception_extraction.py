@@ -3,8 +3,7 @@ ConceptExtractor：使用非負矩陣分解（NMF）或隱含狄利克雷分佈�
 將高維度的稠密向量映射至潛在的概念空間。
 """
 
-import os
-import json
+import sys
 import shutil
 import pickle
 from pathlib import Path
@@ -13,12 +12,19 @@ from typing import Optional, List, Literal, Union
 import numpy as np
 import pyarrow as pa
 import pyarrow.feather as feather
-from datasets import load_from_disk
 from sklearn.decomposition import NMF, LatentDirichletAllocation
 from sklearn.preprocessing import MinMaxScaler
 
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# * 調整匯入路徑
+CURRENT_DIR = str(Path(__file__).resolve().parent)
+PROJECT_ROOT = str(Path(CURRENT_DIR).parent)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from utils.path import (
+    join_path, get_parent_dir, ensure_dir, exists, is_dir, get_dirs
+)
+from utils.dataset import load_dataset
 from config import (
     LOG_VECTORS_DIR,
     DATA_DIR,
@@ -65,6 +71,13 @@ class ConceptExtractor:
         self.model = None
         self.scaler = MinMaxScaler()
         self._is_fitted = False
+
+    def _resolve_path(self, path: str) -> str:
+        """將相對路徑轉為專案根目錄下的絕對路徑。"""
+        p = Path(path)
+        if p.is_absolute():
+            return str(p)
+        return str(Path(PROJECT_ROOT) / p)
     
     # ======================== 資料準備（Data Preparation） ========================
     
@@ -85,24 +98,27 @@ class ConceptExtractor:
         回傳：
             X_train：聚合後的訓練矩陣（n_samples, n_features）
         """
+        log_vectors_dir = self._resolve_path(log_vectors_dir)
+        external_knowledge_dir = (
+            self._resolve_path(external_knowledge_dir)
+            if external_knowledge_dir else None
+        )
         all_vectors = []
         np.random.seed(self.random_state)
         
         # * 載入外部知識向量（若存在）
-        if external_knowledge_dir and os.path.exists(external_knowledge_dir):
-            for subdir in os.listdir(external_knowledge_dir):
-                ext_path = os.path.join(external_knowledge_dir, subdir)
+        if external_knowledge_dir and exists(external_knowledge_dir):
+            for subdir in get_dirs(external_knowledge_dir):
+                ext_path = join_path(external_knowledge_dir, subdir)
                 vectors = self._load_arrow_data(ext_path)
                 if vectors is not None:
                     all_vectors.append(vectors)
                     print(f"Loaded external knowledge: {subdir}, shape={vectors.shape}")
         
         # * 從每個 LogVectors 資料集進行抽樣
-        if os.path.exists(log_vectors_dir):
-            for log_id_dir in os.listdir(log_vectors_dir):
-                dataset_path = os.path.join(log_vectors_dir, log_id_dir)
-                if not os.path.isdir(dataset_path):
-                    continue
+        if exists(log_vectors_dir):
+            for log_id_dir in get_dirs(log_vectors_dir):
+                dataset_path = join_path(log_vectors_dir, log_id_dir)
                     
                 vectors = self._load_arrow_data(dataset_path)
                 if vectors is None:
@@ -132,12 +148,12 @@ class ConceptExtractor:
         # * 優先判斷是否為 HF datasets 格式
         hf_markers = ["dataset_info.json", "state.json"]
         is_hf_dataset = any(
-            os.path.exists(os.path.join(dir_path, marker)) for marker in hf_markers
+            exists(join_path(dir_path, marker)) for marker in hf_markers
         )
         
         if is_hf_dataset:
             try:
-                ds = load_from_disk(dir_path)
+                ds = load_dataset(dir_path)
                 return self._dataset_to_numpy(ds)
             except Exception as e:
                 print(f"HF load_from_disk failed for {dir_path}: {e}")
@@ -147,8 +163,8 @@ class ConceptExtractor:
         possible_names = ["data.arrow", "data-00000-of-00001.arrow"]
         
         for fname in possible_names:
-            fpath = os.path.join(dir_path, fname)
-            if not os.path.exists(fpath):
+            fpath = join_path(dir_path, fname)
+            if not exists(fpath):
                 continue
 
             try:
@@ -176,7 +192,7 @@ class ConceptExtractor:
         # * 最後嘗試 HF datasets（若前面未嘗試過）
         if not is_hf_dataset:
             try:
-                ds = load_from_disk(dir_path)
+                ds = load_dataset(dir_path)
                 return self._dataset_to_numpy(ds)
             except Exception as e:
                 print(f"Failed to load dataset at {dir_path}: {e}")
@@ -246,8 +262,8 @@ class ConceptExtractor:
     
     def save_model(self, path: Optional[str] = None) -> None:
         """將訓練好的模型持久化至磁碟。"""
-        save_path = path or self.model_path
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        save_path = self._resolve_path(path or self.model_path)
+        ensure_dir(get_parent_dir(save_path))
         
         with open(save_path, "wb") as f:
             pickle.dump({
@@ -260,7 +276,7 @@ class ConceptExtractor:
     
     def load_model(self, path: Optional[str] = None) -> "ConceptExtractor":
         """從磁碟載入已訓練模型。"""
-        load_path = path or self.model_path
+        load_path = self._resolve_path(path or self.model_path)
         
         with open(load_path, "rb") as f:
             data = pickle.load(f)
@@ -311,6 +327,9 @@ class ConceptExtractor:
         if not self._is_fitted:
             raise RuntimeError("尚未訓練模型。請先載入或訓練模型。")
         
+        input_path = self._resolve_path(input_path)
+        output_path = self._resolve_path(output_path)
+
         # * 載入輸入向量
         X = self._load_arrow_data(input_path)
         if X is None:
@@ -321,8 +340,8 @@ class ConceptExtractor:
         H = self.transform(X)
         
         # * 儲存轉換後資料
-        os.makedirs(output_path, exist_ok=True)
-        output_arrow = os.path.join(output_path, "data-00000-of-00001.arrow")
+        ensure_dir(output_path)
+        output_arrow = join_path(output_path, "data-00000-of-00001.arrow")
         
         table = pa.table({"concept_vector": H.tolist()})
         feather.write_feather(table, output_arrow)
@@ -331,9 +350,9 @@ class ConceptExtractor:
         # * 複製中繼資料（metadata）檔案
         if copy_metadata:
             for meta_file in ["state.json", "dataset_info.json"]:
-                src = os.path.join(input_path, meta_file)
-                dst = os.path.join(output_path, meta_file)
-                if os.path.exists(src):
+                src = join_path(input_path, meta_file)
+                dst = join_path(output_path, meta_file)
+                if exists(src):
                     shutil.copy2(src, dst)
     
     def batch_transform(
@@ -348,19 +367,20 @@ class ConceptExtractor:
             log_vectors_dir：輸入 LogVectors 的根目錄
             concept_vectors_dir：輸出 ConceptVectors 的根目錄
         """
-        if not os.path.exists(log_vectors_dir):
+        log_vectors_dir = self._resolve_path(log_vectors_dir)
+        concept_vectors_dir = self._resolve_path(concept_vectors_dir)
+
+        if not exists(log_vectors_dir):
             raise FileNotFoundError(f"Input directory not found: {log_vectors_dir}")
         
-        os.makedirs(concept_vectors_dir, exist_ok=True)
+        ensure_dir(concept_vectors_dir)
         
-        for log_id_dir in os.listdir(log_vectors_dir):
-            input_path = os.path.join(log_vectors_dir, log_id_dir)
-            if not os.path.isdir(input_path):
-                continue
+        for log_id_dir in get_dirs(log_vectors_dir):
+            input_path = join_path(log_vectors_dir, log_id_dir)
             
             # 維持目錄結構：{LogID}_logvectors -> {LogID}_concepts
             output_name = log_id_dir.replace("_logvectors", "_concepts")
-            output_path = os.path.join(concept_vectors_dir, output_name)
+            output_path = join_path(concept_vectors_dir, output_name)
             
             self.transform_dataset(input_path, output_path)
         

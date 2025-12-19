@@ -40,7 +40,8 @@ BILSTM_NUM_LAYERS = 2  # BiLSTM 層數
 BILSTM_DROPOUT = 0.3  # Dropout 比例
 FUSION_ENABLE = False  # 是否啟用融合層
 FUSION_OUTPUT_DIM = 256  # 融合層輸出維度
-LOG_VECTORS_DIR = os.path.join(DATA_DIR, "LogVectors")  # Log Vector 儲存目錄
+# LOG_VECTORS_DIR = os.path.join(DATA_DIR, "LogVectors")  # Log Vector 儲存目錄
+LOG_VECTORS_DIR = os.path.join(DATA_DIR, "Embeddings") # 如果不用Log Chunker，改用此目錄存放 Embeddings
 
 # ==================== 異常偵測設定 ====================
 

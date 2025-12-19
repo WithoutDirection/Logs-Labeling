@@ -4,18 +4,25 @@
 """
 
 import numpy as np
-import os
 import sys
-from typing import Dict, List, Optional, Literal, Any
+from pathlib import Path
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
-from datasets import Dataset, load_from_disk, concatenate_datasets
+from datasets import Dataset, concatenate_datasets
 import matplotlib.pyplot as plt
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+# * 調整匯入路徑，確保能載入同專案上層的模組
+CURRENT_DIR = str(Path(__file__).resolve().parent)
+PROJECT_ROOT = str(Path(CURRENT_DIR).parent)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+
+from utils.path import (
+    get_current_dir, get_parent_dir, join_path, get_basename,
+    ensure_dir, get_dirs
+)
+from utils.dataset import load_dataset, save_dataset
 
 import config
 from anomaly_dection.isolation_forest import IsolationForestDetector, IsolationForestConfig
@@ -24,7 +31,7 @@ from anomaly_dection.autoencoder import AutoEncoderDetector, AutoEncoderConfig
 from anomaly_dection.pca_gmm import PCAGMMDetector, PCAGMMConfig
 
 SEED = getattr(config, "SEED", 42)
-RESULT_FIG_DIR = os.path.join("result", "unsupervised_anomaly_dection")
+RESULT_FIG_DIR = join_path("result", "unsupervised_anomaly_dection")
 
 
 def _set_global_seed(seed: int):
@@ -67,7 +74,7 @@ class LogDetectorConfig:
         "autoencoder": 0.25,
         "pca_gmm": 0.25
     })
-    output_dir: str = os.path.join(config.DATA_DIR, "Detection_Results")
+    output_dir: str = join_path(config.DATA_DIR, "Detection_Results")
     
     # 各模型設定
     if_config: IsolationForestConfig = field(default_factory=IsolationForestConfig)
@@ -246,7 +253,7 @@ class LogDetector:
         Returns:
             包含偵測結果的 Dataset
         """
-        dataset = load_from_disk(dataset_path)
+        dataset = load_dataset(dataset_path)
         
         # * 擷取 log_vector 欄位轉為 numpy 陣列
         X = np.array(dataset["log_vector"])
@@ -279,8 +286,8 @@ class LogDetector:
         Returns:
             儲存路徑
         """
-        os.makedirs(self.config.output_dir, exist_ok=True)
-        output_path = os.path.join(self.config.output_dir, f"{output_name}_detection")
+        ensure_dir(self.config.output_dir)
+        output_path = join_path(self.config.output_dir, f"{output_name}_detection")
         dataset.save_to_disk(output_path)
         return output_path
 
@@ -320,7 +327,7 @@ def detect_anomalies(
     result_dataset = detector.detect_from_dataset(dataset_path)
     
     if save_results:
-        output_name = os.path.basename(dataset_path).replace("_logvectors", "")
+        output_name = get_basename(dataset_path).replace("_logvectors", "")
         detector.save_results(result_dataset, output_name)
     
     return result_dataset
@@ -340,20 +347,28 @@ if __name__ == "__main__":
     
     # * 載入所有可用的 Log Vector Dataset
     print("\n[1] 掃描 Log Vector Dataset...")
-    logvector_dirs = sorted([
-        os.path.join(config.LOG_VECTORS_DIR, d)
-        for d in os.listdir(config.LOG_VECTORS_DIR)
-        if d.endswith("_logvectors") and os.path.isdir(os.path.join(config.LOG_VECTORS_DIR, d))
-    ])
+    # logvector_dirs = sorted([
+    #     join_path(config.LOG_VECTORS_DIR, d)
+    #     for d in get_dirs(config.LOG_VECTORS_DIR, "_logvectors")
+    # ])
+    # if not logvector_dirs:
+    #     raise RuntimeError(f"在 {config.LOG_VECTORS_DIR} 下找不到任何 *_logvectors 資料夾")
 
+    # total_datasets = len(logvector_dirs)
+    # print(f"    找到 {total_datasets} 個資料集")
+    ## 不啟用Log Chunking的情況下，資料夾後綴為_embeddings
+    logvector_dirs = sorted([
+        join_path(config.LOG_VECTORS_DIR, d)
+        for d in get_dirs(config.LOG_VECTORS_DIR, "_embeddings")
+    ])
     if not logvector_dirs:
-        raise RuntimeError(f"在 {config.LOG_VECTORS_DIR} 下找不到任何 *_logvectors 資料夾")
+        raise RuntimeError(f"在 {config.LOG_VECTORS_DIR} 下找不到任何 *_embeddings 資料夾")
 
     total_datasets = len(logvector_dirs)
     print(f"    找到 {total_datasets} 個資料集")
     
     # * 定義實驗規模：1, 5, 10, 15, 20...
-    EXPERIMENT_SIZES = [1, 5, 10, 15, 20, 25, total_datasets]
+    EXPERIMENT_SIZES = [i for i in range(1, total_datasets + 1) if i == 1 or i % 5 == 0]
     EXPERIMENT_SIZES = [s for s in EXPERIMENT_SIZES if s <= total_datasets]
     EXPERIMENT_SIZES = sorted(set(EXPERIMENT_SIZES))
     print(f"    實驗規模: {EXPERIMENT_SIZES}")
@@ -369,9 +384,10 @@ if __name__ == "__main__":
         
         # * 載入並合併指定數量的資料集
         selected_dirs = logvector_dirs[:n_datasets]
-        datasets_list = [load_from_disk(path) for path in selected_dirs]
+        datasets_list = [load_dataset(path) for path in selected_dirs]
         dataset = concatenate_datasets(datasets_list)
-        X = np.array(dataset["log_vector"])
+        # X = np.array(dataset["log_vector"])
+        X = np.array(dataset["embedding"])  # 不啟用Log Chunking的情況下，欄位名稱為embedding
         print(f"    樣本數: {X.shape[0]}, 維度: {X.shape[1]}")
         
         # * 執行異常偵測
