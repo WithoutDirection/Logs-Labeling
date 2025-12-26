@@ -128,6 +128,14 @@ def _load_vectors_dataset(dataset_dir: str) -> np.ndarray:
         for col in ["log_vector", "embedding", "vector"]:
             if col in ds.column_names:
                 return np.array(ds[col], dtype=float)
+        
+        if "template_embedding" in ds.column_names:
+            template = np.array(ds["template_embedding"], dtype=float)
+            if "param_embedding" in ds.column_names:
+                param = np.array(ds["param_embedding"], dtype=float)
+                return (template + param) / 2.0
+            return template
+            
         raise ValueError(f"No known vector column in dataset {dataset_dir}. Columns: {ds.column_names}")
 
     # Feather fallback
@@ -147,6 +155,13 @@ def _load_vectors_dataset(dataset_dir: str) -> np.ndarray:
     for col in ["log_vector", "embedding", "vector"]:
         if col in table.column_names:
             return np.array(table[col].to_pylist(), dtype=float)
+            
+    if "template_embedding" in table.column_names:
+        template = np.array(table["template_embedding"].to_pylist(), dtype=float)
+        if "param_embedding" in table.column_names:
+            param = np.array(table["param_embedding"].to_pylist(), dtype=float)
+            return (template + param) / 2.0
+        return template
 
     raise ValueError(f"No known vector column found in {arrow_path}. Columns: {table.column_names}")
 
