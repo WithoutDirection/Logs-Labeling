@@ -1,0 +1,603 @@
+cluster,LogID,ConcatenatedLog
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_0,Process Start SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_1,Thread Create SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_2,Load Image C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_3,Load Image C:\Windows\System32\ntdll.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_4,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_5,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_6,RegQueryValue HKLM\System\CurrentControlSet\Control\Session Manager\RaiseExceptionOnPossibleDeadlock NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_7,RegCloseKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_8,RegOpenKey HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Segment Heap REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_9,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager\Segment Heap NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_10,RegOpenKey HKLM\SYSTEM\CurrentControlSet\Control\Session Manager REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_11,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_12,RegQueryValue HKLM\System\CurrentControlSet\Control\Session Manager\ResourcePolicies NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_13,RegCloseKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_14,CreateFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_15,Load Image C:\Windows\System32\kernel32.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_16,Load Image C:\Windows\System32\KernelBase.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_17,RegOpenKey HKLM\System\CurrentControlSet\Control\SafeBoot\Option REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_18,RegOpenKey HKLM\System\CurrentControlSet\Control\SafeBoot\Option NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_19,RegOpenKey HKLM\System\CurrentControlSet\Control\Srp\GP\DLL REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_20,RegOpenKey HKLM\System\CurrentControlSet\Control\Srp\GP\DLL NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_21,RegOpenKey HKLM\Software\Policies\Microsoft\Windows\Safer\CodeIdentifiers SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_22,RegQueryValue HKLM\SOFTWARE\Policies\Microsoft\Windows\safer\codeidentifiers\TransparentEnabled NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_23,RegCloseKey HKLM\SOFTWARE\Policies\Microsoft\Windows\safer\codeidentifiers SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_24,RegOpenKey HKCU\Software\Policies\Microsoft\Windows\Safer\CodeIdentifiers NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_25,RegOpenKey HKLM\System\CurrentControlSet\Control\FileSystem\ REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_26,RegOpenKey HKLM\System\CurrentControlSet\Control\FileSystem SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_27,RegQueryValue HKLM\System\CurrentControlSet\Control\FileSystem\LongPathsEnabled SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_28,RegCloseKey HKLM\System\CurrentControlSet\Control\FileSystem SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_29,Load Image C:\Windows\System32\msvcrt.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_30,Thread Create SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_31,Load Image C:\Windows\System32\combase.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_32,Load Image C:\Windows\System32\ucrtbase.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_33,Load Image C:\Windows\System32\rpcrt4.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_34,Thread Create SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_35,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\Sorting\Versions REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_36,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\Sorting\Versions SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_37,RegQueryValue HKLM\System\CurrentControlSet\Control\Nls\Sorting\Versions\(Default) SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_38,RegQueryValue HKLM\System\CurrentControlSet\Control\Nls\Sorting\Versions\000603xx SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_39,RegOpenKey HKLM\SYSTEM\CurrentControlSet\Control\Session Manager REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_40,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_41,RegQueryValue HKLM\System\CurrentControlSet\Control\Session Manager\ResourcePolicies NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_42,RegCloseKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_43,RegOpenKey HKLM\SYSTEM\CurrentControlSet\Control\Session Manager REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_44,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_45,RegQueryValue HKLM\System\CurrentControlSet\Control\Session Manager\ResourcePolicies NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_46,RegCloseKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_47,RegOpenKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_48,RegQueryKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_49,RegOpenKey HKLM\SOFTWARE\Microsoft\OLE SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_50,RegQueryValue HKLM\SOFTWARE\Microsoft\Ole\PageAllocatorUseSystemHeap NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_51,RegCloseKey HKLM\SOFTWARE\Microsoft\Ole SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_52,RegQueryKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_53,RegOpenKey HKLM\SOFTWARE\Microsoft\OLE SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_54,RegQueryValue HKLM\SOFTWARE\Microsoft\Ole\PageAllocatorSystemHeapIsPrivate NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_55,RegCloseKey HKLM\SOFTWARE\Microsoft\Ole SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_56,RegQueryKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_57,RegOpenKey HKLM\SOFTWARE\Microsoft\OLE SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_58,RegQueryValue HKLM\SOFTWARE\Microsoft\Ole\AggressiveMTATesting NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_59,RegCloseKey HKLM\SOFTWARE\Microsoft\Ole SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_60,RegQueryKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_61,RegOpenKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_62,RegSetInfoKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_63,RegQueryKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_64,RegOpenKey HKLM\Software\Microsoft\Ole\FeatureDevelopmentProperties NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_65,RegOpenKey HKLM\SOFTWARE\Microsoft\AppModel\Lookaside\Packages NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_66,RegQueryKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_67,RegOpenKey HKLM\Software\Microsoft\Ole\FeatureDevelopmentProperties NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_68,RegQueryKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_69,RegOpenKey HKLM\Software\Microsoft\Ole SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_70,RegQueryKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_71,RegOpenKey HKLM\Software\Microsoft\OLE\Tracing NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_72,QueryNameInformationFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_73,RegOpenKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_74,RegOpenKey HKCU\Control Panel\Desktop\MuiCached\MachineLanguageConfiguration NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_75,RegCloseKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_76,RegOpenKey HKLM\Software\Policies\Microsoft\MUI\Settings NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_77,RegOpenKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_78,RegOpenKey HKCU\Software\Policies\Microsoft\Control Panel\Desktop NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_79,RegOpenKey HKCU\Control Panel\Desktop\LanguageConfiguration NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_80,RegCloseKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_81,RegOpenKey HKLM\Software\Policies\Microsoft\MUI\Settings NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_82,RegOpenKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_83,RegOpenKey HKCU\Software\Policies\Microsoft\Control Panel\Desktop NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_84,RegOpenKey HKCU\Control Panel\Desktop SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_85,RegQueryValue HKCU\Control Panel\Desktop\PreferredUILanguages NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_86,RegCloseKey HKCU\Control Panel\Desktop SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_87,RegCloseKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_88,RegOpenKey HKLM\Software\Policies\Microsoft\MUI\Settings NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_89,RegOpenKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_90,RegOpenKey HKCU\Control Panel\Desktop\MuiCached SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_91,RegQueryValue HKCU\Control Panel\Desktop\MuiCached\MachinePreferredUILanguages BUFFER OVERFLOW cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_92,RegQueryValue HKCU\Control Panel\Desktop\MuiCached\MachinePreferredUILanguages SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_93,RegCloseKey HKCU\Control Panel\Desktop\MuiCached SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_94,RegCloseKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_95,RegOpenKey HKLM\Software\Policies\Microsoft\MUI\Settings NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_96,RegOpenKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_97,RegOpenKey HKCU\Software\Policies\Microsoft\Control Panel\Desktop NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_98,RegOpenKey HKCU\Control Panel\Desktop SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_99,RegQueryValue HKCU\Control Panel\Desktop\PreferredUILanguages NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_100,RegCloseKey HKCU\Control Panel\Desktop SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_101,RegCloseKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_102,RegOpenKey HKLM\Software\Policies\Microsoft\MUI\Settings NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_103,RegOpenKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_104,RegOpenKey HKCU\Software\Policies\Microsoft\Control Panel\Desktop NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_105,RegOpenKey HKCU\Control Panel\Desktop\LanguageConfiguration NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_106,RegCloseKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_107,RegOpenKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_108,RegQueryKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_109,RegOpenKey HKCU\Software\Policies\Microsoft\Windows\System NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_110,RegQueryKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_111,RegOpenKey HKLM\Software\Microsoft\Command Processor SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_112,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\DisableUNCCheck NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_113,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\EnableExtensions SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_114,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\DelayedExpansion NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_115,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\DefaultColor SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_116,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\CompletionChar SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_117,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\PathCompletionChar SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_118,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\AutoRun NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_119,RegCloseKey HKLM\SOFTWARE\Microsoft\Command Processor SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_120,RegQueryKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_121,RegOpenKey HKCU\Software\Microsoft\Command Processor NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_122,CreateFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_123,QueryBasicInformationFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_124,CloseFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_125,CreateFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_126,QueryNameInformationFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_127,QueryNameInformationFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_128,QueryDirectory C:\Windows SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_129,CloseFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_130,CreateFile C:\Windows SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_131,QueryDirectory C:\Windows\system32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_132,CloseFile C:\Windows SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_133,CreateFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_134,QueryBasicInformationFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_135,CloseFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_136,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\CustomLocale REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_137,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\CustomLocale SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_138,RegQueryValue HKLM\System\CurrentControlSet\Control\Nls\CustomLocale\en-US NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_139,RegCloseKey HKLM\System\CurrentControlSet\Control\Nls\CustomLocale SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_140,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\ExtendedLocale REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_141,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\ExtendedLocale SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_142,RegQueryValue HKLM\System\CurrentControlSet\Control\Nls\ExtendedLocale\en-US NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_143,RegCloseKey HKLM\System\CurrentControlSet\Control\Nls\ExtendedLocale SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_144,CreateFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_145,QueryBasicInformationFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_146,CloseFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_147,CreateFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_148,QueryDirectory C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_149,CreateFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_150,ReadFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_151,CreateFile C:\svchost.exe NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_152,CreateFile C:\svchost.exe NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_153,RegOpenKey HKLM\Software\Policies\Microsoft\Windows\System SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_154,RegQueryValue HKLM\SOFTWARE\Policies\Microsoft\Windows\System\CopyFileBufferedSynchronousIo NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_155,RegCloseKey HKLM\SOFTWARE\Policies\Microsoft\Windows\System SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_156,CreateFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_157,QueryAttributeTagFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_158,CloseFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_159,CreateFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_160,QueryStandardInformationFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_161,QueryBasicInformationFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_162,QueryStreamInformationFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_163,QueryBasicInformationFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_164,QueryEaInformationFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_165,QueryEAFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_166,CreateFile C:\svchost.exe NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_167,CreateFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_168,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_169,QueryBasicInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_170,QuerySecurityFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_171,CloseFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_172,CreateFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_173,QueryAttributeInformationVolume C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_174,QueryNameInformationFile C:\svchost.exe BUFFER OVERFLOW cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_175,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_176,QueryBasicInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_177,QueryAttributeInformationVolume C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_178,Load Image C:\Windows\System32\advapi32.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_179,Load Image C:\Windows\System32\sechost.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_180,CreateFile C:\Windows\System32\ntmarta.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_181,QueryBasicInformationFile C:\Windows\System32\ntmarta.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_182,CloseFile C:\Windows\System32\ntmarta.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_183,CreateFile C:\Windows\System32\ntmarta.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_184,CreateFileMapping C:\Windows\System32\ntmarta.dll FILE LOCKED WITH ONLY READERS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_185,CreateFileMapping C:\Windows\System32\ntmarta.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_186,Load Image C:\Windows\System32\ntmarta.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_187,CloseFile C:\Windows\System32\ntmarta.dll SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_188,QueryRemoteProtocolInformation C:\Windows\System32\cmd.exe INVALID PARAMETER cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_189,QuerySecurityFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_190,QueryBasicInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_191,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_192,CreateFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_193,QueryRemoteProtocolInformation C:\ INVALID PARAMETER cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_194,QueryNameInformationFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_195,QueryNameInformationFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_196,QuerySecurityFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_197,CloseFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_198,QueryRemoteProtocolInformation C:\svchost.exe INVALID PARAMETER cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_199,QueryNameInformationFile C:\svchost.exe BUFFER OVERFLOW cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_200,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_201,QuerySecurityFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_202,QueryNameInformationFile C:\svchost.exe BUFFER OVERFLOW cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_203,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_204,QuerySecurityFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_205,QuerySecurityFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_206,QuerySecurityFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_207,SetSecurityFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_208,QueryNameInformationFile C:\svchost.exe BUFFER OVERFLOW cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_209,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_210,QueryNameInformationFile C:\svchost.exe BUFFER OVERFLOW cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_211,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_212,SetEndOfFileInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_213,RegOpenKey HKLM\Software\Policies\Microsoft\Windows\System SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_214,RegQueryValue HKLM\SOFTWARE\Policies\Microsoft\Windows\System\CopyFileChunkSize NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_215,RegQueryValue HKLM\SOFTWARE\Policies\Microsoft\Windows\System\CopyFileOverlappedCount NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_216,RegCloseKey HKLM\SOFTWARE\Policies\Microsoft\Windows\System SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_217,RegOpenKey HKLM\System\CurrentControlSet\Services\bindflt REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_218,RegOpenKey HKLM\System\CurrentControlSet\Services\bindflt SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_219,RegQueryValue HKLM\System\CurrentControlSet\Services\bindflt\SupportedFeatures SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_220,RegCloseKey HKLM\System\CurrentControlSet\Services\bindflt SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_221,RegOpenKey HKLM\System\CurrentControlSet\Services\SysmonDrv REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_222,RegOpenKey HKLM\System\CurrentControlSet\Services\SysmonDrv SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_223,RegQueryValue HKLM\System\CurrentControlSet\Services\SysmonDrv\SupportedFeatures NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_224,RegCloseKey HKLM\System\CurrentControlSet\Services\SysmonDrv SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_225,RegOpenKey HKLM\System\CurrentControlSet\Services\PROCMON24 REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_226,RegOpenKey HKLM\System\CurrentControlSet\Services\PROCMON24 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_227,RegQueryValue HKLM\System\CurrentControlSet\Services\PROCMON24\SupportedFeatures SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_228,RegCloseKey HKLM\System\CurrentControlSet\Services\PROCMON24 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_229,RegOpenKey HKLM\System\CurrentControlSet\Services\luafv REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_230,RegOpenKey HKLM\System\CurrentControlSet\Services\luafv SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_231,RegQueryValue HKLM\System\CurrentControlSet\Services\luafv\SupportedFeatures SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_232,RegCloseKey HKLM\System\CurrentControlSet\Services\luafv SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_233,RegOpenKey HKLM\System\CurrentControlSet\Services\Wof REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_234,RegOpenKey HKLM\System\CurrentControlSet\Services\Wof SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_235,RegQueryValue HKLM\System\CurrentControlSet\Services\Wof\SupportedFeatures SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_236,RegCloseKey HKLM\System\CurrentControlSet\Services\Wof SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_237,RegOpenKey HKLM\System\CurrentControlSet\Services\FileInfo REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_238,RegOpenKey HKLM\System\CurrentControlSet\Services\FileInfo SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_239,RegQueryValue HKLM\System\CurrentControlSet\Services\FileInfo\SupportedFeatures SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_240,RegCloseKey HKLM\System\CurrentControlSet\Services\FileInfo SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_241,ReadFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_242,QueryNameInformationFile C:\svchost.exe BUFFER OVERFLOW cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_243,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_244,QueryStandardInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_245,WriteFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_246,ReadFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_247,WriteFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_248,ReadFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_249,WriteFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_250,QueryNameInformationFile C:\svchost.exe BUFFER OVERFLOW cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_251,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_252,SetBasicInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_253,QueryRemoteProtocolInformation C:\svchost.exe INVALID PARAMETER cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_254,CloseFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_255,CloseFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_256,CreateFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_257,QueryBasicInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_258,CloseFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_259,CreateFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_260,QueryNameInformationFile C:\svchost.exe BUFFER OVERFLOW cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_261,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_262,SetBasicInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_263,CloseFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_264,CloseFile C:\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_265,QueryDirectory C:\Windows\System32 NO MORE FILES cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_266,CloseFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_267,RegOpenKey HKLM\System\CurrentControlSet\Control\StateSeparation\RedirectionMap\Keys REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_268,RegOpenKey HKLM\System\CurrentControlSet\Control\StateSeparation\RedirectionMap\Keys NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_269,RegOpenKey HKLM\Software\Microsoft\LanguageOverlay\OverlayPackages\en-US NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_270,CreateFile C:\Windows\System32\en-US\cmd.exe.mui SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_271,CreateFileMapping C:\Windows\System32\en-US\cmd.exe.mui FILE LOCKED WITH ONLY READERS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_272,QueryStandardInformationFile C:\Windows\System32\en-US\cmd.exe.mui SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_273,CreateFileMapping C:\Windows\System32\en-US\cmd.exe.mui SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_274,FileSystemControl \\localhost\IPC$ FS DRIVER REQUIRED cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_275,CloseFile \\localhost\IPC$ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_276,ReadFile C:\Windows\System32\drivers\rdbss.sys SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_277,ReadFile C:\Windows\System32\drivers\rdbss.sys SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_278,CreateFile \\localhost\c$\T1105.txt SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_279,ReadFile C:\Windows\System32\drivers\rdbss.sys SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_280,QueryDeviceInformationVolume \\localhost\c$\T1105.txt SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_281,CreateFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_282,QueryNameInformationFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_283,QueryInformationVolume C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_284,CloseFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_285,CreateFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_286,QueryNameInformationFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_287,QueryNameInformationFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_288,QueryDirectory C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_289,CloseFile C:\ SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_290,RegQueryValue HKLM\System\CurrentControlSet\Control\Nls\Sorting\Versions\000603xx SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_291,CreateFile C:\Windows\Globalization\Sorting\SortDefault.nls SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_292,CreateFileMapping C:\Windows\Globalization\Sorting\SortDefault.nls FILE LOCKED WITH ONLY READERS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_293,QueryStandardInformationFile C:\Windows\Globalization\Sorting\SortDefault.nls SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_294,CreateFileMapping C:\Windows\Globalization\Sorting\SortDefault.nls SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_295,CloseFile C:\Windows\Globalization\Sorting\SortDefault.nls SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_296,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\Sorting\Ids REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_297,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\Sorting\Ids SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_298,RegQueryValue HKLM\System\CurrentControlSet\Control\Nls\Sorting\Ids\en-US NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_299,RegQueryValue HKLM\System\CurrentControlSet\Control\Nls\Sorting\Ids\en NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_300,CreateFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_301,QueryBasicInformationFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_302,CloseFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_303,RegOpenKey HKLM\Software\Microsoft\Windows NT\CurrentVersion\Image File Execution Options SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_304,RegOpenKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_305,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\UseFilter NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_306,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\LoadCHPEBinaries NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_307,RegCloseKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_308,RegOpenKey HKLM\Software\Microsoft\Wow64\x86\xtajit NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_309,CreateFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_310,QueryNameInformationFile C:\svchost.exe BUFFER OVERFLOW cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_311,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_312,WriteFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_313,SetEndOfFileInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_314,CreateFileMapping C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_315,CreateFileMapping C:\svchost.exe FILE LOCKED WITH ONLY READERS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_316,QueryStandardInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_317,CreateFileMapping C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_318,RegOpenKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_319,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\UseFilter NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_320,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\Debugger NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_321,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\UseLargePages NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_322,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\NodeOptions NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_323,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\ForceWakeCharge NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_324,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\AllowedCpuSets NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_325,RegOpenKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\PerfOptions NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_326,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\MitigationOptions NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_327,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\MitigationAuditOptions NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_328,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_329,RegOpenKey HKLM\System\CurrentControlSet\Services\bam\State\UserSettings\S-1-5-21-4065680934-2604657585-3199708412-1106 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_330,RegQueryValue HKLM\System\CurrentControlSet\Services\bam\State\UserSettings\S-1-5-21-4065680934-2604657585-3199708412-1106\\Device\HarddiskVolume3\svchost.exe NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_331,RegCloseKey HKLM\System\CurrentControlSet\Services\bam\State\UserSettings\S-1-5-21-4065680934-2604657585-3199708412-1106 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_332,RegOpenKey HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\BAM REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_333,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager\BAM NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_334,CreateFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_335,CloseFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_336,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_337,CreateFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_338,QueryAllInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_339,CreateFileMapping C:\svchost.exe FILE LOCKED WITH ONLY READERS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_340,QueryStandardInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_341,CloseFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_342,Process Create C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_343,RegCloseKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_344,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager\AppCertDlls REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_345,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager\AppCertDlls NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_346,RegOpenKey HKLM\System\CurrentControlSet\Control\SafeBoot\Option REPARSE cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_347,RegOpenKey HKLM\System\CurrentControlSet\Control\SafeBoot\Option NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_348,RegOpenKey HKLM\Software\Policies\Microsoft\Windows\Safer\CodeIdentifiers SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_349,RegQueryValue HKLM\SOFTWARE\Policies\Microsoft\Windows\safer\codeidentifiers\TransparentEnabled NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_350,RegQueryValue HKLM\SOFTWARE\Policies\Microsoft\Windows\safer\codeidentifiers\AuthenticodeEnabled SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_351,RegCloseKey HKLM\SOFTWARE\Policies\Microsoft\Windows\safer\codeidentifiers SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_352,RegOpenKey HKCU\Software\Policies\Microsoft\Windows\Safer\CodeIdentifiers NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_353,RegOpenKey HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_354,RegQueryValue HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\Cache SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_355,RegCloseKey HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_356,RegOpenKey HKCU\Software\Microsoft\Windows NT\CurrentVersion SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_357,RegOpenKey HKCU\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_358,QueryNameInformationFile C:\svchost.exe BUFFER OVERFLOW cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_359,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_360,QuerySecurityFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_361,CreateFile C:\Windows\apppatch\sysmain.sdb SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_362,QueryBasicInformationFile C:\Windows\apppatch\sysmain.sdb SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_363,CloseFile C:\Windows\apppatch\sysmain.sdb SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_364,QueryBasicInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_365,QueryBasicInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_366,QuerySecurityFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_367,QueryNameInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_368,CreateFile C:\Windows\apppatch\sysmain.sdb SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_369,QueryStandardInformationFile C:\Windows\apppatch\sysmain.sdb SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_370,QueryStandardInformationFile C:\Windows\apppatch\sysmain.sdb SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_371,CreateFileMapping C:\Windows\apppatch\sysmain.sdb FILE LOCKED WITH ONLY READERS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_372,QueryStandardInformationFile C:\Windows\apppatch\sysmain.sdb SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_373,CreateFileMapping C:\Windows\apppatch\sysmain.sdb SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_374,QueryStandardInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_375,RegOpenKey HKLM\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_376,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers\C:\svchost.exe NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_377,RegCloseKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_378,RegOpenKey HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_379,RegOpenKey HKLM\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Custom\svchost.exe NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_380,QueryStandardInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_381,CreateFileMapping C:\svchost.exe FILE LOCKED WITH ONLY READERS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_382,QueryStandardInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_383,CreateFileMapping C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_384,CloseFile C:\Windows\apppatch\sysmain.sdb SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_385,QueryBasicInformationFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_386,RegOpenKey HKLM\Software\Microsoft\Windows\CurrentVersion\SideBySide SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_387,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\SideBySide\PreferExternalManifest NAME NOT FOUND cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_388,RegCloseKey HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\SideBySide SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_389,CloseFile C:\svchost.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_390,CloseFile \\localhost\c$\T1105.txt SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_391,Thread Exit SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_392,Thread Exit SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_393,RegCloseKey HKLM\SOFTWARE\Microsoft\Ole SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_394,RegCloseKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_395,Thread Exit SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_396,Process Exit SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_397,RegOpenKey HKLM\System\CurrentControlSet\Services\bam\State\UserSettings\S-1-5-21-4065680934-2604657585-3199708412-1106 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_398,RegQueryValue HKLM\System\CurrentControlSet\Services\bam\State\UserSettings\S-1-5-21-4065680934-2604657585-3199708412-1106\\Device\HarddiskVolume3\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_399,RegSetValue HKLM\System\CurrentControlSet\Services\bam\State\UserSettings\S-1-5-21-4065680934-2604657585-3199708412-1106\\Device\HarddiskVolume3\Windows\System32\cmd.exe SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_400,RegCloseKey HKLM\System\CurrentControlSet\Services\bam\State\UserSettings\S-1-5-21-4065680934-2604657585-3199708412-1106 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_401,CloseFile C:\Windows\System32 SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_402,CloseFile C:\Windows\System32\en-US\cmd.exe.mui SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_403,RegCloseKey HKLM\System\CurrentControlSet\Control\Nls\Sorting\Versions SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_404,RegCloseKey HKLM SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_405,RegCloseKey HKCU SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_406,RegCloseKey HKLM\System\CurrentControlSet\Control\Nls\Sorting\Ids SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_407,RegCloseKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_408,RegCloseKey HKCU\SOFTWARE\Microsoft\Windows NT\CurrentVersion SUCCESS cmd.exe /C copy C:\Windows\System32\cmd.exe C:\svchost.exe && C:\svchost.exe /c echo T1105 > \\localhost\c$\T1105.txt
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_409,Process Start SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_410,Thread Create SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_411,Load Image C:\svchost.exe SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_412,Load Image C:\Windows\System32\ntdll.dll SUCCESS C:\svchost.exe  /c echo T1105
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_413,CreateFile C:\Windows\Prefetch\SVCHOST.EXE-954EB058.pf NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_414,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager REPARSE C:\svchost.exe  /c echo T1105
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_415,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_416,RegQueryValue HKLM\System\CurrentControlSet\Control\Session Manager\RaiseExceptionOnPossibleDeadlock NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_417,RegCloseKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS C:\svchost.exe  /c echo T1105
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_418,RegOpenKey HKLM\Software\Microsoft\Windows NT\CurrentVersion\Image File Execution Options SUCCESS C:\svchost.exe  /c echo T1105
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_419,RegOpenKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_420,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\UseFilter NAME NOT FOUND C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_421,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\DisableHeapLookaside NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_422,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\FrontEndHeapDebugOptions NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_423,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\ShutdownFlags NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_424,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\UnloadEventTraceDepth NAME NOT FOUND C:\svchost.exe  /c echo T1105
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_425,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\MaxLoaderThreads NAME NOT FOUND C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_426,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\UseImpersonatedDeviceMap NAME NOT FOUND C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_427,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\TracingFlags NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_428,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\RaiseExceptionOnPossibleDeadlock NAME NOT FOUND C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_429,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\CFGOptions NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_430,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\MinimumStackCommitInBytes SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_431,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\BreakOnInitializeProcessFailure NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_432,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\KeepActivationContextsAlive NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_433,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\TrackActivationContextReleases NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_434,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\MaxDeadActivationContexts NAME NOT FOUND C:\svchost.exe  /c echo T1105
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_435,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\GlobalFlag NAME NOT FOUND C:\svchost.exe  /c echo T1105
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_436,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\GlobalFlag2 NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_437,RegOpenKey HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Segment Heap REPARSE C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_438,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager\Segment Heap NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_439,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\CWDIllegalInDLLSearch NAME NOT FOUND C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_440,RegOpenKey HKLM\SYSTEM\CurrentControlSet\Control\Session Manager REPARSE C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_441,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_442,RegQueryValue HKLM\System\CurrentControlSet\Control\Session Manager\ResourcePolicies NAME NOT FOUND C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_443,RegCloseKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_444,RegOpenKey HKLM\SYSTEM\CurrentControlSet\Control\Session Manager REPARSE C:\svchost.exe  /c echo T1105
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_445,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_446,RegQueryValue HKLM\System\CurrentControlSet\Control\Session Manager\ResourcePolicies NAME NOT FOUND C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_447,RegCloseKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_448,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\DebugProcessHeapOnly NAME NOT FOUND C:\svchost.exe  /c echo T1105
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_449,CreateFile C:\Windows\System32 SUCCESS C:\svchost.exe  /c echo T1105
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_450,Load Image C:\Windows\System32\kernel32.dll SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_451,Load Image C:\Windows\System32\KernelBase.dll SUCCESS C:\svchost.exe  /c echo T1105
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_452,RegOpenKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe SUCCESS C:\svchost.exe  /c echo T1105
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_453,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\UseFilter NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_454,RegQueryValue HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe\SearchPathMode NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_455,RegCloseKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_456,RegOpenKey HKLM\System\CurrentControlSet\Control\SafeBoot\Option REPARSE C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_457,RegOpenKey HKLM\System\CurrentControlSet\Control\SafeBoot\Option NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_458,RegOpenKey HKLM\System\CurrentControlSet\Control\Srp\GP\DLL REPARSE C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_459,RegOpenKey HKLM\System\CurrentControlSet\Control\Srp\GP\DLL NAME NOT FOUND C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_460,RegOpenKey HKLM\Software\Policies\Microsoft\Windows\Safer\CodeIdentifiers SUCCESS C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_461,RegQueryValue HKLM\SOFTWARE\Policies\Microsoft\Windows\safer\codeidentifiers\TransparentEnabled NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_462,RegCloseKey HKLM\SOFTWARE\Policies\Microsoft\Windows\safer\codeidentifiers SUCCESS C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_463,RegOpenKey HKCU\Software\Policies\Microsoft\Windows\Safer\CodeIdentifiers NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_464,RegOpenKey HKLM\System\CurrentControlSet\Control\FileSystem\ REPARSE C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_465,RegOpenKey HKLM\System\CurrentControlSet\Control\FileSystem SUCCESS C:\svchost.exe  /c echo T1105
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_466,RegQueryValue HKLM\System\CurrentControlSet\Control\FileSystem\LongPathsEnabled SUCCESS C:\svchost.exe  /c echo T1105
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_467,RegCloseKey HKLM\System\CurrentControlSet\Control\FileSystem SUCCESS C:\svchost.exe  /c echo T1105
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_468,Load Image C:\Windows\System32\msvcrt.dll SUCCESS C:\svchost.exe  /c echo T1105
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_469,Thread Create SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_470,Load Image C:\Windows\System32\combase.dll SUCCESS C:\svchost.exe  /c echo T1105
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_471,Load Image C:\Windows\System32\ucrtbase.dll SUCCESS C:\svchost.exe  /c echo T1105
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_472,Load Image C:\Windows\System32\rpcrt4.dll SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_473,RegOpenKey HKLM\SYSTEM\CurrentControlSet\Control\Session Manager REPARSE C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_474,RegOpenKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_475,RegQueryValue HKLM\System\CurrentControlSet\Control\Session Manager\ResourcePolicies NAME NOT FOUND C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_476,RegCloseKey HKLM\System\CurrentControlSet\Control\Session Manager SUCCESS C:\svchost.exe  /c echo T1105
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_477,QueryDeviceInformationVolume \\localhost\c$\T1105.txt SUCCESS C:\svchost.exe  /c echo T1105
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_478,ReadFile C:\Windows\System32\drivers\rdbss.sys SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_479,Thread Create SUCCESS C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_480,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\Sorting\Versions REPARSE C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_481,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\Sorting\Versions SUCCESS C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_482,RegQueryValue HKLM\System\CurrentControlSet\Control\Nls\Sorting\Versions\(Default) SUCCESS C:\svchost.exe  /c echo T1105
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_483,RegQueryValue HKLM\System\CurrentControlSet\Control\Nls\Sorting\Versions\000603xx SUCCESS C:\svchost.exe  /c echo T1105
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_484,QueryDeviceInformationVolume \\localhost\c$\T1105.txt SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_485,RegOpenKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_486,RegQueryKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_487,RegOpenKey HKLM\SOFTWARE\Microsoft\OLE SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_488,RegQueryValue HKLM\SOFTWARE\Microsoft\Ole\PageAllocatorUseSystemHeap NAME NOT FOUND C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_489,RegCloseKey HKLM\SOFTWARE\Microsoft\Ole SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_490,RegQueryKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_491,RegOpenKey HKLM\SOFTWARE\Microsoft\OLE SUCCESS C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_492,RegQueryValue HKLM\SOFTWARE\Microsoft\Ole\PageAllocatorSystemHeapIsPrivate NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_493,RegCloseKey HKLM\SOFTWARE\Microsoft\Ole SUCCESS C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_494,RegQueryKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_495,RegOpenKey HKLM\SOFTWARE\Microsoft\OLE SUCCESS C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_496,RegQueryValue HKLM\SOFTWARE\Microsoft\Ole\AggressiveMTATesting NAME NOT FOUND C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_497,RegCloseKey HKLM\SOFTWARE\Microsoft\Ole SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_498,RegQueryKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_499,RegOpenKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_500,RegSetInfoKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_501,RegQueryKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_502,RegOpenKey HKLM\Software\Microsoft\Ole\FeatureDevelopmentProperties NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_503,RegOpenKey HKLM\SOFTWARE\Microsoft\AppModel\Lookaside\Packages NAME NOT FOUND C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_504,RegQueryKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_505,RegOpenKey HKLM\Software\Microsoft\Ole\FeatureDevelopmentProperties NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_506,RegQueryKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_507,RegOpenKey HKLM\Software\Microsoft\Ole SUCCESS C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_508,RegQueryKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_509,RegOpenKey HKLM\Software\Microsoft\OLE\Tracing NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_510,RegCloseKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\svchost.exe SUCCESS C:\svchost.exe  /c echo T1105
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_511,QueryNameInformationFile C:\svchost.exe SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_512,RegOpenKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_513,RegOpenKey HKCU\Control Panel\Desktop\MuiCached\MachineLanguageConfiguration NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_514,RegCloseKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_515,RegOpenKey HKLM\Software\Policies\Microsoft\MUI\Settings NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_516,RegOpenKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_517,RegOpenKey HKCU\Software\Policies\Microsoft\Control Panel\Desktop NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_518,RegOpenKey HKCU\Control Panel\Desktop\LanguageConfiguration NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_519,RegCloseKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_520,RegOpenKey HKLM\Software\Policies\Microsoft\MUI\Settings NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_521,RegOpenKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_522,RegOpenKey HKCU\Software\Policies\Microsoft\Control Panel\Desktop NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_523,RegOpenKey HKCU\Control Panel\Desktop SUCCESS C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_524,RegQueryValue HKCU\Control Panel\Desktop\PreferredUILanguages NAME NOT FOUND C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_525,RegCloseKey HKCU\Control Panel\Desktop SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_526,RegCloseKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_527,RegOpenKey HKLM\Software\Policies\Microsoft\MUI\Settings NAME NOT FOUND C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_528,RegOpenKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_529,RegOpenKey HKCU\Control Panel\Desktop\MuiCached SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_530,RegQueryValue HKCU\Control Panel\Desktop\MuiCached\MachinePreferredUILanguages BUFFER OVERFLOW C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_531,RegQueryValue HKCU\Control Panel\Desktop\MuiCached\MachinePreferredUILanguages SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_532,RegCloseKey HKCU\Control Panel\Desktop\MuiCached SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_533,RegCloseKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_534,RegOpenKey HKLM\Software\Policies\Microsoft\MUI\Settings NAME NOT FOUND C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_535,RegOpenKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_536,RegOpenKey HKCU\Software\Policies\Microsoft\Control Panel\Desktop NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_537,RegOpenKey HKCU\Control Panel\Desktop SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_538,RegQueryValue HKCU\Control Panel\Desktop\PreferredUILanguages NAME NOT FOUND C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_539,RegCloseKey HKCU\Control Panel\Desktop SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_540,RegCloseKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_541,RegOpenKey HKLM\Software\Policies\Microsoft\MUI\Settings NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_542,RegOpenKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_543,RegOpenKey HKCU\Software\Policies\Microsoft\Control Panel\Desktop NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_544,RegOpenKey HKCU\Control Panel\Desktop\LanguageConfiguration NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_545,RegCloseKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_546,RegOpenKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_547,RegQueryKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_548,RegOpenKey HKCU\Software\Policies\Microsoft\Windows\System NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_549,RegQueryKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_550,RegOpenKey HKLM\Software\Microsoft\Command Processor SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_551,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\DisableUNCCheck NAME NOT FOUND C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_552,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\EnableExtensions SUCCESS C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_553,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\DelayedExpansion NAME NOT FOUND C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_554,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\DefaultColor SUCCESS C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_555,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\CompletionChar SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_556,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\PathCompletionChar SUCCESS C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_557,RegQueryValue HKLM\SOFTWARE\Microsoft\Command Processor\AutoRun NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_558,RegCloseKey HKLM\SOFTWARE\Microsoft\Command Processor SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_559,RegQueryKey HKCU SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_560,RegOpenKey HKCU\Software\Microsoft\Command Processor NAME NOT FOUND C:\svchost.exe  /c echo T1105
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_561,CreateFile C:\Windows\System32 SUCCESS C:\svchost.exe  /c echo T1105
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_562,QueryBasicInformationFile C:\Windows\System32 SUCCESS C:\svchost.exe  /c echo T1105
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_563,CloseFile C:\Windows\System32 SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_564,CreateFile C:\ SUCCESS C:\svchost.exe  /c echo T1105
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_565,QueryNameInformationFile C:\ SUCCESS C:\svchost.exe  /c echo T1105
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_566,QueryNameInformationFile C:\ SUCCESS C:\svchost.exe  /c echo T1105
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_567,QueryDirectory C:\Windows SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_568,CloseFile C:\ SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_569,CreateFile C:\Windows SUCCESS C:\svchost.exe  /c echo T1105
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_570,QueryDirectory C:\Windows\system32 SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_571,CloseFile C:\Windows SUCCESS C:\svchost.exe  /c echo T1105
+0,00e4883d-a791-4e87-8786-0c9fc7ba2478_572,CreateFile C:\Windows\System32 SUCCESS C:\svchost.exe  /c echo T1105
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_573,QueryBasicInformationFile C:\Windows\System32 SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_574,CloseFile C:\Windows\System32 SUCCESS C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_575,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\CustomLocale REPARSE C:\svchost.exe  /c echo T1105
+6,00e4883d-a791-4e87-8786-0c9fc7ba2478_576,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\CustomLocale SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_577,RegQueryValue HKLM\System\CurrentControlSet\Control\Nls\CustomLocale\en-US NAME NOT FOUND C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_578,RegCloseKey HKLM\System\CurrentControlSet\Control\Nls\CustomLocale SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_579,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\ExtendedLocale REPARSE C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_580,RegOpenKey HKLM\System\CurrentControlSet\Control\Nls\ExtendedLocale SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_581,RegQueryValue HKLM\System\CurrentControlSet\Control\Nls\ExtendedLocale\en-US NAME NOT FOUND C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_582,RegCloseKey HKLM\System\CurrentControlSet\Control\Nls\ExtendedLocale SUCCESS C:\svchost.exe  /c echo T1105
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_583,QueryDeviceInformationVolume \\localhost\c$\T1105.txt SUCCESS C:\svchost.exe  /c echo T1105
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_584,WriteFile \\localhost\c$\T1105.txt SUCCESS C:\svchost.exe  /c echo T1105
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_585,QueryStandardInformationFile C:\T1105.txt SUCCESS C:\svchost.exe  /c echo T1105
+9,00e4883d-a791-4e87-8786-0c9fc7ba2478_586,QueryStandardInformationFile C:\T1105.txt SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_587,WriteFile C:\T1105.txt SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_588,Thread Exit SUCCESS C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_589,Thread Exit SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_590,RegCloseKey HKLM\SOFTWARE\Microsoft\Ole SUCCESS C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_591,RegCloseKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+4,00e4883d-a791-4e87-8786-0c9fc7ba2478_592,Thread Exit SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_593,Process Exit SUCCESS C:\svchost.exe  /c echo T1105
+5,00e4883d-a791-4e87-8786-0c9fc7ba2478_594,RegOpenKey HKLM\System\CurrentControlSet\Services\bam\State\UserSettings\S-1-5-21-4065680934-2604657585-3199708412-1106 SUCCESS C:\svchost.exe  /c echo T1105
+7,00e4883d-a791-4e87-8786-0c9fc7ba2478_595,RegQueryValue HKLM\System\CurrentControlSet\Services\bam\State\UserSettings\S-1-5-21-4065680934-2604657585-3199708412-1106\\Device\HarddiskVolume3\svchost.exe NAME NOT FOUND C:\svchost.exe  /c echo T1105
+3,00e4883d-a791-4e87-8786-0c9fc7ba2478_596,RegCloseKey HKLM\System\CurrentControlSet\Services\bam\State\UserSettings\S-1-5-21-4065680934-2604657585-3199708412-1106 SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_597,RegCloseKey HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options SUCCESS C:\svchost.exe  /c echo T1105
+2,00e4883d-a791-4e87-8786-0c9fc7ba2478_598,CloseFile C:\Windows\System32 SUCCESS C:\svchost.exe  /c echo T1105
+1,00e4883d-a791-4e87-8786-0c9fc7ba2478_599,RegCloseKey HKLM\System\CurrentControlSet\Control\Nls\Sorting\Versions SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_600,RegCloseKey HKLM SUCCESS C:\svchost.exe  /c echo T1105
+8,00e4883d-a791-4e87-8786-0c9fc7ba2478_601,RegCloseKey HKCU SUCCESS C:\svchost.exe  /c echo T1105

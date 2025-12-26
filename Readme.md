@@ -48,15 +48,21 @@
   - `Web_Scraping/`: 網頁爬取相關模組
 - `Logs Labeling/`: 包含各個處理步驟的具體程式碼
   - `preprocess/`: 數據預處理
+    - `preprocess.py`: **預處理主程式**
+    - `drain.py`: Drain日誌解析器
+  - `anomaly_detection/`: 異常資料篩選
+    - `autoencoder.py`: 自編碼器異常檢測
+    - `isolation_forest.py`: Isolation Forest異常檢測
+    - `copod.py`: COPOD異常檢測
+    - `pca_gmm.py`: PCA-GMM異常檢測
+    - `log_anomaly_detector.py`: **異常檢測主程式**
   - `sequence_clustering.py`: 序列區塊化
-  - `anomaly_detection.py`: 異常資料篩選
   - `concept_extraction.py`: 概念提取
   - `auto_labeling.py`: 自動化標記
   - `models/`: 儲存模型和相關資源
     - `bert_model/`: Bert Embedding 模型
     - `bert.py`: 提供Bert Embedding的API
-    - `Unsupervised/`: 無監督學習模型
-    - `HMM/`: 隱馬可夫模型相關
+    - `BiLSTM_Attention.py`: Bi-LSTM+Attention模型 *preprocess中的LogChunker使用*
 - `Visualization/`: 視覺化工具
 - `config.py`: 專案參數配置
 - `docs/`: 專案文件和說明

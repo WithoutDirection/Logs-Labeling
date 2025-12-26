@@ -256,10 +256,20 @@ class TransformerBERTModel(BaseBERTModel):
                 self.model_name,
                 cache_dir=self.cache_dir
             )
-            self.model = AutoModel.from_pretrained(
-                self.model_name,
-                cache_dir=self.cache_dir
-            )
+            # 優先使用 safetensors 格式以避免 PyTorch 安全警告
+            try:
+                self.model = AutoModel.from_pretrained(
+                    self.model_name,
+                    cache_dir=self.cache_dir,
+                    use_safetensors=True
+                )
+            except Exception:
+                # 如果 safetensors 不可用，回退到標準載入
+                self.model = AutoModel.from_pretrained(
+                    self.model_name,
+                    cache_dir=self.cache_dir,
+                    use_safetensors=False
+                )
             self.model.to(self.device)
             self.model.eval()
             self.is_loaded = True
@@ -401,16 +411,28 @@ MODEL_REGISTRY = {
         'description': '原始 BERT 基礎模型 (768 維)'
     },
     
-    # 安全領域專用 BERT 模型
     'secbert': {
         'class': TransformerBERTModel,
         'model_name': 'jackaduma/SecBERT',
         'description': 'SecBERT - 在安全文本上訓練 (768 維)'
     },
-    'cti-bert': {
-        'class': SentenceBERTModel,
-        'model_name': 'CYBEX-UTD/cti-bert',  
-        'description': 'CTI-BERT - 網路威脅情報 (384 維)'
+    'securebert': {
+        'class': TransformerBERTModel,
+        'model_name': 'EhsanAghaei/SecureBERT',
+        'description': 'SecureBERT - 針對 CTI 優化的 RoBERTa 模型 (768 維)'
+    },
+
+    'codebert': {
+        'class': TransformerBERTModel,
+        'model_name': 'microsoft/codebert-base',
+        'description': 'CodeBERT - 理解程式碼與指令列 (768 維)'
+    },
+
+    
+    'cysecbert': {
+        'class': TransformerBERTModel,
+        'model_name': 'Mikey/CySecBERT',
+        'description': 'CySecBERT - 基於大量資安論文訓練 (768 維)'
     },
     'cybert': {
         'class': SentenceBERTModel,

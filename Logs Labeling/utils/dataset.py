@@ -1,4 +1,7 @@
 """Hugging Face Dataset I/O 工具模組"""
+import os
+import shutil
+from pathlib import Path
 import numpy as np
 from typing import Dict, List, Tuple, Optional, Any
 from datasets import Dataset
@@ -65,3 +68,102 @@ def load_embeddings(
     else:
         embeddings = np.array(dataset['embedding'])
         return log_ids, embeddings, None, False
+
+
+# ======================== 資料檢查與清理 ========================
+
+
+def _infer_vector_dim(dataset: Dataset) -> Tuple[Optional[str], Optional[int]]:
+    """嘗試推斷向量欄位名稱與維度（僅取第一列，避免全量載入）。"""
+
+    candidate_keys = ("embedding", "vector", "log_vector")
+    for key in candidate_keys:
+        if key not in dataset.column_names:
+            continue
+        sample = dataset[0][key]
+        arr = np.array(sample)
+        if arr.ndim == 0:
+            dim = 1
+        elif arr.ndim == 1:
+            dim = arr.shape[0]
+        else:
+            dim = arr.shape[-1]
+        return key, int(dim)
+    return None, None
+
+
+def prune_mismatched_datasets(
+    root_dir: str,
+    expected_dim: int,
+    keep_suffix: str = "_embeddings",
+    dry_run: bool = True,
+) -> Dict[str, List[str]]:
+    """檢查根目錄下的資料集，刪除維度不符或名稱不符的子目錄。
+
+    Args:
+        root_dir: HF dataset 子目錄所在的根目錄，例如 data/Embeddings
+        expected_dim: 期望的向量維度（例如 384）
+        keep_suffix: 只保留名稱結尾符合的資料夾（如 "_embeddings"），其他一律刪除
+        dry_run: 為 True 時僅列出將被刪除的目錄，不實際刪除
+
+    Returns:
+        簡單的處理紀錄，含 kept / removed / failed 等清單。
+    """
+
+    root = Path(root_dir)
+    summary: Dict[str, List[str]] = {
+        "kept": [],
+        "removed_suffix": [],
+        "removed_dim": [],
+        "failed_load": [],
+    }
+
+    if not root.exists():
+        print(f"Root dir not found: {root}")
+        return summary
+
+    for subdir in sorted(root.iterdir()):
+        if not subdir.is_dir():
+            continue
+
+        name = subdir.name
+
+        # 只保留指定結尾的資料夾
+        if keep_suffix and not name.endswith(keep_suffix):
+            summary["removed_suffix"].append(name)
+            if not dry_run:
+                shutil.rmtree(subdir, ignore_errors=True)
+            continue
+
+        try:
+            ds = load_dataset(str(subdir))
+        except Exception as exc:
+            print(f"Failed to load dataset {name}: {exc}")
+            summary["failed_load"].append(name)
+            if not dry_run:
+                shutil.rmtree(subdir, ignore_errors=True)
+            continue
+
+        _, dim = _infer_vector_dim(ds)
+        if dim is None:
+            print(f"Skip {name}: 無法推斷向量欄位")
+            summary["failed_load"].append(name)
+            if not dry_run:
+                shutil.rmtree(subdir, ignore_errors=True)
+            continue
+
+        if dim != expected_dim:
+            print(f"Remove {name}: dim {dim} != {expected_dim}")
+            summary["removed_dim"].append(name)
+            if not dry_run:
+                shutil.rmtree(subdir, ignore_errors=True)
+            continue
+
+        summary["kept"].append(name)
+
+    print("Prune summary:")
+    print(f"  kept: {len(summary['kept'])}")
+    print(f"  removed (suffix): {len(summary['removed_suffix'])}")
+    print(f"  removed (dim): {len(summary['removed_dim'])}")
+    print(f"  failed load: {len(summary['failed_load'])}")
+    return summary

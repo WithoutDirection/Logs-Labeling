@@ -622,13 +622,13 @@ class LogChunker:
 
 def main():
     # 1: 啟用解析 (預設)
-    N = -1  # 處理所有檔案
-    loader = LogLoader(enable_parser=False)
-    loader.load_logs(num=N)
+    N = 100  # 處理所有檔案
+    # loader = LogLoader(enable_parser=False)
+    # loader.load_logs(num=N)
     
     # 2: 不解析 (保留原始日誌)
-    # loader = LogLoader(enable_parser=False)
-    # loader.load_logs(ratio=0.3)
+    loader = LogLoader(enable_parser=False)
+    loader.load_logs(num=N)
     
     # 3: 計算嵌入向量
     embedder = LogEmbedder(normalize=False)

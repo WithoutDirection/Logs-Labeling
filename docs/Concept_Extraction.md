@@ -106,14 +106,28 @@ NMF 因其出色的降維能力與直觀的「基於組件（Part-based）」表
 * **首選：非負矩陣分解 (NMF)**
     * **原因**：提供基於組件（Part-based）的加法特徵，解釋性高，適合稀疏且高維的日誌資料。
     * **配置**：不施加稀疏約束（Sparse Constraint），以學習密集的潛在結構 。
+    * **GPU 加速**：支援 PyTorch GPU 後端加速（透過 `NMFGpu` 類別），自動偵測 CUDA 相容性並在不支援時回退至 CPU。
 * **備選：隱含狄利克雷分佈 (LDA)**
     * **場景**：若需要機率分佈解釋（Soft Clustering）時使用。需注意輸入特徵需轉換為適合 LDA 的格式（如虛擬詞頻）。
+
+### GPU 加速實作 (`NMFGpu`)
+當資料量龐大時（如百萬級樣本），可啟用 GPU 加速以大幅縮短訓練時間。`NMFGpu` 類別採用 **乘法更新規則 (Multiplicative Update Rules)**，完全基於矩陣運算，適合 GPU 平行加速。
+
+* **演算法**：
+    * 更新規則：$H = H \cdot (W^T X) / (W^T W H + \epsilon)$，$W = W \cdot (X H^T) / (W H H^T + \epsilon)$
+    * 自動保持非負性，無需額外 Clamping
+* **OOM 保護**：
+    * 自動偵測 GPU 記憶體，動態計算安全的 batch size
+    * 若資料超過記憶體限制，自動切換至 Mini-batch 訓練模式
+* **相容性檢查**：
+    * 啟動時執行 CUDA kernel 測試運算，確認 GPU compute capability 相容性
+    * 若 GPU 不相容（如 GTX 1080 Ti 搭配 CUDA 12+ PyTorch），自動回退至 CPU 模式
 
 ### API 設計(`ConceptExtractor`)
 下列方法為主要API call，方便其他模組直接引用：
 
 * `prepare_training_data(log_vectors_dir, external_knowledge_dir, sample_ratio)`: 依據設定的日誌向量目錄與外部知識目錄載入向量，逐資料集採樣後垂直堆疊成訓練矩陣。
-* `fit_global_model(X_train)`: 以 Min-Max 縮放後的 `X_train` 擬合 NMF/LDA 模型並凍結基矩陣；概念數、收斂條件等超參數來自初始化。
+* `fit_global_model(X_train)`: 以 Min-Max 縮放後的 `X_train` 擬合 NMF/LDA 模型並凍結基矩陣；概念數、收斂條件等超參數來自初始化。當 `use_gpu=True` 且 CUDA 可用時，使用 `NMFGpu` 加速訓練。
 * `transform_dataset(input_path, output_path, copy_metadata=True)`: 讀取單一資料集向量、投影至概念空間並輸出 Feather，必要時一併複製 `state.json`/`dataset_info.json`。
 * `batch_transform(log_vectors_dir, concept_vectors_dir)`: 對 `log_vectors_dir` 下所有子資料夾批次轉換，維持 `{LogID}_logvectors -> {LogID}_concepts` 目錄對應。
 * `get_concept_basis()`: 回傳已訓練的 $W$ 基矩陣（或 LDA 主題-詞彙分佈），供分析或視覺化使用。
@@ -136,9 +150,14 @@ NMF 因其出色的降維能力與直觀的「基於組件（Part-based）」表
 | 初始化方法                  |`NMF_INIT`             | str    | NMF 初始化策略，例如 `nndsvd`。                    | `"nndsvd"`            |
 | 概念模型輸出路徑            | `NMF_MODEL_PATH`       | str    | 儲存 `nmf_concept_model.pkl` 的完整路徑。         | `models/nmf_concept_model.pkl` |
 
+### GPU 加速設定
 
+| 參數角色                    | Config Key / 名稱              | 型別         | 說明                                                             | 建議預設值   |
+|-----------------------------|--------------------------------|--------------|------------------------------------------------------------------|--------------|
+| 啟用 GPU 加速               | `NMF_USE_GPU`                  | bool         | 是否嘗試使用 GPU 加速 NMF 訓練                                   | `True`       |
+| GPU Batch Size              | `NMF_GPU_BATCH_SIZE`           | int \| None  | Mini-batch 大小；`None` 表示自動根據 GPU 記憶體計算              | `None`       |
+| 數值穩定常數                | `NMF_GPU_EPSILON`              | float        | 防止除零的小常數 ($\epsilon$)                                    | `1e-8`       |
+| 收斂檢查間隔                | `NMF_GPU_CHECK_INTERVAL`       | int          | 每隔多少次迭代檢查收斂狀態                                       | `10`         |
+| 詳細輸出                    | `NMF_GPU_VERBOSE`              | bool         | 是否顯示 GPU NMF 訓練進度                                        | `True`       |
 
-
-* 
-
-
+**注意**：GPU 加速需要安裝與 GPU compute capability 相容的 PyTorch 版本。若 GPU 不相容（例如舊版 GPU 搭配新版 PyTorch），系統會自動回退至 sklearn CPU NMF。

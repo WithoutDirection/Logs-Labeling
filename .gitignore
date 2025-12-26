@@ -11,3 +11,7 @@ HMM/
 .Python
 
 *.pdf
+*test*.py
+*.pkl
+
+Pipeline.py
