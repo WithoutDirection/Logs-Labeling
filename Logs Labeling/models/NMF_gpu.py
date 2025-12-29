@@ -1,5 +1,5 @@
 """
-GPU 加速的 NMF 實作：使用 PyTorch Tensor 與乘法更新規則（Multiplicative Update Rules）。
+GPU 加速的 NMF 實作：使用 PyTorch Tensor 與 Multiplicative Update Rules。
 
 主要特點：
     1. 完全基於矩陣運算，適合 GPU 平行加速

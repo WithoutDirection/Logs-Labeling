@@ -416,11 +416,11 @@ def main():
         description='BERT 嵌入模型比較工具',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
-範例：
-  %(prog)s --models codebert securebert sentence-bert -n 5
-  %(prog)s --models sentence-bert sentence-bert-large -n 10 --max-samples 500
-  %(prog)s --list-models
-        '''
+            範例：
+            %(prog)s --models codebert securebert sentence-bert -n 5
+            %(prog)s --models sentence-bert sentence-bert-large -n 10 --max-samples 500
+            %(prog)s --list-models
+            '''
     )
     parser.add_argument('-n', '--num-datasets', type=int, default=5,
                         help='資料集數量 (預設: 5)')

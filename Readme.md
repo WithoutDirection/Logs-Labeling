@@ -139,6 +139,25 @@
 ### Configuration
 ### Running the Pipeline
 
+#### 資料目錄清理
+> [詳見 Clear_Data.md](./docs/Clear_Data.md)
+
+在執行管線之前，您可以使用資料清理工具來清空中間資料和輸出結果：
+
+```bash
+# 預覽將要刪除的目錄
+python "Logs Labeling/utils/clear_data.py"
+
+# 實際執行清理
+python "Logs Labeling/utils/clear_data.py" --execute
+```
+
+或在 Python 中使用：
+```python
+from utils.path import clear_data_directories
+result = clear_data_directories(dry_run=False)
+```
+
 ## Update & Changelog (更新日誌)
 
 * 2025-11-16: Init
@@ -150,6 +169,10 @@
 * 2025-12-05:
   * 新增 BERT 嵌入模組 (`models/bert.py`) 及相關文件說明
   * 整合 BERT API 至 ExternalSourceManager 模組
+* 2025-12-29:
+  * 新增資料目錄清理功能 (`utils/path.py` 中的 `clear_data_directories`)
+  * 新增命令列工具 (`utils/clear_data.py`) 用於清理資料目錄
+  * 新增文件 (`docs/Clear_Data.md`) 說明資料清理功能
  
 
 ---
