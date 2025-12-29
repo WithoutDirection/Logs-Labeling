@@ -350,6 +350,14 @@ class SequenceClustering:
             except Exception as e:
                 print(f"    [Error] 處理失敗: {e}")
                 continue
+        # ===== 統計摘要 =====
+        print("\n" + "=" * 60)
+        print("處理摘要")
+        print("=" * 60)
+        
+        success_count = len(results)
+        total_count = len(vectors_dict)
+        print(f"成功處理: {success_count}/{total_count} 個資料集")
         
         return results
 
@@ -401,6 +409,7 @@ def load_concept_vectors(
     Returns:
         dataset_id 對應的概念矩陣字典
     """
+    print("\n載入概念向量...")
     vectors_dir = config.CONCEPT_VECTORS_DIR
     if not os.path.exists(vectors_dir):
         raise FileNotFoundError(f"找不到概念向量目錄: {vectors_dir}")
@@ -433,6 +442,12 @@ def load_concept_vectors(
         except Exception as e:
             print(f"[Warning] 載入失敗 {arrow_path}: {e}")
             continue
+        
+    if not result:
+        print("[Error] 找不到概念向量，請先執行 ConceptExtractor")
+        exit(1)
+    
+    print(f"已載入 {len(result)} 個資料集")
     
     return result
 
@@ -444,27 +459,13 @@ if __name__ == "__main__":
     print("序列分群 - Per-Dataset HMM 策略")
     print("=" * 60)
     
-    print("\n載入概念向量...")
     vectors = load_concept_vectors()
     
-    if not vectors:
-        print("[Error] 找不到概念向量，請先執行 ConceptExtractor")
-        exit(1)
     
-    print(f"已載入 {len(vectors)} 個資料集")
     
     # ===== 批次處理所有資料集 =====
     clusterer = SequenceClustering()
     results = clusterer.batch_process_all(vectors)
-    
-    # ===== 統計摘要 =====
-    print("\n" + "=" * 60)
-    print("處理摘要")
-    print("=" * 60)
-    
-    success_count = len(results)
-    total_count = len(vectors)
-    print(f"成功處理: {success_count}/{total_count} 個資料集")
     
     if results:
         avg_clusters = np.mean([len(np.unique(labels)) for labels in results.values()])

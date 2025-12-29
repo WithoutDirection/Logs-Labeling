@@ -212,6 +212,16 @@ class NMFGpu:
                 self._torch.cuda.empty_cache()
         
         return np.sqrt(total_error / n_samples)
+
+    def _compute_reconstruction_error(
+        self, V: "torch.Tensor", W: "torch.Tensor", H: "torch.Tensor"
+    ) -> float:
+        """計算單次重建誤差，用於收斂判斷。"""
+        torch = self._torch
+        with torch.no_grad():
+            reconstruction = W @ H
+            error = torch.norm(V - reconstruction, p="fro").item()
+        return error
     
     def _fit_full_batch(
         self, V: "torch.Tensor"

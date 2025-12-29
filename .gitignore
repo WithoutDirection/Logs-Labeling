@@ -9,7 +9,7 @@ HMM/
 *.pyo
 *.pyd
 .Python
-
+*.csv
 *.pdf
 *test*.py
 *.pkl

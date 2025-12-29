@@ -52,7 +52,7 @@ from config import (
 
 # 匯入 GPU NMF 模組
 sys.path.insert(0, str(Path(CURRENT_DIR) / "models"))
-from NMF_gpu import NMFGpu, _check_cuda_available
+from models.NMF_gpu import NMFGpu, _check_cuda_available
 
 
 class ConceptExtractor:

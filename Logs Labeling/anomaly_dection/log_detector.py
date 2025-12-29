@@ -64,17 +64,18 @@ class ThresholdMethod(str, Enum):
 @dataclass
 class LogDetectorConfig:
     """Log Detector 設定"""
-    models: List[str] = field(default_factory=lambda: ["isolation_forest", "copod", "autoencoder", "pca_gmm"])
-    score_scaler: ScalerType = ScalerType.MINMAX
-    threshold_method: ThresholdMethod = ThresholdMethod.PERCENTILE
-    threshold_params: Dict[str, Any] = field(default_factory=lambda: {"percentile": 95})
-    ensemble_weights: Dict[str, float] = field(default_factory=lambda: {
+    models: List[str] = field(default_factory=lambda: getattr(config, "DETECTION_MODELS", ["isolation_forest", "copod", "autoencoder", "pca_gmm"]))
+    score_scaler: ScalerType = field(default_factory=lambda: ScalerType(getattr(config, "SCORE_SCALER", "minmax")))
+    threshold_method: ThresholdMethod = field(default_factory=lambda: ThresholdMethod(getattr(config, "THRESHOLDING_METHOD", "percentile")))
+    threshold_params: Dict[str, Any] = field(default_factory=lambda: getattr(config, "THRESHOLDING_PARAMS", {"percentile": 95}))
+    ensemble_weights: Dict[str, float] = field(default_factory=lambda: getattr(config, "ENSEMBLE_WEIGHTS", {
         "isolation_forest": 0.25,
         "copod": 0.25,
         "autoencoder": 0.25,
         "pca_gmm": 0.25
-    })
-    output_dir: str = join_path(config.DATA_DIR, "Detection_Results")
+    }))
+    output_dir: str = field(default_factory=lambda: getattr(config, "DETECTION_RESULTS_DIR", join_path(config.DATA_DIR, "Detection_Results")))
+    embedding_column: str = "embedding"  # 嵌入向量欄位名稱（支援 embedding 或 log_vector）
     
     # 各模型設定
     if_config: IsolationForestConfig = field(default_factory=IsolationForestConfig)
@@ -255,8 +256,18 @@ class LogDetector:
         """
         dataset = load_dataset(dataset_path)
         
-        # * 擷取 log_vector 欄位轉為 numpy 陣列
-        X = np.array(dataset["log_vector"])
+        # * 擷取嵌入向量欄位轉為 numpy 陣列（支援 embedding 或 log_vector）
+        embedding_col = self.config.embedding_column
+        if embedding_col not in dataset.column_names:
+            # 嘗試其他可能的欄位名稱
+            for alt_col in ["embedding", "log_vector", "embeddings", "vector"]:
+                if alt_col in dataset.column_names:
+                    embedding_col = alt_col
+                    break
+            else:
+                raise ValueError(f"找不到嵌入向量欄位，可用欄位: {dataset.column_names}")
+        
+        X = np.array(dataset[embedding_col])
         
         results = self.fit_predict(X)
         
@@ -333,112 +344,143 @@ def detect_anomalies(
     return result_dataset
 
 
-if __name__ == "__main__":
-    from visualization.aggregator import ResultAggregator
-    from visualization.trend_analysis import plot_trend_analysis, plot_anomaly_count_trend
-    from visualization.distribution_plot import (
-        plot_score_histogram, plot_distribution_evolution, plot_comparison_violin
+def run_detection_pipeline(
+    input_dir: str = None,
+    output_dir: str = None,
+    models: List[str] = None,
+    verbose: bool = True
+) -> Dict[str, Dataset]:
+    """執行完整的異常偵測流程
+    
+    遍歷 input_dir 中的所有 embedding 資料夾，對每個資料集執行異常偵測。
+    
+    Args:
+        input_dir: 輸入資料目錄（預設使用 config.LOG_VECTORS_DIR）
+        output_dir: 輸出結果目錄（預設使用 config.DETECTION_RESULTS_DIR）
+        models: 要使用的模型列表
+        verbose: 是否顯示進度訊息
+        
+    Returns:
+        Dict[str, Dataset]: 資料集名稱到偵測結果的映射
+    """
+    input_dir = input_dir or getattr(config, "LOG_VECTORS_DIR", join_path(config.DATA_DIR, "Embeddings"))
+    output_dir = output_dir or getattr(config, "DETECTION_RESULTS_DIR", join_path(config.DATA_DIR, "Detection_Results"))
+    
+    # 確保輸出目錄存在
+    ensure_dir(output_dir)
+    
+    # 取得所有 embedding 資料夾
+    embedding_dirs = get_dirs(input_dir)
+    if not embedding_dirs:
+        print(f"警告：在 {input_dir} 中找不到任何資料夾")
+        return {}
+    
+    if verbose:
+        print(f"找到 {len(embedding_dirs)} 個資料集")
+        print(f"輸入目錄: {input_dir}")
+        print(f"輸出目錄: {output_dir}")
+        print(f"使用模型: {models or getattr(config, 'DETECTION_MODELS', ['isolation_forest', 'copod', 'autoencoder', 'pca_gmm'])}")
+        print("=" * 60)
+    
+    # 建立偵測器設定
+    detector_config = LogDetectorConfig(
+        models=models or getattr(config, "DETECTION_MODELS", ["isolation_forest", "copod", "autoencoder", "pca_gmm"]),
+        output_dir=output_dir
     )
+    
+    results = {}
+    
+    for i, embed_dir in enumerate(embedding_dirs, 1):
+        dataset_path = join_path(input_dir, embed_dir)
+        dataset_name = embed_dir.replace("_embeddings", "").replace("_logvectors", "")
+        
+        if verbose:
+            print(f"\n[{i}/{len(embedding_dirs)}] 處理資料集: {dataset_name}")
+        
+        try:
+            # 為每個資料集建立新的偵測器
+            detector = LogDetector(detector_config)
+            
+            # 執行偵測
+            result_dataset = detector.detect_from_dataset(dataset_path)
+            
+            # 儲存結果
+            output_path = join_path(output_dir, f"{dataset_name}_detection")
+            result_dataset.save_to_disk(output_path)
+            
+            results[dataset_name] = result_dataset
+            
+            if verbose:
+                n_samples = len(result_dataset)
+                n_anomalies = sum(result_dataset["ensemble_label"])
+                anomaly_ratio = n_anomalies / n_samples * 100 if n_samples > 0 else 0
+                print(f"   - 樣本數: {n_samples}")
+                print(f"   - 異常數: {n_anomalies} ({anomaly_ratio:.2f}%)")
+                print(f"   - 已儲存至: {output_path}")
+                
+        except Exception as e:
+            print(f"   - 處理失敗: {e}")
+            continue
+    
+    if verbose:
+        print("\n" + "=" * 60)
+        print(f"完成！共處理 {len(results)}/{len(embedding_dirs)} 個資料集")
+    
+    return results
 
-    _set_global_seed(SEED)
-    print("=" * 60)
-    print("多規模異常偵測實驗")
-    print("=" * 60)
-    
-    # * 載入所有可用的 Log Vector Dataset
-    print("\n[1] 掃描 Log Vector Dataset...")
-    # logvector_dirs = sorted([
-    #     join_path(config.LOG_VECTORS_DIR, d)
-    #     for d in get_dirs(config.LOG_VECTORS_DIR, "_logvectors")
-    # ])
-    # if not logvector_dirs:
-    #     raise RuntimeError(f"在 {config.LOG_VECTORS_DIR} 下找不到任何 *_logvectors 資料夾")
 
-    # total_datasets = len(logvector_dirs)
-    # print(f"    找到 {total_datasets} 個資料集")
-    ## 不啟用Log Chunking的情況下，資料夾後綴為_embeddings
-    logvector_dirs = sorted([
-        join_path(config.LOG_VECTORS_DIR, d)
-        for d in get_dirs(config.LOG_VECTORS_DIR, "_embeddings")
-    ])
-    if not logvector_dirs:
-        raise RuntimeError(f"在 {config.LOG_VECTORS_DIR} 下找不到任何 *_embeddings 資料夾")
+def generate_detection_summary(results: Dict[str, Dataset], output_dir: str = None) -> None:
+    """生成偵測結果摘要與視覺化
+    
+    Args:
+        results: run_detection_pipeline 的返回結果
+        output_dir: 輸出目錄
+    """
+    output_dir = output_dir or getattr(config, "DETECTION_RESULTS_DIR", RESULT_FIG_DIR)
+    ensure_dir(output_dir)
+    
+    summary_data = []
+    
+    for dataset_name, dataset in results.items():
+        n_samples = len(dataset)
+        
+        row = {"dataset": dataset_name, "n_samples": n_samples}
+        
+        # 統計各模型的異常數量
+        for col in dataset.column_names:
+            if col.endswith("_label"):
+                model_name = col.replace("_label", "")
+                n_anomalies = sum(dataset[col])
+                row[f"{model_name}_anomalies"] = n_anomalies
+                row[f"{model_name}_ratio"] = n_anomalies / n_samples * 100 if n_samples > 0 else 0
+        
+        summary_data.append(row)
+    
+    # 輸出摘要統計
+    print("\n偵測結果摘要：")
+    print("-" * 80)
+    for row in summary_data:
+        print(f"資料集: {row['dataset']}")
+        print(f"  樣本數: {row['n_samples']}")
+        for key, value in row.items():
+            if key.endswith("_ratio"):
+                model = key.replace("_ratio", "")
+                anomalies = row.get(f"{model}_anomalies", 0)
+                print(f"  {model}: {anomalies} 異常 ({value:.2f}%)")
+        print()
 
-    total_datasets = len(logvector_dirs)
-    print(f"    找到 {total_datasets} 個資料集")
+
+if __name__ == "__main__":
     
-    # * 定義實驗規模：1, 5, 10, 15, 20...
-    EXPERIMENT_SIZES = [i for i in range(1, total_datasets + 1) if i == 1 or i % 5 == 0]
-    EXPERIMENT_SIZES = [s for s in EXPERIMENT_SIZES if s <= total_datasets]
-    EXPERIMENT_SIZES = sorted(set(EXPERIMENT_SIZES))
-    print(f"    實驗規模: {EXPERIMENT_SIZES}")
     
-    # * 結果聚合器
-    aggregator = ResultAggregator(scaler_type="minmax")
+    # 執行偵測流程
+    results = run_detection_pipeline(
+        input_dir=config.LOG_VECTORS_DIR,
+        output_dir=config.DETECTION_RESULTS_DIR,
+        models=getattr(config, "DETECTION_MODELS", None),
+        verbose=True
+    )
     
-    # * 執行多規模實驗
-    for n_datasets in EXPERIMENT_SIZES:
-        print(f"\n{'='*40}")
-        print(f"[實驗] 使用 {n_datasets} 個資料集")
-        print("="*40)
-        
-        # * 載入並合併指定數量的資料集
-        selected_dirs = logvector_dirs[:n_datasets]
-        datasets_list = [load_dataset(path) for path in selected_dirs]
-        dataset = concatenate_datasets(datasets_list)
-        # X = np.array(dataset["log_vector"])
-        X = np.array(dataset["embedding"])  # 不啟用Log Chunking的情況下，欄位名稱為embedding
-        print(f"    樣本數: {X.shape[0]}, 維度: {X.shape[1]}")
-        
-        # * 執行異常偵測
-        detector = LogDetector()
-        results = detector.fit_predict(X)
-        
-        # * 記錄結果
-        aggregator.add_experiment(results, dataset_size=n_datasets)
-        
-        # * 輸出摘要
-        print("    各模型異常數:")
-        for model_name, model_results in results.items():
-            n_anomalies = model_results["labels"].sum()
-            print(f"      - {model_name}: {n_anomalies}")
-    
-    # * 生成視覺化
-    print("\n" + "="*60)
-    print("生成視覺化報告")
-    print("="*60)
-    
-    print("\n[1] 效能趨勢分析...")
-    path = plot_trend_analysis(aggregator, RESULT_FIG_DIR)
-    print(f"    儲存至: {path}")
-    
-    print("\n[2] 異常數量趨勢...")
-    path = plot_anomaly_count_trend(aggregator, RESULT_FIG_DIR)
-    print(f"    儲存至: {path}")
-    
-    print("\n[3] 分佈演變圖...")
-    paths = plot_distribution_evolution(aggregator, RESULT_FIG_DIR)
-    for p in paths:
-        print(f"    儲存至: {p}")
-    
-    print("\n[4] 小提琴對比圖...")
-    path = plot_comparison_violin(aggregator, RESULT_FIG_DIR)
-    print(f"    儲存至: {path}")
-    
-    # * 最大規模的直方圖
-    print("\n[5] 最大規模分數分佈...")
-    largest_results = {
-        r.model_name: {
-            "normalized_scores": r.normalized_scores,
-            "labels": r.labels,
-            "scores": r.normalized_scores
-        }
-        for r in aggregator.get_by_size(max(EXPERIMENT_SIZES))
-    }
-    path = plot_score_histogram(largest_results, RESULT_FIG_DIR, 
-                                f"Score Distribution ({max(EXPERIMENT_SIZES)} Datasets)")
-    print(f"    儲存至: {path}")
-    
-    print("\n" + "="*60)
-    print("實驗完成！")
-    print("="*60)
+    # 生成摘要
+    if results:
+        generate_detection_summary(results, output_dir=config.DETECTION_RESULTS_DIR)
