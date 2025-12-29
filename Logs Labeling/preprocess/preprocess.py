@@ -22,23 +22,16 @@ from models.BiLSTMAttention import BiLSTMAttention
 import config
 import importlib
 
-# * 配置參數
-LOG_INPUT_PATH = config.INPUT_LOGS_DIR
-LOG_INTERMEDIATE_PATH = config.INTERMEDIATE_DATA_DIR
-LOG_OUTPUT_PATH = config.PROCESSED_LOGS_DIR
-ENABLE_PARSER = config.ENABLE_PARSER  # 是否解析原始事件
-LOG_PARSER = config.DEFAULT_PARSER  # 可選: 'drain', 'spell', 'lenma' (小寫模組名稱)
-
 
 class LogLoader:
     """使用插件式解析器模組載入並解析日誌檔案。"""
     
     def __init__(
         self, 
-        input_dir: str = LOG_INPUT_PATH, 
-        output_dir: str = LOG_OUTPUT_PATH,
-        enable_parser: bool = ENABLE_PARSER,
-        parser_name: str = LOG_PARSER,
+        input_dir: str = config.INPUT_LOGS_DIR, 
+        output_dir: str = config.INTERMEDIATE_DATA_DIR,
+        enable_parser: bool =  config.ENABLE_PARSER,
+        parser_name: str = config.DEFAULT_PARSER,
         use_registry_parser: bool = True,
         parser_config: dict = None
     ):
@@ -212,7 +205,7 @@ class LogLoader:
             print("載入所有日誌檔案...")
         
         # * 步驟 4.4: 建立輸出目錄
-        ensure_dir(LOG_INTERMEDIATE_PATH)
+        ensure_dir(config.INTERMEDIATE_DATA_DIR)
         
         # * 步驟 4.5: 處理檔案
         parsed_dfs = []
@@ -228,14 +221,14 @@ class LogLoader:
                 
                 if parsed_df is not None:
                     # * 步驟 4.7: 儲存解析結果
-                    output_path = join_path(LOG_INTERMEDIATE_PATH, file)
+                    output_path = join_path(config.INTERMEDIATE_DATA_DIR, file)
                     parsed_df.to_csv(output_path, index=False, encoding='utf-8')
                     parsed_dfs.append(parsed_df)
         
         # * 步驟 4.8: 顯示處理統計資訊
         print(f"\n解析完成！")
         print(f"  已處理: {len(parsed_dfs)}/{len(files)} 個檔案")
-        print(f"  輸出位置: {LOG_INTERMEDIATE_PATH}")
+        print(f"  輸出位置: {config.INTERMEDIATE_DATA_DIR}")
         
         if self.enable_parser:
             print(f"  解析器: {self.parser_name}")
@@ -252,7 +245,7 @@ class LogEmbedder:
     
     def __init__(
         self,
-        intermediate_dir: str = LOG_INTERMEDIATE_PATH,
+        intermediate_dir: str = config.INTERMEDIATE_DATA_DIR,
         output_dir: str = None,
         model_name: str = config.BERT_MODEL_NAME,
         cache_dir: str = config.BERT_CACHE_DIR,
@@ -628,15 +621,15 @@ def main():
     
     # 2: 不解析 (保留原始日誌)
     loader = LogLoader(enable_parser=False)
-    loader.load_logs(num=N)
+    loader.load_logs(columns=['Process Name', 'Operation', 'Path'] , num=N)
     
     # 3: 計算嵌入向量
     embedder = LogEmbedder(normalize=False)
     embedder.embed_logs(num=N)
     
     # 4: 生成 Log Vector
-    chunker = LogChunker()
-    chunker.chunk_logs(num=N)
+    # chunker = LogChunker()
+    # chunker.chunk_logs(num=N)
 
 if __name__ == "__main__":
     main()
