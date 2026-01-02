@@ -14,4 +14,3 @@ HMM/
 *test*.py
 *.pkl
 result/*/*.html
-Pipeline.py

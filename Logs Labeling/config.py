@@ -39,7 +39,7 @@ LOG_VECTORS_DIR = os.path.join(DATA_DIR, "Embeddings")  # 若直接使用嵌入�
 
 # ==================== 概念抽取（NMF / LDA） ====================
 # --- 模型參數 ---
-NMF_COMPONENTS = 75  # 概念數量（潛在空間維度）
+NMF_COMPONENTS = 30  # 概念數量（潛在空間維度）
 NMF_L1_REG = 0.01  # L1 正則化強度（控制稀疏度）
 NMF_MAX_ITER = 500  # 最大迭代次數
 NMF_TOL = 1e-3  # 收斂容許誤差
