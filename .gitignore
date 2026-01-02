@@ -13,5 +13,5 @@ HMM/
 *.pdf
 *test*.py
 *.pkl
-
+result/*/*.html
 Pipeline.py

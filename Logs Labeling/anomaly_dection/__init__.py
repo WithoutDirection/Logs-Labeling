@@ -16,7 +16,7 @@ from anomaly_dection.log_detector import (
     LogDetectorConfig, 
     ScalerType, 
     ThresholdMethod,
-    detect_anomalies
+    run_detection_pipeline
 )
 
 __all__ = [
@@ -37,5 +37,5 @@ __all__ = [
     "LogDetectorConfig",
     "ScalerType",
     "ThresholdMethod",
-    "detect_anomalies"
+    "run_detection_pipeline"
 ]

@@ -9,6 +9,7 @@ PROCESSED_LOGS_DIR = os.path.join(DATA_DIR, "processed_logs")
 BERT_MODEL_DIR = os.path.join("Logs Labeling", "models", "bert_model")
 UNSUPERVISED_MODEL_DIR = os.path.join("Logs Labeling", "models", "Unsupervised")
 HMM_MODEL_DIR = os.path.join("Logs Labeling", "models", "HMM")
+RESULT_DIR = os.path.join("result")  # 總輸出根目錄
 
 # ==================== 預處理階段 ====================
 ENABLE_PARSER = True  # 是否對原始事件進行樣板解析（False 則保留原字串）
@@ -39,6 +40,7 @@ LOG_VECTORS_DIR = os.path.join(DATA_DIR, "Embeddings")  # 若直接使用嵌入�
 # ==================== 概念抽取（NMF / LDA） ====================
 # --- 模型參數 ---
 NMF_COMPONENTS = 75  # 概念數量（潛在空間維度）
+NMF_L1_REG = 0.01  # L1 正則化強度（控制稀疏度）
 NMF_MAX_ITER = 500  # 最大迭代次數
 NMF_TOL = 1e-3  # 收斂容許誤差
 NMF_INIT = "nndsvd"  # 初始化方法（nndsvd 為確定性初始化，可確保結果可重現）
@@ -85,7 +87,7 @@ GMM_USE_BIC = True
 # 集成與閾值設定
 DETECTION_MODELS = ["isolation_forest", "copod", "autoencoder", "pca_gmm"]
 SCORE_SCALER = "minmax"  # 可選: "minmax", "rank", "zscore"
-THRESHOLDING_METHOD = "percentile"  # 可選: "percentile", "std", "top_n"
+THRESHOLDING_METHOD = "mad"  # 可選: "percentile", "std", "top_n", "mad"
 THRESHOLDING_PARAMS = {"percentile": 98}  # 對應閾值方法的參數
 ENSEMBLE_WEIGHTS = {
     "isolation_forest": 0.25,
@@ -94,6 +96,20 @@ ENSEMBLE_WEIGHTS = {
     "pca_gmm": 0.25,
 }
 DETECTION_RESULTS_DIR = os.path.join(DATA_DIR, "Detection_Results")
+DETECTION_VIZ_DIR = os.path.join(RESULT_DIR, "Anomaly_Detection")
+
+# MAD (Median Absolute Deviation) 自適應閾值設定
+MAD_THRESHOLD_MULTIPLIER = 3.0  # MAD 乘數，通常使用 2.5-3.5
+MAD_USE_MODIFIED = True  # 是否讓 MAD 更接近標準差
+
+# 時間序列平滑化設定
+ENABLE_TIME_SERIES_SMOOTHING = True  # 是否啟用時間序列平滑化
+SMOOTHING_WINDOW_SIZE = 5  # 滑動視窗大小（建議為奇數）
+SMOOTHING_METHOD = "mean"  # 可選: "mean", "median", "gaussian"
+
+# 模型相關性分析設定
+ENABLE_CORRELATION_ANALYSIS = True  # 是否啟用相關性分析
+CORRELATION_METHOD = "pearson"  # 可選: "pearson", "spearman", "kendall"
 
 
 # ==================== 序列分群（HMM；每資料集分開） ====================
@@ -130,5 +146,5 @@ CODE_EXTRACTOR_HEADERS = {
 }
 
 # ==================== 結果與通用設定 ====================
-RESULT_DIR = "result"  # 總輸出根目錄
+
 SEED = 42  # 全域隨機種子

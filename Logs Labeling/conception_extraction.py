@@ -1,11 +1,11 @@
 """
-ConceptExtractor：使用（NMF）或（LDA）將高維度的稠密向量映射至潛在的概念空間。
+ConceptExtractor：使用 NMF/LDA 將日誌向量映射至潛在概念空間
 
-支援 GPU 加速（透過 PyTorch）與 CPU 回退：
-    1. 優先使用 GPU 加速的 NMF（乘法更新規則）
-    2. 自動處理 GPU 記憶體不足（Mini-batch 訓練）
-    3. 若 GPU 不可用則自動回退至 sklearn CPU 實作
-    4. 使用 joblib 對批次資料集轉換進行並行處理
+# * GPU 加速的 NMF（乘法更新規則 + L1 稀疏性）
+# * 自動處理 OOM（動態調整 batch size）
+# * GPU 不可用時自動回退至 sklearn CPU
+# * GPU 併發控制：use_gpu=True 時強制 n_jobs=1
+# * 代表性樣本提取功能
 """
 
 import sys
@@ -34,6 +34,7 @@ from utils.dataset import load_dataset, _infer_vector_dim
 from config import (
     LOG_VECTORS_DIR,
     NMF_COMPONENTS,
+    NMF_L1_REG,
     NMF_MAX_ITER,
     NMF_TOL,
     NMF_INIT,
@@ -50,30 +51,25 @@ from config import (
     NMF_GPU_VERBOSE,
 )
 
-# 匯入 GPU NMF 模組
+# * 匯入 GPU NMF 模組
 sys.path.insert(0, str(Path(CURRENT_DIR) / "models"))
 from models.NMF_gpu import NMFGpu, _check_cuda_available
 
 
 class ConceptExtractor:
     """
-    使用 NMF 或 LDA 從日誌向量中萃取潛在概念。
+    使用 NMF/LDA 從日誌向量中萍取潛在概念
     
-    流程：
-        1. prepare_training_data()：聚合並抽樣向量以建立訓練資料
-        2. fit_global_model()：訓練 NMF/LDA 以學習概念基矩陣 W
-        3. transform_dataset()：將單一資料集投影至概念空間
-    
-    GPU 加速：
-        - NMF 訓練：優先使用 PyTorch GPU 加速（乘法更新規則）
-        - 自動處理 OOM：動態調整 batch size 以避免記憶體不足
-        - CPU 回退：若 GPU 不可用則自動使用 sklearn 實作
-        - 批次轉換：透過 n_jobs 參數設定多資料集並行處理
+    # * 流程：prepare_training_data() → fit_global_model() → transform_dataset()
+    # * GPU 加速：NMF 優先使用 PyTorch GPU
+    # * GPU 併發控制：use_gpu=True 時強制 n_jobs=1（避免 VRAM 競爭）
+    # * 代表性樣本：可提取每個概念的代表性日誌索引
     """
     
     def __init__(
         self,
         n_concepts: int = NMF_COMPONENTS,
+        l1_reg: float = NMF_L1_REG,
         method: Literal["nmf", "lda"] = "nmf",
         max_iter: int = NMF_MAX_ITER,
         tol: float = NMF_TOL,
@@ -81,7 +77,6 @@ class ConceptExtractor:
         random_state: int = SEED,
         model_path: str = NMF_MODEL_PATH,
         n_jobs: int = CONCEPT_BATCH_N_JOBS,
-        # GPU 相關參數
         use_gpu: bool = NMF_USE_GPU,
         gpu_batch_size: Optional[int] = NMF_GPU_BATCH_SIZE,
         gpu_epsilon: float = NMF_GPU_EPSILON,
@@ -89,16 +84,23 @@ class ConceptExtractor:
         gpu_verbose: bool = NMF_GPU_VERBOSE,
     ):
         self.n_concepts = n_concepts
+        self.l1_reg = l1_reg
         self.method = method
         self.max_iter = max_iter
         self.tol = tol
         self.init = init
         self.random_state = random_state
         self.model_path = model_path
-        self.n_jobs = n_jobs
         
-        # GPU 設定
+        # * GPU 併發控制：GPU 時強制單執行緒
         self.use_gpu = use_gpu
+        if use_gpu and _check_cuda_available():
+            self.n_jobs = 1  # * 避免 VRAM 競爭
+            if n_jobs != 1:
+                print("GPU 模式下設定 n_jobs=1 ")
+        else:
+            self.n_jobs = n_jobs
+        
         self.gpu_batch_size = gpu_batch_size
         self.gpu_epsilon = gpu_epsilon
         self.gpu_check_interval = gpu_check_interval
@@ -107,13 +109,13 @@ class ConceptExtractor:
         self.model = None
         self.scaler = MinMaxScaler()
         self._is_fitted = False
-        self._is_gpu_model = False  # 標記是否使用 GPU 模型
+        self._is_gpu_model = False
 
     def _resolve_path(self, path: str) -> str:
-        """將相對路徑轉為專案根目錄下的絕對路徑。"""
+        # * 轉相對路徑為專案根目錄下的絕對路徑
         return str(Path(path)) if Path(path).is_absolute() else str(Path(PROJECT_ROOT) / path)
     
-    # ======================== 資料準備（Data Preparation） ========================
+    # ======================== 資料準備 ========================
     
     def _validate_and_append_vectors(
         self,
@@ -122,12 +124,7 @@ class ConceptExtractor:
         source_name: str,
         all_vectors: List[np.ndarray],
     ) -> Optional[int]:
-        """
-        驗證向量維度並加入集合（內部輔助方法）。
-        
-        回傳：
-            更新後的參考維度，若跳過則回傳原本的 ref_dim
-        """
+        # * 驗證向量維度並加入集合
         vectors = np.asarray(vectors)
         if vectors.ndim == 1:
             vectors = vectors.reshape(-1, 1)
@@ -195,7 +192,7 @@ class ConceptExtractor:
                     vectors, ref_dim, log_id_dir, all_vectors
                 )
                 
-                # 若成功加入，進行抽樣（取代原本完整加入的向量）
+                # * 若成功加入，進行抽樣
                 if len(all_vectors) > old_len:
                     full_vectors = all_vectors.pop()
                     n_samples = max(1, int(len(full_vectors) * sample_ratio))
@@ -215,7 +212,7 @@ class ConceptExtractor:
         """
         從指定資料夾載入向量，支援 HF datasets 與 Feather 格式。
         """
-        # 嘗試以 HF datasets 格式載入
+        # * 嘗試以 HF datasets 格式載入
         hf_markers = ["dataset_info.json", "state.json"]
         if any(exists(join_path(dir_path, m)) for m in hf_markers):
             try:
@@ -227,7 +224,7 @@ class ConceptExtractor:
             except Exception as e:
                 print(f"HF 載入失敗 {dir_path}: {e}")
         
-        # 嘗試以 Feather 格式讀取 Arrow 檔案
+        # * 嘗試以 Feather 格式讀取 Arrow 檔案
         for fname in ["data.arrow", "data-00000-of-00001.arrow"]:
             fpath = join_path(dir_path, fname)
             if exists(fpath):
@@ -276,14 +273,11 @@ class ConceptExtractor:
         
         # * 初始化並擬合模型
         if self.method == "nmf":
-            # 檢查是否應該使用 GPU
             use_gpu_nmf = self.use_gpu and _check_cuda_available()
             
             if use_gpu_nmf:
-                # 使用 GPU 加速的 NMF
                 self.model = NMFGpu(
-                    n_components=self.n_concepts,
-                    max_iter=self.max_iter,
+                    n_components=self.n_concepts,                    l1_reg=self.l1_reg,                    max_iter=self.max_iter,
                     tol=self.tol,
                     epsilon=self.gpu_epsilon,
                     random_state=self.random_state,
@@ -293,7 +287,6 @@ class ConceptExtractor:
                 )
                 self._is_gpu_model = True
             else:
-                # 使用 sklearn CPU NMF
                 if self.use_gpu:
                     print("⚠️ GPU 不可用，改用 sklearn CPU NMF")
                 self.model = NMF(
@@ -307,7 +300,6 @@ class ConceptExtractor:
                 self._is_gpu_model = False
                 
         elif self.method == "lda":
-            # LDA 需要擬計數（非負整數或浮點數）
             self.model = LatentDirichletAllocation(
                 n_components=self.n_concepts,
                 max_iter=self.max_iter,
@@ -326,7 +318,7 @@ class ConceptExtractor:
         return self
     
     def save_model(self, path: Optional[str] = None) -> None:
-        """將訓練好的模型持久化至磁碟。"""
+        # * 儲存模型至磁碟
         save_path = self._resolve_path(path or self.model_path)
         ensure_dir(get_parent_dir(save_path))
         
@@ -344,7 +336,7 @@ class ConceptExtractor:
         print(f"模型已儲存至 {save_path}")
     
     def load_model(self, path: Optional[str] = None) -> "ConceptExtractor":
-        """從磁碟載入已訓練模型。"""
+        # * 從磁碟載入模型
         load_path = self._resolve_path(path or self.model_path)
         
         with open(load_path, "rb") as f:
@@ -354,7 +346,7 @@ class ConceptExtractor:
         self.scaler = data["scaler"]
         self.n_concepts = data["n_concepts"]
         self.method = data["method"]
-        self.n_jobs = data.get("n_jobs", -1)  # 向後相容舊版模型
+        self.n_jobs = data.get("n_jobs", -1)
         self._is_gpu_model = data.get("is_gpu_model", False)
         self.use_gpu = data.get("use_gpu", self.use_gpu)
         self.gpu_batch_size = data.get("gpu_batch_size", self.gpu_batch_size)
@@ -364,22 +356,38 @@ class ConceptExtractor:
         print(f"模型已從 {load_path} 載入（{device_info} 模型）")
         return self
     
-    # ======================== 資料轉換（Transformation） ========================
-    
-    def transform(self, X: np.ndarray) -> np.ndarray:
-        """
-        使用凍結的基矩陣 W 將向量投影至概念空間。
-        
-        參數：
-            X：輸入矩陣（n_samples, n_features）
-            
-        回傳：
-            H：概念權重矩陣（n_samples, n_concepts）
-        """
+    def extract_representative_samples(
+        self,
+        X: np.ndarray,
+        top_n: int = 10,
+    ) -> dict:
+        # * 提取每個概念的代表性樣本索引（Top-N 權重）
+        # * 用於人工標註概念語義或自動生成概念標籤
         if not self._is_fitted:
             raise RuntimeError("尚未訓練模型。請先呼叫 fit_global_model()。")
         
-        # * 套用與訓練相同的縮放方式
+        # * 轉換至概念空間
+        H = self.transform(X)
+        
+        # * 對每個概念找出權重最高的 Top-N 樣本
+        representative_indices = {}
+        for concept_idx in range(self.n_concepts):
+            concept_weights = H[:, concept_idx]
+            # * 降序排列，取前 N 個索引
+            top_indices = np.argsort(concept_weights)[::-1][:top_n]
+            representative_indices[concept_idx] = top_indices.tolist()
+        
+        print(f"已提取 {self.n_concepts} 個概念的代表性樣本（每個概念 Top-{top_n}）")
+        return representative_indices
+    
+    # ======================== 資料轉換 ========================
+    
+    def transform(self, X: np.ndarray) -> np.ndarray:
+        # * 使用凍結的基矩陣將向量投影至概念空間
+        if not self._is_fitted:
+            raise RuntimeError("尚未訓練模型。請先呼叫 fit_global_model()。")
+        
+        # * 套用與訓練相同的縮放
         X_scaled = self.scaler.transform(X)
         X_scaled = np.clip(X_scaled, 0, None)
         

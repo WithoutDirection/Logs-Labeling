@@ -150,7 +150,5 @@
 * 2025-12-05:
   * 新增 BERT 嵌入模組 (`models/bert.py`) 及相關文件說明
   * 整合 BERT API 至 ExternalSourceManager 模組
- 
-
 ---
 

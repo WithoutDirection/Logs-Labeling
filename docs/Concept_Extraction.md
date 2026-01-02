@@ -11,7 +11,10 @@
 為了確保不同 Dataset 資料夾（對應不同 Technique）產出的概念向量具有可比性，我們採用以下策略：
 
 1.  **全域聯合訓練 (Joint Global Training)**：不針對單一 Dataset 訓練模型，而是聚合「外部知識庫」與「多個 Log Dataset 的採樣」來訓練一個共用的 NMF 模型。這確保了基矩陣 $W$（概念定義）在所有資料中是一致的。
-2.  **獨立批次轉換 (Independent Batch Transformation)**：利用訓練好的共用 $W$，對每一個原始資料夾進行獨立的轉換，生成對應的概念權重矩陣 $H$，並維持原始的檔案目錄結構。
+2.  **L1 稀疏性約束 (L1 Sparsity Constraint)**：在 NMF 更新規則中加入 L1 正則化項，強制概念權重矩陣 $H$ 更加稀疏，使每個日誌傾向於只屬於少數幾個明確的概念，提升解釋性。
+3.  **獨立批次轉換 (Independent Batch Transformation)**：利用訓練好的共用 $W$，對每一個原始資料夾進行獨立的轉換，生成對應的概念權重矩陣 $H$，並維持原始的檔案目錄結構。
+4.  **代表性樣本提取 (Representative Sample Extraction)**：提供方法提取每個概念權重最高的 Top-N 樣本索引，用於人工標註概念語義或自動生成概念標籤。
+5.  **GPU 併發控制 (GPU Concurrency Control)**：當使用 GPU 加速時，自動強制單執行緒處理（`n_jobs=1`），避免多 Process 競爭 VRAM 導致 OOM。
 
 ## 2. 輸入與輸出 (I/O Specification)
 
@@ -51,9 +54,14 @@ NMF 因其出色的降維能力與直觀的「基於組件（Part-based）」表
 - **配置細節 (Configuration)**：
     - **初始化 (Initialization)**：採用 **NNDSVD** (Non-Negative Double Singular Value Decomposition)。此方法能增強模型收斂速度並提升分解的穩定性。
     - **優化求解器 (Solver)**：使用 **座標下降法 (Coordinate Descent)** 進行迭代優化。
-    - **稀疏性 (Sparsity)**：**不施加稀疏約束**。目的是學習一種密集的表示形式 (Dense Representation)，以完整捕捉嵌入向量中的緊湊潛在結構。
+    - **L1 稀疏性約束 (L1 Sparsity)**：在更新規則中加入 L1 正則化項（預設強度 0.01），強迫 $H$ 矩陣更加稀疏，讓每個日誌傾向於只屬於少數幾個明確的概念，大幅提升解釋性。
+- **更新規則 (含 L1 正則化)**：
+    - $H = H \cdot (W^T X) / (W^T W H + \lambda_{L1} + \epsilon)$
+    - $W = W \cdot (X H^T) / (W H H^T + \epsilon)$
+    - 其中 $\lambda_{L1}$ 為 L1 正則化強度，$\epsilon$ 為數值穩定常數
 - **解釋性**：
     - NMF 產生的權重皆為非負值，這與 PCA/SVD 不同，使得特徵具有加法性質，**更容易解釋為「該日誌由哪些概念組成」**。
+    - L1 正則化進一步強化解釋性，避免單一日誌同時屬於過多概念的模糊狀況。
 
 ### B. 隱含狄利克雷分佈 (LDA) - 替代方法
 雖然 NMF 是主要路徑，但在需要探索機率分佈或處理離散特徵時，可提供 LDA 作為選項。
@@ -111,44 +119,57 @@ NMF 因其出色的降維能力與直觀的「基於組件（Part-based）」表
     * **場景**：若需要機率分佈解釋（Soft Clustering）時使用。需注意輸入特徵需轉換為適合 LDA 的格式（如虛擬詞頻）。
 
 ### GPU 加速實作 (`NMFGpu`)
-當資料量龐大時（如百萬級樣本），可啟用 GPU 加速以大幅縮短訓練時間。`NMFGpu` 類別採用 **乘法更新規則 (Multiplicative Update Rules)**，完全基於矩陣運算，適合 GPU 平行加速。
+當資料量龐大時（如百萬級樣本），可啟用 GPU 加速以大幅縮短訓練時間。`NMFGpu` 類別採用 **乘法更新規則 (Multiplicative Update Rules)** 並支援 **L1 稀疏性約束**，完全基於矩陣運算，適合 GPU 平行加速。
 
-* **演算法**：
-    * 更新規則：$H = H \cdot (W^T X) / (W^T W H + \epsilon)$，$W = W \cdot (X H^T) / (W H H^T + \epsilon)$
+* **演算法（含 L1 正則化）**：
+    * 更新規則：$H = H \cdot (W^T X) / (W^T W H + \lambda_{L1} + \epsilon)$，$W = W \cdot (X H^T) / (W H H^T + \epsilon)$
     * 自動保持非負性，無需額外 Clamping
+    * L1 正則化項直接整合於更新規則中，無額外計算開銷
 * **OOM 保護**：
     * 自動偵測 GPU 記憶體，動態計算安全的 batch size
     * 若資料超過記憶體限制，自動切換至 Mini-batch 訓練模式
 * **相容性檢查**：
     * 啟動時執行 CUDA kernel 測試運算，確認 GPU compute capability 相容性
     * 若 GPU 不相容（如 GTX 1080 Ti 搭配 CUDA 12+ PyTorch），自動回退至 CPU 模式
+* **併發控制**：
+    * 當 `use_gpu=True` 且 CUDA 可用時，自動強制 `n_jobs=1`
+    * 避免多個 Python Process 同時嘗試使用 GPU，導致 VRAM 競爭和 OOM
 
 ### API 設計(`ConceptExtractor`)
 下列方法為主要API call，方便其他模組直接引用：
 
 * `prepare_training_data(log_vectors_dir, external_knowledge_dir, sample_ratio)`: 依據設定的日誌向量目錄與外部知識目錄載入向量，逐資料集採樣後垂直堆疊成訓練矩陣。
-* `fit_global_model(X_train)`: 以 Min-Max 縮放後的 `X_train` 擬合 NMF/LDA 模型並凍結基矩陣；概念數、收斂條件等超參數來自初始化。當 `use_gpu=True` 且 CUDA 可用時，使用 `NMFGpu` 加速訓練。
+* `fit_global_model(X_train)`: 以 Min-Max 縮放後的 `X_train` 擬合 NMF/LDA 模型並凍結基矩陣；概念數、收斂條件、L1 正則化強度等超參數來自初始化。當 `use_gpu=True` 且 CUDA 可用時，使用 `NMFGpu` 加速訓練，並自動強制 `n_jobs=1` 以避免 VRAM 競爭。
+* `extract_representative_samples(X, top_n=10)`: **[新增]** 提取每個概念權重最高的 Top-N 樣本索引，回傳字典 `{concept_idx: [sample_indices]}`。用於：
+    * 人工標註概念語義（透過查閱代表性日誌的原始文字）
+    * 自動生成概念標籤（例如：Concept 1 = PowerShell 下載）
+    * 概念品質評估與驗證
 * `transform_dataset(input_path, output_path, copy_metadata=True)`: 讀取單一資料集向量、投影至概念空間並輸出 Feather，必要時一併複製 `state.json`/`dataset_info.json`。
-* `batch_transform(log_vectors_dir, concept_vectors_dir)`: 對 `log_vectors_dir` 下所有子資料夾批次轉換，維持 `{LogID}_logvectors -> {LogID}_concepts` 目錄對應。
+* `batch_transform(log_vectors_dir, concept_vectors_dir, n_jobs=None)`: 對 `log_vectors_dir` 下所有子資料夾批次轉換，維持 `{LogID}_logvectors -> {LogID}_concepts` 目錄對應。支援多 CPU 並行處理（GPU 模式下自動設為 1）。
 * `get_concept_basis()`: 回傳已訓練的 $W$ 基矩陣（或 LDA 主題-詞彙分佈），供分析或視覺化使用。
-> train_concept_extractor(...)` 執行資料準備、模型訓練與儲存；`transform_all_datasets(...)` 讀取既有模型後批次轉換所有資料集。
+
+**便捷函式**：
+* `train_concept_extractor(...)`: 執行資料準備、模型訓練與儲存的完整流程。
+* `transform_all_datasets(...)`: 讀取既有模型後批次轉換所有資料集。
 
 ---
 
-## 6. 模型超參數與設定 (Hyperparameters & Config)
+## 6. 超參數配置 (Hyperparameters)
 
-結合現有 [Logs Labeling/config.py](Logs%20Labeling/config.py) 設定，`ConceptExtractor` 相關與建議的主要超參數如下：
+### 核心訓練參數
 
-| 參數角色                    | Config Key / 名稱              | 型別   | 說明                                               | 建議預設值              |
-|-----------------------------|--------------------------------|--------|----------------------------------------------------|-------------------------|
-| 概念數 (latent concepts k)  | `NMF_COMPONENTS`               | int    | NMF 分解的概念維度，決定 $W$ 與 $H$ 的寬度。       | `10`                    |
-| 日誌向量根目錄              | `LOG_VECTORS_DIR`             | str    | 載入 `data/LogVectors/{LogID}/data.arrow` 的根路徑 | `data/LogVectors`       |
-| 訓練隨機種子                | `SEED`                         | int    | 控制採樣與模型初始化的隨機性，方便重現結果。      | `42`                    |
-| 訓練資料採樣比例            | `CONCEPT_SAMPLE_RATIO` | float  | 從各資料集抽樣的比例，用於建構 $X_{train}$。      | `0.1`                   |
-| 最大訓練迭代次數            | `NMF_MAX_ITER`         | int    | NMF 的最大迭代次數，避免訓練時間過長。            | `200`                   |
-| 收斂容忍度                  |`NMF_TOL`              | float  | NMF 收斂條件，控制訓練精度與時間的權衡。          | `1e-4`                  |
-| 初始化方法                  |`NMF_INIT`             | str    | NMF 初始化策略，例如 `nndsvd`。                    | `"nndsvd"`            |
-| 概念模型輸出路徑            | `NMF_MODEL_PATH`       | str    | 儲存 `nmf_concept_model.pkl` 的完整路徑。         | `models/nmf_concept_model.pkl` |
+| 參數角色                    | Config Key / 名稱              | 型別   | 說明                                                             | 建議預設值              |
+|-----------------------------|--------------------------------|--------|------------------------------------------------------------------|-------------------------|
+| 概念數量                    | `NMF_COMPONENTS`               | int    | 潛在概念空間的維度 $k$，即 NMF 的組件數。                       | `75`                    |
+| L1 正則化強度               | `NMF_L1_REG`                   | float  | **[新增]** L1 正則化強度，控制概念稀疏度。值越大越稀疏，0 表示無正則化。 | `0.01`                  |
+| 日誌向量根目錄              | `LOG_VECTORS_DIR`              | str    | 載入 `data/LogVectors/{LogID}/data.arrow` 的根路徑              | `data/LogVectors`       |
+| 訓練隨機種子                | `SEED`                         | int    | 控制採樣與模型初始化的隨機性，方便重現結果。                     | `42`                    |
+| 訓練資料採樣比例            | `CONCEPT_SAMPLE_RATIO`         | float  | 從各資料集抽樣的比例，用於建構 $X_{train}$。                     | `1.0`                   |
+| 最大訓練迭代次數            | `NMF_MAX_ITER`                 | int    | NMF 的最大迭代次數，避免訓練時間過長。                           | `500`                   |
+| 收斂容忍度                  | `NMF_TOL`                      | float  | NMF 收斂條件，控制訓練精度與時間的權衡。                         | `1e-3`                  |
+| 初始化方法                  | `NMF_INIT`                     | str    | NMF 初始化策略，例如 `nndsvd`。                                  | `"nndsvd"`              |
+| 概念模型輸出路徑            | `NMF_MODEL_PATH`               | str    | 儲存 `nmf_concept_model.pkl` 的完整路徑。                        | `models/nmf_concept_model.pkl` |
+| 批次轉換並行數              | `CONCEPT_BATCH_N_JOBS`         | int    | 批次轉換時的並行工作數（-1=所有 CPU，GPU 模式下自動設為 1）     | `-1`                    |
 
 ### GPU 加速設定
 
@@ -160,4 +181,4 @@ NMF 因其出色的降維能力與直觀的「基於組件（Part-based）」表
 | 收斂檢查間隔                | `NMF_GPU_CHECK_INTERVAL`       | int          | 每隔多少次迭代檢查收斂狀態                                       | `10`         |
 | 詳細輸出                    | `NMF_GPU_VERBOSE`              | bool         | 是否顯示 GPU NMF 訓練進度                                        | `True`       |
 
-**注意**：GPU 加速需要安裝與 GPU compute capability 相容的 PyTorch 版本。若 GPU 不相容（例如舊版 GPU 搭配新版 PyTorch），系統會自動回退至 sklearn CPU NMF。
+

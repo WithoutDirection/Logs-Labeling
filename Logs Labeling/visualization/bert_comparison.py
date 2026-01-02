@@ -2,7 +2,7 @@
 BERT 嵌入模型比較視覺化工具
 
 功能說明：
-    比較不同 BERT 模型的嵌入效果，使用 T-SNE 降維視覺化並計算分群品質指標。
+    比較不同 BERT 模型的嵌入效果，使用 UMAP 降維至 3D 視覺化並計算分群品質指標。
 
 參數說明：
     -n, --num-datasets      要比較的資料集數量 (預設: 5)
@@ -24,8 +24,8 @@ BERT 嵌入模型比較視覺化工具
 
 輸出：
     result/bert_comparison/
-    ├── tsne_comparison.png              # 所有模型 T-SNE 對比圖
-    ├── {model_name}_tsne.png            # 各模型獨立 T-SNE 圖
+    ├── umap_comparison_3d.html          # 所有模型互動式 3D UMAP 圖
+    ├── {model_name}_umap_3d.html       # 各模型獨立互動式 3D UMAP 圖
     ├── dispersion_comparison.png        # 分散程度比較圖
     └── model_comparison_statistics.csv  # 完整統計數據
 """
@@ -38,10 +38,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 from typing import List, Dict, Optional
-from sklearn.manifold import TSNE
 from sklearn.metrics import silhouette_score
 from scipy.spatial.distance import pdist
 from tqdm import tqdm
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import umap
 
 # 設定中文字體
 plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'SimHei', 'Noto Sans CJK TC']
@@ -211,10 +213,10 @@ class BertEmbeddingComparator:
         
         return pd.DataFrame(results)
     
-    def _run_tsne(self, perplexity: int = 30, max_iter: int = 1000) -> Dict[str, np.ndarray]:
-        """執行 T-SNE 降維"""
+    def _run_umap(self, n_neighbors: int = 15, min_dist: float = 0.1) -> Dict[str, np.ndarray]:
+        """執行 UMAP 3D 降維"""
         print("\n" + "=" * 60)
-        print("執行 T-SNE 降維")
+        print("執行 UMAP 3D 降維")
         print("=" * 60)
         
         results = {}
@@ -224,80 +226,193 @@ class BertEmbeddingComparator:
             
             combined = np.vstack([self.embeddings[model_key][n] for n in self.texts])
             
-            # 相容不同版本 scikit-learn
-            try:
-                tsne = TSNE(n_components=2, perplexity=min(perplexity, len(combined)-1),
-                           max_iter=max_iter, random_state=42, init='pca', learning_rate='auto')
-            except TypeError:
-                tsne = TSNE(n_components=2, perplexity=min(perplexity, len(combined)-1),
-                           n_iter=max_iter, random_state=42, init='pca', learning_rate='auto')
+            # 執行 UMAP 降維至 3D
+            reducer = umap.UMAP(
+                n_components=3,
+                n_neighbors=min(n_neighbors, len(combined)-1),
+                min_dist=min_dist,
+                metric='cosine',
+                random_state=42
+            )
             
-            results[model_key] = tsne.fit_transform(combined)
+            results[model_key] = reducer.fit_transform(combined)
             print(f"  ✓ 完成: {results[model_key].shape}")
         
         return results
     
-    def _plot_tsne_comparison(self, tsne_results: Dict[str, np.ndarray], save_path: str):
-        """繪製 T-SNE 對比圖"""
-        n = len(tsne_results)
-        fig, axes = plt.subplots(1, n, figsize=(6*n, 5))
-        if n == 1:
-            axes = [axes]
-        
-        names = list(self.texts.keys())
-        colors = plt.cm.tab10(np.linspace(0, 1, len(names)))
-        
-        for ax, (model, emb) in zip(axes, tsne_results.items()):
-            start = 0
-            for idx, name in enumerate(names):
-                end = start + len(self.texts[name])
-                ax.scatter(emb[start:end, 0], emb[start:end, 1], c=[colors[idx]],
-                          label=name[:10]+'...' if len(name)>10 else name, alpha=0.6, s=20)
-                start = end
-            
-            ax.set_title(f'{model}\n(dim={self.models[model].get_embedding_dim()})')
-            ax.set_xlabel('T-SNE 1')
-            ax.set_ylabel('T-SNE 2')
-            ax.legend(fontsize=7, ncol=1)
-            ax.grid(True, alpha=0.3)
-        
-        plt.suptitle('BERT Embedding T-SNE Comparison', fontsize=14, y=1.02)
-        plt.tight_layout()
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        print(f"\n圖表儲存: {save_path}")
-        plt.close()
+    def _generate_unique_colors(self, n: int) -> List[str]:
+        """生成 n 個不重複的顏色"""
+        import colorsys
+        colors = []
+        for i in range(n):
+            hue = i / n
+            rgb = colorsys.hsv_to_rgb(hue, 0.8, 0.9)
+            colors.append(f'rgb({int(rgb[0]*255)},{int(rgb[1]*255)},{int(rgb[2]*255)})')
+        return colors
     
-    def _plot_tsne_per_model(self, tsne_results: Dict[str, np.ndarray]):
-        """為每個模型繪製獨立 T-SNE 圖"""
+    def _plot_umap_comparison(self, umap_results: Dict[str, np.ndarray], save_path: str):
+        """繪製互動式 3D UMAP 對比圖"""
+        n_models = len(umap_results)
         names = list(self.texts.keys())
-        n = len(names)
-        colors = plt.cm.tab20(np.linspace(0, 1, min(n, 20))) if n <= 20 else plt.cm.rainbow(np.linspace(0, 1, n))
+        colors = self._generate_unique_colors(len(names))
         
-        print("\n生成各模型 T-SNE 圖...")
+        # 創建子圖
+        fig = make_subplots(
+            rows=1, cols=n_models,
+            subplot_titles=[f'{model}<br>(dim={self.models[model].get_embedding_dim()})' 
+                           for model in umap_results.keys()],
+            specs=[[{'type': 'scatter3d'} for _ in range(n_models)]],
+            horizontal_spacing=0.05
+        )
         
-        for model, emb in tsne_results.items():
-            fig, ax = plt.subplots(figsize=(12, 10))
+        for col_idx, (model, emb) in enumerate(umap_results.items(), start=1):
+            start = 0
+            for idx, name in enumerate(names):
+                end = start + len(self.texts[name])
+                texts = self.texts[name]
+                
+                # 添加 3D 散點圖
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=emb[start:end, 0],
+                        y=emb[start:end, 1],
+                        z=emb[start:end, 2],
+                        mode='markers',
+                        name=name[:15] + '...' if len(name) > 15 else name,
+                        text=[f'Dataset: {name}<br>Log: {text[:100]}...' if len(text) > 100 else f'Dataset: {name}<br>Log: {text}' 
+                              for text in texts],
+                        hovertemplate='<b>%{text}</b><extra></extra>',
+                        marker=dict(
+                            size=5,
+                            color=colors[idx],
+                            opacity=0.7,
+                            line=dict(color='white', width=0.5)
+                        ),
+                        showlegend=(col_idx == 1)  # 只在第一個子圖顯示圖例
+                    ),
+                    row=1, col=col_idx
+                )
+                start = end
+        
+        # 更新布局
+        fig.update_layout(
+            title_text='BERT Embedding UMAP 3D Comparison',
+            title_font_size=16,
+            height=700,
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=1.01,
+                font=dict(size=10)
+            )
+        )
+        
+        # 更新 3D 場景設置
+        for i in range(1, n_models + 1):
+            fig.update_scenes(
+                dict(
+                    xaxis_title='UMAP 1',
+                    yaxis_title='UMAP 2',
+                    zaxis_title='UMAP 3',
+                    camera=dict(
+                        eye=dict(x=1.5, y=1.5, z=1.5)
+                    )
+                ),
+                row=1, col=i
+            )
+        
+        fig.write_html(save_path)
+        print(f"\n互動式圖表儲存: {save_path}")
+    
+    def _plot_umap_per_model(self, umap_results: Dict[str, np.ndarray]):
+        """為每個模型繪製獨立互動式 3D UMAP 圖"""
+        names = list(self.texts.keys())
+        colors = self._generate_unique_colors(len(names))
+        
+        print("\n生成各模型 3D UMAP 圖...")
+        
+        for model, emb in umap_results.items():
+            fig = go.Figure()
             
             start = 0
             for idx, name in enumerate(names):
                 end = start + len(self.texts[name])
-                ax.scatter(emb[start:end, 0], emb[start:end, 1], c=[colors[idx % len(colors)]],
-                          label=name[:10]+'...' if len(name)>10 else name, 
-                          alpha=0.7, s=40, edgecolors='white', linewidth=0.5)
+                texts = self.texts[name]
+                
+                # 添加 3D 散點圖，每個資料點有唯一顏色
+                for i in range(start, end):
+                    point_color = colors[idx]
+                    fig.add_trace(
+                        go.Scatter3d(
+                            x=[emb[i, 0]],
+                            y=[emb[i, 1]],
+                            z=[emb[i, 2]],
+                            mode='markers',
+                            name=f'{name}_{i-start}',
+                            text=f'Dataset: {name}<br>Index: {i-start}<br>Log: {texts[i-start][:200]}...' 
+                                 if len(texts[i-start]) > 200 
+                                 else f'Dataset: {name}<br>Index: {i-start}<br>Log: {texts[i-start]}',
+                            hovertemplate='<b>%{text}</b><extra></extra>',
+                            marker=dict(
+                                size=6,
+                                color=point_color,
+                                opacity=0.8,
+                                line=dict(color='white', width=0.5)
+                            ),
+                            showlegend=False,
+                            legendgroup=name,
+                        )
+                    )
+                
+                # 添加圖例代表
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[None],
+                        y=[None],
+                        z=[None],
+                        mode='markers',
+                        name=name[:20] + '...' if len(name) > 20 else name,
+                        marker=dict(
+                            size=10,
+                            color=colors[idx],
+                            opacity=0.8
+                        ),
+                        legendgroup=name,
+                        showlegend=True
+                    )
+                )
+                
                 start = end
             
             dim = self.models[model].get_embedding_dim()
-            ax.set_title(f'{model.upper()} T-SNE (dim={dim})', fontsize=14)
-            ax.set_xlabel('T-SNE Dimension 1')
-            ax.set_ylabel('T-SNE Dimension 2')
-            ax.legend(loc='best' if n <= 10 else 'center left', 
-                     bbox_to_anchor=(1, 0.5) if n > 10 else None, fontsize=8)
-            ax.grid(True, alpha=0.3)
+            fig.update_layout(
+                title=f'{model.upper()} UMAP 3D Visualization (dim={dim})',
+                scene=dict(
+                    xaxis_title='UMAP Dimension 1',
+                    yaxis_title='UMAP Dimension 2',
+                    zaxis_title='UMAP Dimension 3',
+                    camera=dict(
+                        eye=dict(x=1.5, y=1.5, z=1.5)
+                    )
+                ),
+                width=1200,
+                height=900,
+                showlegend=True,
+                legend=dict(
+                    yanchor="top",
+                    y=0.99,
+                    xanchor="left",
+                    x=1.01,
+                    font=dict(size=10)
+                ),
+                hovermode='closest'
+            )
             
-            path = join_path(self.output_dir, f"{model}_tsne.png")
-            plt.savefig(path, dpi=150, bbox_inches='tight')
+            path = join_path(self.output_dir, f"{model}_umap_3d.html")
+            fig.write_html(path)
             print(f"  ✓ {model}: {path}")
-            plt.close()
     
     def _plot_dispersion(self, save_path: str):
         """繪製分散程度比較圖"""
@@ -368,8 +483,8 @@ class BertEmbeddingComparator:
         stats = self._compute_statistics()
         silhouette = self._compute_silhouette()
         
-        # 5. T-SNE 降維
-        tsne_results = self._run_tsne()
+        # 5. UMAP 3D 降維
+        umap_results = self._run_umap()
         
         # 6. 輸出結果
         print("\n" + "=" * 70)
@@ -393,8 +508,8 @@ class BertEmbeddingComparator:
         print("\n繪製圖表...")
         ensure_dir(self.output_dir)
         
-        self._plot_tsne_comparison(tsne_results, join_path(self.output_dir, "tsne_comparison.png"))
-        self._plot_tsne_per_model(tsne_results)
+        self._plot_umap_comparison(umap_results, join_path(self.output_dir, "umap_comparison_3d.html"))
+        self._plot_umap_per_model(umap_results)
         self._plot_dispersion(join_path(self.output_dir, "dispersion_comparison.png"))
         
         # 8. 儲存統計
@@ -407,7 +522,7 @@ class BertEmbeddingComparator:
         print(f"輸出目錄: {self.output_dir}")
         print("=" * 70)
         
-        return {'statistics': stats, 'silhouette': silhouette, 'tsne': tsne_results}
+        return {'statistics': stats, 'silhouette': silhouette, 'umap': umap_results}
 
 
 def main():

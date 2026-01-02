@@ -1,7 +1,10 @@
 """
-SequenceClustering：以隱馬可夫模型 (HMM) 進行事件日誌序列分群。
-採用 Per-Dataset HMM 策略：針對每一個 Dataset 獨立訓練 HMM 模型，
-精確識別該特定攻擊行為內部的演變階段（如：初始存取 → 執行 → 清理）。
+SequenceClustering：使用 HMM 進行事件日誌序列分群
+
+# * Per-Dataset HMM 策略：每個 Dataset 獨立訓練專屬模型
+# * 雙軌特徵預處理：Log-Transform → Clipping → Z-Score（訓練軌）
+# * 一階差分特徵：捕捉變化率，識別攻擊開始/結束
+# * 數值穩定性保護（min_covar）防止矩陣奇異
 """
 
 import os
@@ -16,12 +19,12 @@ import config
 
 class SequenceClustering:
     """
-    基於 HMM 的事件日誌序列分群（Per-Dataset 策略）。
+    基於 HMM 的事件日誌序列分群（Per-Dataset 策略）
     
-    核心策略：
-    - 每個 Dataset 獨立訓練專屬 HMM 模型
-    - 高頻隨機初始化確保收斂穩定性
-    - 數值穩定性保護（min_covar）防止矩陣奇異
+    # * 每個 Dataset 獨立訓練專屬 HMM 模型
+    # * 雙軌預處理：訓練軌（常態化）+ 分析軌（原始值）
+    # * 一階差分特徵加入，捕捉變化速率
+    # * 高頻隨機初始化確保收斂穩定性
     """
 
     def __init__(
@@ -45,22 +48,22 @@ class SequenceClustering:
         self.n_iter = n_iter
         self.tol = tol
         self.covariance_type = covariance_type
-        self.min_covar = min_covar  # 數值穩定性保護
+        self.min_covar = min_covar
         self.random_state = random_state
         
-        # 並行優化設定
+        # * 並行優化設定
         self.enable_parallel = enable_parallel
         self.n_jobs = n_jobs
         self.failure_warning_limit = failure_warning_limit
         self.failure_per_k_limit = failure_per_k_limit
         self._warning_counter: Dict[str, int] = {}
         
-        # Per-Dataset 模型儲存
+        # * Per-Dataset 模型儲存
         self.current_model: Optional[hmm.GaussianHMM] = None
         self.current_k: Optional[int] = None
         self.current_score: float = float("-inf")
         
-        # 標準化參數（雙軌策略）
+        # * 雙軌預處理參數
         self._scaler_mean: Optional[np.ndarray] = None
         self._scaler_std: Optional[np.ndarray] = None
 
@@ -71,12 +74,8 @@ class SequenceClustering:
         n_components: int,
         seed: int,
     ) -> Tuple[Optional[hmm.GaussianHMM], float, Optional[str]]:
-        """
-        訓練單一 HMM 模型並回傳其對數概似度。
-        
-        注意：Per-Dataset 策略下，單一資料集視為完整序列，
-        不使用 lengths 參數（無跨資料集問題）。
-        """
+        # * 訓練單一 HMM 模型並回傳對數概似度
+        # * Per-Dataset 策略下，單一資料集視為完整序列
         try:
             model = hmm.GaussianHMM(
                 n_components=n_components,
@@ -84,7 +83,7 @@ class SequenceClustering:
                 n_iter=self.n_iter,
                 tol=self.tol,
                 random_state=seed,
-                min_covar=self.min_covar,  # 防止特徵稀疏導致矩陣奇異
+                min_covar=self.min_covar,
             )
             model.fit(X)
             score = model.score(X)
@@ -93,7 +92,7 @@ class SequenceClustering:
             key = f"{dataset_id}|K={n_components}"
             self._warning_counter[key] = self._warning_counter.get(key, 0) + 1
             msg = f"HMM 訓練失敗 dataset={dataset_id} (K={n_components}, seed={seed}): {e}"
-            # 僅前幾次打印，之後靜音避免刷屏
+            # * 僅前幾次打印，避免刷屏
             if self._warning_counter[key] <= 2:
                 print(f"    [Warning] {msg}")
             return None, float("-inf"), msg
@@ -247,56 +246,59 @@ class SequenceClustering:
         concept_matrix: np.ndarray,
         output_dir: str = config.CLUSTER_RESULTS_DIR,
     ) -> np.ndarray:
-        """
-        處理單一 Dataset 的完整流程：優化、訓練、解碼、存檔。
-        
-        這是 Per-Dataset 策略的主控函式，包含追溯性驗證。
-
-        Args:
-            dataset_id: 資料集 ID
-            concept_matrix: 概念矩陣，形狀 (n_samples, n_features)
-            output_dir: 輸出目錄
-
-        Returns:
-            分群標籤陣列
-        """
+        # * 處理單一 Dataset 的完整流程：優化、訓練、解碼、存檔
+        # * 包含雙軌預處理、一階差分特徵、追溯性驗證
         n_rows = len(concept_matrix)
         print(f"\n[Processing] {dataset_id} ({n_rows} 筆資料)")
         
-        # * Step 1: 資料清理與標準化（雙軌策略）
+        # * Step 1: 資料清理
         clean_matrix = np.nan_to_num(concept_matrix, nan=0.0, posinf=0.0, neginf=0.0)
 
-        # * 先對極端值做截斷，避免過大值拉高標準差
-        lower = np.percentile(clean_matrix, 0.5)
-        upper = np.percentile(clean_matrix, 99.5)
-        clipped_matrix = np.clip(clean_matrix, lower, upper)
+        # * Step 2: 雙軌預處理 - 訓練軌道（常態化）
+        # * Log-Transformation → Clipping → Z-Score
+        # * 強迫數據接近常態分佈以利 GaussianHMM 收斂
+        log_transformed = np.log1p(np.abs(clean_matrix))  # * log1p(x) = log(1+x)
+        lower = np.percentile(log_transformed, 0.5)
+        upper = np.percentile(log_transformed, 99.5)
+        clipped_matrix = np.clip(log_transformed, lower, upper)
         
-        # * 計算 Z-Score 標準化參數（用於 HMM 訓練軌道）
+        # * Z-Score 標準化
         self._scaler_mean = np.mean(clipped_matrix, axis=0)
         self._scaler_std = np.std(clipped_matrix, axis=0) + 1e-8
-        X_scaled = (clipped_matrix - self._scaler_mean) / self._scaler_std
-
-        # * Step 2: 使用標準化資料進行 HMM 訓練
-        model = self.optimize_local_hmm(X_scaled, dataset_id=dataset_id)
+        X_normalized = (clipped_matrix - self._scaler_mean) / self._scaler_std
         
-        # * Step 3: 使用標準化資料進行 Viterbi 解碼
-        labels = self.decode_sequences(X_scaled, model)
+        # * Step 3: 一階差分特徵（Δ = x_t - x_{t-1}）
+        # * 捕捉變化率，識別攻擊開始/結束
+        if n_rows > 1:
+            delta = np.diff(X_normalized, axis=0)  # * (n-1, n_features)
+            # * 第一筆補 0（無前一筆可比較）
+            delta = np.vstack([np.zeros((1, delta.shape[1])), delta])
+            # * 拼接原始特徵與差分特徵
+            X_augmented = np.hstack([X_normalized, delta])
+        else:
+            X_augmented = X_normalized
         
-        # * Step 4: 追溯性驗證 (Traceability Check)
+        # * Step 4: 使用增強特徵進行 HMM 訓練
+        model = self.optimize_local_hmm(X_augmented, dataset_id=dataset_id)
+        
+        # * Step 5: Viterbi 解碼
+        labels = self.decode_sequences(X_augmented, model)
+        
+        # * Step 6: 追溯性驗證
         if len(labels) != n_rows:
             raise ValueError(
                 f"追溯性驗證失敗: 標籤數={len(labels)}, 原始長度={n_rows}"
             )
         
-        # * Step 5: 存檔（模型 + 標籤 + 標準化參數）
+        # * Step 7: 存檔（模型 + 標籤 + 預處理參數）
         dataset_output_dir = os.path.join(output_dir, dataset_id)
         os.makedirs(dataset_output_dir, exist_ok=True)
         
-        # 儲存標籤
+        # * 儲存標籤
         labels_path = os.path.join(dataset_output_dir, "labels.npy")
         np.save(labels_path, labels)
         
-        # 儲存模型（含標準化參數，供未來預測新資料使用）
+        # * 儲存模型（含預處理參數）
         model_path = os.path.join(dataset_output_dir, "model.pkl")
         with open(model_path, "wb") as f:
             pickle.dump({
@@ -310,7 +312,7 @@ class SequenceClustering:
         n_clusters = len(np.unique(labels))
         print(f"    [完成] {n_clusters} 個群集，已存至 {dataset_output_dir}")
 
-        # * Step 6: 警告摘要
+        # * Step 8: 警告摘要
         warning_total = sum(
             count for key, count in self._warning_counter.items()
             if key.startswith(f"{dataset_id}|")
@@ -327,16 +329,7 @@ class SequenceClustering:
         vectors_dict: Dict[str, np.ndarray],
         output_dir: str = config.CLUSTER_RESULTS_DIR,
     ) -> Dict[str, np.ndarray]:
-        """
-        批次處理所有 Dataset。
-
-        Args:
-            vectors_dict: dataset_id 對應的概念矩陣字典
-            output_dir: 輸出目錄
-
-        Returns:
-            dataset_id 對應的標籤字典
-        """
+        # * 批次處理所有 Dataset
         results = {}
         total = len(vectors_dict)
         
@@ -366,16 +359,7 @@ class SequenceClustering:
         dataset_id: str,
         input_dir: str = config.CLUSTER_RESULTS_DIR,
     ) -> hmm.GaussianHMM:
-        """
-        載入特定 Dataset 的已訓練模型。
-
-        Args:
-            dataset_id: 資料集 ID
-            input_dir: 模型儲存目錄
-
-        Returns:
-            該 Dataset 的 GaussianHMM 模型
-        """
+        # * 載入特定 Dataset 的已訓練模型
         model_path = os.path.join(input_dir, dataset_id, "model.pkl")
         
         if not os.path.exists(model_path):
@@ -395,20 +379,12 @@ class SequenceClustering:
         return self.current_model
 
 
-# ======================== 資料載入與處理函式 ========================
+# ======================== 資料載入 ========================
 
 def load_concept_vectors(
     dataset_ids: Optional[List[str]] = None,
 ) -> Dict[str, np.ndarray]:
-    """
-    從 ConceptVectors 目錄載入概念向量。
-
-    Args:
-        dataset_ids: 要載入的資料集 ID 清單，None 則載入全部。
-
-    Returns:
-        dataset_id 對應的概念矩陣字典
-    """
+    # * 從 ConceptVectors 目錄載入概念向量
     print("\n載入概念向量...")
     vectors_dir = config.CONCEPT_VECTORS_DIR
     if not os.path.exists(vectors_dir):
@@ -416,7 +392,7 @@ def load_concept_vectors(
 
     result = {}
     
-    # * 遍歷子目錄（每個資料集儲存為獨立資料夾）
+    # * 遍歷子目錄
     for subdir in os.listdir(vectors_dir):
         subdir_path = os.path.join(vectors_dir, subdir)
         if not os.path.isdir(subdir_path):
@@ -426,7 +402,7 @@ def load_concept_vectors(
         if dataset_ids is not None and dataset_id not in dataset_ids:
             continue
         
-        # * 載入 Arrow/Feather 格式的概念向量
+        # * 載入 Arrow/Feather 格式
         arrow_path = os.path.join(subdir_path, "data-00000-of-00001.arrow")
         if not os.path.exists(arrow_path):
             print(f"[Warning] 找不到 Arrow 檔案: {arrow_path}")
@@ -448,7 +424,6 @@ def load_concept_vectors(
         exit(1)
     
     print(f"已載入 {len(result)} 個資料集")
-    
     return result
 
 
@@ -461,9 +436,7 @@ if __name__ == "__main__":
     
     vectors = load_concept_vectors()
     
-    
-    
-    # ===== 批次處理所有資料集 =====
+    # * 批次處理所有資料集
     clusterer = SequenceClustering()
     results = clusterer.batch_process_all(vectors)
     

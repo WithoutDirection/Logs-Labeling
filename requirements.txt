@@ -10,3 +10,6 @@ tqdm==4.67.1
 datasets==4.4.1
 pyod>=1.1.0
 matplotlib>=3.7.0
+plotly>=5.18.0
+umap-learn>=0.5.5
+seaborn>=0.13.0
