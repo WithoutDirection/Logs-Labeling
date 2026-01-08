@@ -145,6 +145,26 @@ CODE_EXTRACTOR_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
 }
 
+# ==================== 自動標註（Auto-Labeling） ====================
+# 相似度閾值：低於此值的相似度將被視為不匹配
+LABELING_SIMILARITY_THRESHOLD = 0.3
+
+# 信心度閾值：similarity * confidence < threshold 則標記為 Benign
+LABELING_CONFIDENCE_THRESHOLD = 0.2
+
+# 異常分數權重（用於計算最終 confidence）
+# confidence = anomaly_weight * anomaly_score + similarity_weight * similarity
+LABELING_ANOMALY_WEIGHT = 0.3
+
+# 相似度權重
+LABELING_SIMILARITY_WEIGHT = 0.7
+
+# Top-K 候選技術（用於輸出多個可能的匹配結果）
+LABELING_TOP_K = 3
+
+# 標註結果輸出目錄
+LABELING_RESULTS_DIR = os.path.join(RESULT_DIR, "Labeling_Results")
+
 # ==================== 結果與通用設定 ====================
 
 SEED = 42  # 全域隨機種子

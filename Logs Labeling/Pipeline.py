@@ -10,13 +10,17 @@ Steps:
     配置參數:
 4. 序列區塊化 (Sequence Clustering): Reffer to sequence_clustering.py
     配置參數:
+5. 自動標註 (Auto Labeling): Reffer to auto_labeling.py
+    配置參數: LABELING_SIMILARITY_THRESHOLD, LABELING_CONFIDENCE_THRESHOLD, 
+              LABELING_ANOMALY_WEIGHT, LABELING_SIMILARITY_WEIGHT, LABELING_TOP_K
 """
 import config
 import os
 import shutil
 from utils.path import *
 import numpy as np
-def main():
+
+def init():
     # * 0. 配置資料夾並清除先前實驗結果
     config.DATA_DIR = os.path.join("data")
     config.INPUT_LOGS_DIR = os.path.join(config.DATA_DIR, "input_logs")
@@ -32,13 +36,15 @@ def main():
                 else:
                     os.remove(item_path)
                     print(f"已刪除檔案: {item_path}")
+
+def STAGE_I(N:int ):
     
-    # * 1. 配置預處理參數，並執行預處理
+     # * 1. 配置預處理參數，並執行預處理
     from preprocess.preprocess import LogLoader, LogEmbedder, LogChunker
     # * 1.1 載入日誌
     config.PREPROCESS_ENABLE_PARSER = False
     loader = LogLoader(enable_parser=config.PREPROCESS_ENABLE_PARSER)
-    loader.load_logs(num=10) # 只載入前15 Datasets
+    loader.load_logs(num=N) # 只載入前15 Datasets
     
     # * 1.2 日誌嵌入
     config.BERT_MODEL_NAME = "sentence-bert"
@@ -63,8 +69,9 @@ def main():
         model_keys=['securebert', 'sentence-bert', 'bert-base-nli'],
         max_samples=1000,
     )
-    comparator.run(n=10)
+    comparator.run(n=N)
     
+def STAGE_II():
     # * 2. 執行異常檢測（批次模式：一次載入所有數據、合併訓練、整體視覺化）
     from anomaly_dection.log_detector import run_detection_pipeline, generate_detection_summary
     results = run_detection_pipeline(
@@ -81,15 +88,32 @@ def main():
             generate_visualizations=True,
             enable_advanced_plots=True
         )
-        
-    # TODO: 跟據檢測結果產生log vector在後續標示階段的weight
     
-    # * 3. 執行概念提取
+    # * 2.1 載入異常分數作為後續標註階段的權重
+    # 高異常分數的 log vectors 在後續標註階段會被賦予較高的權重
+    # 這些分數會在 STAGE_V 中被 AutoLabeler 載入並使用
+    from auto_labeling import load_anomaly_weights
+    anomaly_weights = load_anomaly_weights(config.DETECTION_RESULTS_DIR)
+    print(f"[Info] 已準備 {len(anomaly_weights)} 個資料集的異常分數權重供後續標註使用")
+    
+def STAGE_III():
+     # * 3. 執行概念提取
     from conception_extraction import ConceptExtractor, train_concept_extractor, transform_all_datasets
     extractor = ConceptExtractor()
-    extractor = train_concept_extractor()
-    transform_all_datasets()
+    # prepare_training_data 目前不接受 num_datasets，直接使用預設來源與抽樣比例
+    X_train = extractor.prepare_training_data()
+    extractor.fit_global_model(X_train)
+    extractor.save_model(config.NMF_MODEL_PATH)
+    transform_all_datasets(model_path=config.NMF_MODEL_PATH)
     
+    # * 3.1 概念提取成果
+    from visualization.conception_extraction_viz import ConceptVisualization
+    viz = ConceptVisualization(output_dir=os.path.join(config.RESULT_DIR, "conception_sequence_clustering"))
+    viz.run_multi_dataset(n_datasets=5)
+    
+    
+
+def STAGE_IV():
     # * 4. 執行序列區塊化
     from sequence_clustering import SequenceClustering, load_concept_vectors
     print("=" * 60)
@@ -98,9 +122,7 @@ def main():
     
     vectors = load_concept_vectors()
     
-    from visualization.conception_extraction_viz import ConceptVisualization
-    viz = ConceptVisualization(output_dir=os.path.join(config.RESULT_DIR, "conception_sequence_clustering"))
-    viz.run_multi_dataset(n_datasets=5)
+    
     
     # ===== 批次處理所有資料集 =====
     clusterer = SequenceClustering()
@@ -111,6 +133,55 @@ def main():
         print(f"平均群集數: {avg_clusters:.2f}")
     
     print("\n[完成] 序列分群已完成。")
+
+
+def STAGE_V():
+    """
+    自動標註階段
+    
+    將 HMM 分群結果與 MITRE ATT&CK 外部知識進行比對，
+    自動標註每筆日誌對應的攻擊技術。
+    
+    流程:
+    1. 載入 NMF 模型、概念向量、分群標籤、異常分數
+    2. 載入 MITRE ATT&CK 嵌入並轉換至概念空間
+    3. 計算各 Cluster 的 Centroid 與 MITRE 向量的相似度
+    4. 根據相似度與異常分數產生最終標註
+    5. 輸出標註結果至 CSV
+    """
+    from auto_labeling import AutoLabeler, run_auto_labeling
+    
+    print("=" * 60)
+    print("自動標註 - MITRE ATT&CK 技術比對")
+    print("=" * 60)
+    
+    # 執行自動標註流程
+    results = run_auto_labeling(
+        output_dir=config.LABELING_RESULTS_DIR,
+    )
+    
+    if results:
+        total_samples = sum(len(df) for df in results.values())
+        print(f"\n[完成] 已標註 {len(results)} 個資料集，共 {total_samples} 筆日誌。")
+    else:
+        print("\n[Warning] 無標註結果產生，請檢查前置步驟是否完成。")
+    
+    print("\n[完成] 自動標註已完成。")
+
+
+def main():
+    
+    init()
+    N = 50
+    STAGE_I(N)
+    STAGE_II()
+    STAGE_III()
+    STAGE_IV()
+    # STAGE_V()
+    
+   
+    
+    
     
     
 

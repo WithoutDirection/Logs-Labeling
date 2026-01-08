@@ -131,7 +131,14 @@
 #### Auto Labeling
 > [詳見 Auto_Labeling.md](./docs/Auto_Labeling.md)
 
-* 透過比較日誌數據中的概念與外部參考文本中的概念之間的相似度，進行自動標註。
+* 透過比較日誌數據中的概念與外部參考文本（MITRE ATT&CK）中的概念之間的相似度，進行自動標註。
+* **核心流程**:
+  1. 計算各 HMM Cluster 的 Centroid 向量（加權平均，權重為異常分數）
+  2. 將 MITRE ATT&CK 嵌入轉換至相同的概念空間（使用相同的 NMF 模型）
+  3. 計算 Cluster Centroid 與各 MITRE 技術向量的餘弦相似度
+  4. 結合異常分數與相似度計算最終信心度：`confidence = anomaly_weight × anomaly_score + similarity_weight × similarity`
+  5. 根據 `similarity × confidence` 是否超過閾值決定最終標籤（技術 ID 或 Benign）
+* **輸出格式**: CSV 檔案，包含原始日誌欄位 + `predicted_technique`, `similarity_score`, `confidence` 等標註資訊
 
 ## Quick Start(快速開始)
 

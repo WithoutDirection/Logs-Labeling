@@ -412,8 +412,9 @@ def plot_comparison_violin(
             normal_vals = r.normalized_scores[r.labels == 0]
             anomaly_vals = r.normalized_scores[r.labels == 1]
             
-            positions_normal.append(i)
-            data_normal.append(normal_vals)
+            if len(normal_vals) > 0:
+                positions_normal.append(i)
+                data_normal.append(normal_vals)
             if len(anomaly_vals) > 0:
                 positions_anomaly.append(i + 0.4)
                 data_anomaly.append(anomaly_vals)
