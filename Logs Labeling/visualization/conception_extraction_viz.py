@@ -333,7 +333,7 @@ class ConceptVisualization:
         if n_datasets:
             available = available[:n_datasets]
         
-        print(f"📦 找到 {len(available)} 個資料集")
+        print(f"找到 {len(available)} 個資料集")
         
         all_results = {}
         for dataset_name in available:
