@@ -1,15 +1,22 @@
 import os
+from pathlib import Path
+
+# Path resolution notes:
+# - This project is often executed from different working directories.
+# - Use paths relative to the repository root / package directory instead of CWD.
+_PKG_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _PKG_DIR.parent
 
 # ==================== 路徑設定（共用基礎） ====================
-DATA_DIR = os.path.join("data")
+DATA_DIR = str(_REPO_ROOT / "data")
 INPUT_LOGS_DIR = os.path.join(DATA_DIR, "input_logs")
 REFERENCE_RESOURCES_DIR = os.path.join(DATA_DIR, "reference_resources")
 INTERMEDIATE_DATA_DIR = os.path.join(DATA_DIR, "Intermediate_data")
 PROCESSED_LOGS_DIR = os.path.join(DATA_DIR, "processed_logs")
-BERT_MODEL_DIR = os.path.join("Logs Labeling", "models", "bert_model")
-UNSUPERVISED_MODEL_DIR = os.path.join("Logs Labeling", "models", "Unsupervised")
-HMM_MODEL_DIR = os.path.join("Logs Labeling", "models", "HMM")
-RESULT_DIR = os.path.join("result")  # 總輸出根目錄
+BERT_MODEL_DIR = str(_PKG_DIR / "models" / "bert_model")
+UNSUPERVISED_MODEL_DIR = str(_PKG_DIR / "models" / "Unsupervised")
+HMM_MODEL_DIR = str(_PKG_DIR / "models" / "HMM")
+RESULT_DIR = str(_REPO_ROOT / "result")  # 總輸出根目錄
 
 # ==================== 預處理階段 ====================
 ENABLE_PARSER = True  # 是否對原始事件進行樣板解析（False 則保留原字串）
@@ -57,7 +64,7 @@ NMF_GPU_VERBOSE = True  # 是否顯示 GPU 訓練進度
 CONCEPT_BATCH_N_JOBS = -1  # 批次轉換並行數（-1 = 所有 CPU，1 = 無平行）
 
 # --- 路徑設定 ---
-NMF_MODEL_PATH = os.path.join("Logs Labeling", "models", "nmf_concept_model.pkl")  # 概念模型儲存路徑
+NMF_MODEL_PATH = str(_PKG_DIR / "models" / "nmf_concept_model.pkl")  # 概念模型儲存路徑
 CONCEPT_VECTORS_DIR = os.path.join(DATA_DIR, "ConceptVectors")  # 概念向量輸出目錄
 EXTERNAL_KNOWLEDGE_DIR = os.path.join(DATA_DIR, "ExternalKnowledge")  # 外部知識向量根目錄
 
@@ -128,9 +135,9 @@ HMM_MODEL_DIR_PER_DATASET = True  # 每資料集獨立儲存模型
 CLUSTER_RESULTS_DIR = os.path.join(DATA_DIR, "SequenceClusters")
 
 # ==================== 外部威脅情報與代碼抽取 ====================
-MITRE_TECHNIQUES_CSV = os.path.join(REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_WithDB_V1.csv")
+MITRE_TECHNIQUES_CSV = os.path.join(REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V5.csv")
 MITRE_CODE_TOKENS_CSV = os.path.join(REFERENCE_RESOURCES_DIR, "MitreCodeTokens_V1.csv")
-MITRE_EXTERNAL_KNOWLEDGE_DIR = os.path.join(EXTERNAL_KNOWLEDGE_DIR, "MITRE_ATTACK")
+MITRE_EXTERNAL_KNOWLEDGE_DIR = os.path.join(EXTERNAL_KNOWLEDGE_DIR, "MITRE_RAW_EMBEDDINGS")
 EXTERNAL_SOURCES_BERT_MODEL_NAME = BERT_MODEL_NAME
 EXTERNAL_SOURCES_BERT_CACHE_DIR = BERT_CACHE_DIR
 EXTERNAL_SOURCES_EMBED_BATCH_SIZE = 32
@@ -161,6 +168,9 @@ LABELING_SIMILARITY_WEIGHT = 0.7
 
 # Top-K 候選技術（用於輸出多個可能的匹配結果）
 LABELING_TOP_K = 3
+
+# 是否使用原始嵌入向量進行比對（True: Raw Embeddings, False: Concept Vectors）
+LABELING_USE_RAW_EMBEDDINGS = False
 
 # 標註結果輸出目錄
 LABELING_RESULTS_DIR = os.path.join(RESULT_DIR, "Labeling_Results")

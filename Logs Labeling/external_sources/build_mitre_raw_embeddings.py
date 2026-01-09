@@ -56,21 +56,13 @@ def build_mitre_raw_embeddings(
     if force_rebuild and os.path.exists(out_dir):
         shutil.rmtree(out_dir)
 
-    if not os.path.exists(mitre_csv):
-        print(f"Error: MITRE CSV not found at {mitre_csv}")
-        # Fallback to V5 if V6 doesn't exist
-        fallback = os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V5.csv")
-        if os.path.exists(fallback):
-            mitre_csv = fallback
-        else:
-            raise FileNotFoundError(f"MITRE CSV not found: {mitre_csv} (and no fallback at {fallback})")
-
     print(f"Loading MITRE techniques from {mitre_csv}...")
     df = pd.read_csv(mitre_csv)
 
-    desc_col = "description_raw" if "description_raw" in df.columns else "description"
+    desc_col = "cleaned_tokens"
     if desc_col not in df.columns:
-        desc_col = df.columns[0]
+        print(f"[Warning] Expected description column '{desc_col}' not found.")
+        desc_col = "description"
 
     descriptions = df[desc_col].fillna("").astype(str).tolist()
 
