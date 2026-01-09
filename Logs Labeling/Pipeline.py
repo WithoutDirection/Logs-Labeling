@@ -108,21 +108,19 @@ def STAGE_III():
     
     # * 3.1 概念提取成果
     from visualization.conception_extraction_viz import ConceptVisualization
-    viz = ConceptVisualization(output_dir=os.path.join(config.RESULT_DIR, "conception_sequence_clustering"))
-    viz.run_multi_dataset(n_datasets=5)
+    viz = ConceptVisualization(output_dir=os.path.join(config.RESULT_DIR, "conception_extraction"))
+    viz.run_multi_dataset(n_datasets=10)
     
     
 
 def STAGE_IV():
-    # * 4. 執行序列區塊化
+    # * 4. 執行序列分群
     from sequence_clustering import SequenceClustering, load_concept_vectors
     print("=" * 60)
     print("序列分群 - Per-Dataset HMM 策略")
     print("=" * 60)
     
     vectors = load_concept_vectors()
-    
-    
     
     # ===== 批次處理所有資料集 =====
     clusterer = SequenceClustering()
@@ -131,6 +129,10 @@ def STAGE_IV():
     if results:
         avg_clusters = np.mean([len(np.unique(labels)) for labels in results.values()])
         print(f"平均群集數: {avg_clusters:.2f}")
+    
+    # * 4.1 序列分群視覺化
+    from visualization.seq_clustering_viz import visualize_all
+    visualize_all(vectors, results)
     
     print("\n[完成] 序列分群已完成。")
 
@@ -171,11 +173,11 @@ def STAGE_V():
 
 def main():
     
-    init()
-    N = 50
-    STAGE_I(N)
-    STAGE_II()
-    STAGE_III()
+    # init()
+    # N = 10
+    # STAGE_I(N)
+    # STAGE_II()
+    # STAGE_III()
     STAGE_IV()
     # STAGE_V()
     
