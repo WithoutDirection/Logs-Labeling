@@ -12,6 +12,7 @@ Output:
 import argparse
 import os
 import sys
+import shutil
 import numpy as np
 import pandas as pd
 
@@ -25,18 +26,84 @@ def _ensure_project_root_on_path():
     if workspace_root not in sys.path:
         sys.path.insert(0, workspace_root)
 
+
+def build_mitre_raw_embeddings(
+    mitre_csv: str | None = None,
+    out_dir: str | None = None,
+    bert_model: str | None = None,
+    *,
+    force_rebuild: bool = False,
+) -> str:
+    """Build (or reuse) MITRE raw embedding dataset.
+
+    Returns the output directory containing the HuggingFace dataset.
+    """
+    _ensure_project_root_on_path()
+
+    import config
+    from datasets import Dataset
+    from models.bert import get_bert_model
+
+    mitre_csv = mitre_csv or os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V6_Sanitized.csv")
+    out_dir = out_dir or os.path.join(config.EXTERNAL_KNOWLEDGE_DIR, "MITRE_RAW_EMBEDDINGS")
+    bert_model = bert_model or config.BERT_MODEL_NAME
+
+    # If already built, skip unless force.
+    if not force_rebuild and os.path.exists(out_dir) and os.path.exists(os.path.join(out_dir, "state.json")):
+        print(f"[Info] MITRE raw embeddings already exist, skip build: {out_dir}")
+        return out_dir
+
+    if force_rebuild and os.path.exists(out_dir):
+        shutil.rmtree(out_dir)
+
+    if not os.path.exists(mitre_csv):
+        print(f"Error: MITRE CSV not found at {mitre_csv}")
+        # Fallback to V5 if V6 doesn't exist
+        fallback = os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V5.csv")
+        if os.path.exists(fallback):
+            mitre_csv = fallback
+        else:
+            raise FileNotFoundError(f"MITRE CSV not found: {mitre_csv} (and no fallback at {fallback})")
+
+    print(f"Loading MITRE techniques from {mitre_csv}...")
+    df = pd.read_csv(mitre_csv)
+
+    desc_col = "description_raw" if "description_raw" in df.columns else "description"
+    if desc_col not in df.columns:
+        desc_col = df.columns[0]
+
+    descriptions = df[desc_col].fillna("").astype(str).tolist()
+
+    print(f"Embedding {len(descriptions)} techniques using {bert_model}...")
+    bert = get_bert_model(bert_model, cache_dir=config.BERT_CACHE_DIR, auto_load=True)
+    embeddings = bert.embed(descriptions, batch_size=64, show_progress=True, normalize=True)
+
+    out_dict = {
+        "technique_id": df["technique_id"].tolist() if "technique_id" in df.columns else [str(i) for i in range(len(df))],
+        "technique": df["technique"].tolist() if "technique" in df.columns else ["" for _ in range(len(df))],
+        "description": descriptions,
+        "embedding": embeddings.tolist(),
+    }
+
+    ds = Dataset.from_dict(out_dict)
+    os.makedirs(os.path.dirname(out_dir), exist_ok=True)
+    ds.save_to_disk(out_dir)
+
+    print(f"Saved MITRE raw embeddings to {out_dir}")
+    print(f"  Rows: {len(ds)}")
+    print(f"  Embedding dim: {len(ds['embedding'][0])}")
+    return out_dir
+
 def main():
     _ensure_project_root_on_path()
     
     import config
-    from datasets import Dataset
-    from models.bert import get_bert_model
 
     parser = argparse.ArgumentParser(description="Build MITRE raw BERT embeddings")
     parser.add_argument(
         "--mitre-csv",
         type=str,
-        default=os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V6_Sanitized.csv"),
+        default=os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V5.csv"),
         help="MITRE techniques CSV path",
     )
     parser.add_argument(
@@ -52,46 +119,20 @@ def main():
         help="BERT model name",
     )
 
+    parser.add_argument(
+        "--force-rebuild",
+        action="store_true",
+        help="Rebuild even if output already exists",
+    )
+
     args = parser.parse_args()
 
-    if not os.path.exists(args.mitre_csv):
-        print(f"Error: MITRE CSV not found at {args.mitre_csv}")
-        # Fallback to V5 if V6 doesn't exist
-        args.mitre_csv = os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V5.csv")
-        if not os.path.exists(args.mitre_csv):
-            return 1
-
-    print(f"Loading MITRE techniques from {args.mitre_csv}...")
-    df = pd.read_csv(args.mitre_csv)
-    
-    # Determine which text to embed
-    # If we have super_cleaned_tokens, we might want to join them back to text
-    # or just use the raw description. Usually, for raw embeddings, we use the description.
-    desc_col = "description_raw" if "description_raw" in df.columns else "description"
-    if desc_col not in df.columns:
-        desc_col = df.columns[0] # Fallback
-    
-    descriptions = df[desc_col].fillna("").astype(str).tolist()
-    
-    print(f"Embedding {len(descriptions)} techniques using {args.bert_model}...")
-    bert = get_bert_model(args.bert_model, cache_dir=config.BERT_CACHE_DIR, auto_load=True)
-    embeddings = bert.embed(descriptions, batch_size=64, show_progress=True, normalize=True)
-    
-    out_dict = {
-        "technique_id": df["technique_id"].tolist() if "technique_id" in df.columns else [str(i) for i in range(len(df))],
-        "technique": df["technique"].tolist() if "technique" in df.columns else ["" for _ in range(len(df))],
-        "description": descriptions,
-        "embedding": embeddings.tolist(),
-    }
-    
-    ds = Dataset.from_dict(out_dict)
-    os.makedirs(os.path.dirname(args.out_dir), exist_ok=True)
-    ds.save_to_disk(args.out_dir)
-    
-    print(f"Saved MITRE raw embeddings to {args.out_dir}")
-    print(f"  Rows: {len(ds)}")
-    print(f"  Embedding dim: {len(ds['embedding'][0])}")
-    
+    build_mitre_raw_embeddings(
+        mitre_csv=args.mitre_csv,
+        out_dir=args.out_dir,
+        bert_model=args.bert_model,
+        force_rebuild=args.force_rebuild,
+    )
     return 0
 
 if __name__ == "__main__":
