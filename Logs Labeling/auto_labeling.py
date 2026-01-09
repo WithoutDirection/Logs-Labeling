@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 import pyarrow.feather as feather
+import pyarrow
 
 # * 調整匯入路徑
 CURRENT_DIR = str(Path(__file__).resolve().parent)
@@ -31,6 +32,35 @@ if PROJECT_ROOT not in sys.path:
 
 import config
 from utils.path import ensure_dir, get_dirs
+
+
+def ensure_mitre_raw_embeddings(
+    embeddings_dir: str,
+    *,
+    mitre_csv: Optional[str] = None,
+    bert_model: Optional[str] = None,
+    force_rebuild: bool = False,
+) -> str:
+    """Ensure MITRE raw embedding dataset exists on disk.
+
+    This integrates the external_sources builder into the auto-labeling flow.
+    """
+    # Heuristic: HuggingFace datasets saved via save_to_disk() include state.json
+    if (
+        not force_rebuild
+        and os.path.exists(embeddings_dir)
+        and os.path.exists(os.path.join(embeddings_dir, "state.json"))
+    ):
+        return embeddings_dir
+
+    from external_sources.build_mitre_raw_embeddings import build_mitre_raw_embeddings
+
+    return build_mitre_raw_embeddings(
+        mitre_csv=mitre_csv,
+        out_dir=embeddings_dir,
+        bert_model=bert_model,
+        force_rebuild=force_rebuild,
+    )
 
 
 @dataclass
@@ -232,13 +262,48 @@ class AutoLabeler:
             arrow_path = os.path.join(embeddings_dir, "data-00000-of-00001.arrow")
             if not os.path.exists(arrow_path):
                 raise FileNotFoundError(f"找不到 MITRE 嵌入檔案於: {embeddings_dir}")
-            
-            df = feather.read_table(arrow_path).to_pandas()
-            embed_col = next((c for c in ["embedding", "embeddings", "vector", "concept_vector"] if c in df.columns), None)
-            if embed_col:
-                self.mitre_embeddings = np.array(df[embed_col].tolist())
-                self.mitre_technique_ids = (df.get("technique_id") or df.get("id", pd.Series(range(len(df))))).tolist()
-                self.mitre_technique_names = (df.get("technique") or df.get("name", self.mitre_technique_ids)).tolist()
+
+            # Many of our external-source builders save HuggingFace datasets via `save_to_disk()`.
+            # Those Arrow shards are NOT Feather; load them via `datasets.load_from_disk()`.
+            try:
+                df = feather.read_table(arrow_path).to_pandas()
+                embed_col = next((c for c in ["embedding", "embeddings", "vector", "concept_vector"] if c in df.columns), None)
+                if embed_col:
+                    self.mitre_embeddings = np.array(df[embed_col].tolist())
+                    self.mitre_technique_ids = (df.get("technique_id") or df.get("id", pd.Series(range(len(df))))).tolist()
+                    self.mitre_technique_names = (df.get("technique") or df.get("name", self.mitre_technique_ids)).tolist()
+            except (pyarrow.lib.ArrowInvalid, OSError):
+                from datasets import load_from_disk
+
+                ds = load_from_disk(embeddings_dir)
+                # load_from_disk() can return Dataset or DatasetDict
+                if hasattr(ds, "keys") and not hasattr(ds, "column_names"):
+                    first_key = next(iter(ds.keys()))
+                    ds = ds[first_key]
+
+                embed_col = next(
+                    (c for c in ["embedding", "embeddings", "vector", "concept_vector"] if c in ds.column_names),
+                    None,
+                )
+                if embed_col is None:
+                    raise ValueError(
+                        f"MITRE dataset missing embedding column. Found columns: {ds.column_names}"
+                    )
+
+                self.mitre_embeddings = np.array(ds[embed_col])
+                if "technique_id" in ds.column_names:
+                    self.mitre_technique_ids = list(ds["technique_id"])
+                elif "id" in ds.column_names:
+                    self.mitre_technique_ids = list(ds["id"])
+                else:
+                    self.mitre_technique_ids = [str(i) for i in range(len(ds))]
+
+                if "technique" in ds.column_names:
+                    self.mitre_technique_names = list(ds["technique"])
+                elif "name" in ds.column_names:
+                    self.mitre_technique_names = list(ds["name"])
+                else:
+                    self.mitre_technique_names = self.mitre_technique_ids
         
         print(f"已載入 {len(self.mitre_embeddings)} 個 MITRE 技術嵌入")
         return self.mitre_embeddings, self.mitre_technique_ids, self.mitre_technique_names
@@ -554,7 +619,15 @@ def run_auto_labeling(
     labeler.load_concept_vectors(dataset_ids)
     labeler.load_cluster_labels(dataset_ids)
     labeler.load_anomaly_scores(dataset_ids)
-    labeler.load_mitre_embeddings(mitre_embeddings_dir)
+
+    resolved_mitre_dir = mitre_embeddings_dir or labeler.config.mitre_embeddings_dir
+    ensure_mitre_raw_embeddings(
+        resolved_mitre_dir,
+        mitre_csv=getattr(config, "MITRE_TECHNIQUES_CSV", None),
+        bert_model=getattr(config, "BERT_MODEL_NAME", None),
+        force_rebuild=False,
+    )
+    labeler.load_mitre_embeddings(resolved_mitre_dir)
     labeler.transform_mitre_to_concepts()
     
     # 執行標註
