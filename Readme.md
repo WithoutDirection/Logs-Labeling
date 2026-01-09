@@ -1,161 +1,414 @@
 # Logs Labeling
 
-## Table of Contents(目錄)
-- [Logs Labeling](#logs-labeling)
-  - [Table of Contents(目錄)](#table-of-contents目錄)
-  - [Framework of Project (專案框架)](#framework-of-project-專案框架)
-    - [Project Introduction (專案介紹)](#project-introduction-專案介紹)
-    - [Stucture of whole project (專案整體結構)](#stucture-of-whole-project-專案整體結構)
-    - [Details of Each Step (各步驟細節)](#details-of-each-step-各步驟細節)
-      - [Preprocessing](#preprocessing)
-      - [Embedding](#embedding)
-      - [External Sources](#external-sources)
-      - [Weighting](#weighting)
-      - [Concept Extraction](#concept-extraction)
-      - [Sequence Clustering](#sequence-clustering)
-      - [Auto Labeling](#auto-labeling)
-  - [Quick Start(快速開始)](#quick-start快速開始)
-    - [Environment Setup](#environment-setup)
-    - [Configuration](#configuration)
-    - [Running the Pipeline](#running-the-pipeline)
-  - [Update \& Changelog (更新日誌)](#update--changelog-更新日誌)
-## Framework of Project (專案框架)
+透過無監督式機器學習，自動將日誌序列標註為 MITRE ATT&CK 攻擊技術。
 
-### Project Introduction (專案介紹)
-透過此專案，我們利用**機器學習**，對大量的日誌數據進行自動標註和分類，這將有助於提升日誌分析的效率，並為後續的數據挖掘和異常檢測提供有力支持。
-目標是建立一個高效且準確的日誌標註系統，包含:
-1. **數據預處理**: 透過 **Bert Embedding**對日誌數據進行向量化處理，將文本轉換為數值形式，以便於後續的機器學習模型訓練。
-2. **序列區塊化** 利用 *時序性深度學習模型自動* 將日誌數據劃分為有意義的區塊，便於模型捕捉上下文信息。
-3. **異常資料篩選** : 使用 **Isolation Forest** 方法識別並篩選出異常日誌數據做為後續標註的重點審查對象。
-4. **概念提取**: 引用外來攻擊敘述文本作為比較基準，透過相似度計算比較日誌中的關鍵概念與對應攻擊手法的相似度作為標記依據。
-5. **自動化標記**: 根據提取的概念和相似度計算結果，自動為日誌數據分配標籤，實現高效的日誌標註過程。
-6. **評估與優化**: 對標註結果進行評估，並根據評估結果不斷優化標註算法和流程，以提升標註的準確性和效率。
+---
 
+## 目錄
 
-### Stucture of whole project (專案整體結構)
+- [專案簡介](#專案簡介)
+- [核心流程概覽](#核心流程概覽)
+- [Pipeline 六階段詳解](#pipeline-六階段詳解)
+  - [Stage I：預處理 (Preprocessing)](#stage-i預處理-preprocessing)
+  - [Stage II：異常偵測 (Anomaly Detection)](#stage-ii異常偵測-anomaly-detection)
+  - [Stage III：概念提取 (Concept Extraction)](#stage-iii概念提取-concept-extraction)
+  - [Stage IV：序列分群 (Sequence Clustering)](#stage-iv序列分群-sequence-clustering)
+  - [Stage V：外部知識嵌入 (External Knowledge)](#stage-v外部知識嵌入-external-knowledge)
+  - [Stage VI：自動標註 (Auto Labeling)](#stage-vi自動標註-auto-labeling)
+- [專案目錄結構](#專案目錄結構)
+- [快速開始](#快速開始)
+- [更新日誌](#更新日誌)
+
+---
+
+## 專案簡介
+
+### 解決的問題
+
+在資安事件分析中，面對數十萬筆日誌資料，人工判讀不僅耗時且容易遺漏關鍵攻擊行為。本專案建立一套**端到端的自動化標註系統**，將原始日誌自動對應至 MITRE ATT&CK 攻擊技術。
+
+### 核心價值
+
+| 特性 | 說明 |
+|------|------|
+| **無監督學習** | 無需人工標註的訓練資料 |
+| **語義理解** | 透過 BERT 捕捉日誌的深層語義 |
+| **異常導向** | 優先標註行為異常的日誌，降低誤報 |
+| **可解釋性** | 每個標籤都附帶相似度與信心度分數 |
+
+### 技術棧
+
+```
+BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&CK 標籤
+```
+
+---
+
+## 核心流程概覽
 
 ![Structure](./docs/assests/LogsLabeling%20Structure.png)
 
-- `data/`: 儲存原始日誌數據和處理後的數據集
-  - `input_logs/`: 原始日誌數據
-  - `reference_resources/`: 參考資源，如MITRE ATT&CK文本
-  - `Intermediate_data/`: 各步驟產生的中間數據
-  - `processed_logs/`: 預處理後的日誌數據
-- `Data_Vizualization/`: 數據視覺化相關程式碼
-- `Text_Mining/`: 獲得外部參考文本的模組
-  - `Mitre_ATTCK/`: Mitre ATT&CK相關文本處理
-  - `LLM_Generation/`: 大型語言模型生成文本
-  - `Web_Scraping/`: 網頁爬取相關模組
-- `Logs Labeling/`: 包含各個處理步驟的具體程式碼
-  - `preprocess/`: 數據預處理
-    - `preprocess.py`: **預處理主程式**
-    - `drain.py`: Drain日誌解析器
-  - `anomaly_detection/`: 異常資料篩選
-    - `autoencoder.py`: 自編碼器異常檢測
-    - `isolation_forest.py`: Isolation Forest異常檢測
-    - `copod.py`: COPOD異常檢測
-    - `pca_gmm.py`: PCA-GMM異常檢測
-    - `log_anomaly_detector.py`: **異常檢測主程式**
-  - `sequence_clustering.py`: 序列區塊化
-  - `concept_extraction.py`: 概念提取
-  - `auto_labeling.py`: 自動化標記
-  - `models/`: 儲存模型和相關資源
-    - `bert_model/`: Bert Embedding 模型
-    - `bert.py`: 提供Bert Embedding的API
-    - `BiLSTM_Attention.py`: Bi-LSTM+Attention模型 *preprocess中的LogChunker使用*
-- `Visualization/`: 視覺化工具
-- `config.py`: 專案參數配置
-- `docs/`: 專案文件和說明
+本專案將日誌標註拆解為 **六個獨立階段**，每個階段各司其職：
 
-### Details of Each Step (各步驟細節)
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Logs Labeling Pipeline                           │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   [原始日誌]                                                             │
+│       │                                                                 │
+│       ▼                                                                 │
+│   ┌──────────────┐                                                      │
+│   │  STAGE I     │  預處理：日誌解析 → BERT 嵌入 → 向量化                   │
+│   │ Preprocessing│  產出：768 維語義向量                                  │
+│   └──────┬───────┘                                                      │
+│          │                                                              │
+│          ▼                                                              │
+│   ┌──────────────┐                                                      │
+│   │  STAGE II    │  異常偵測：Ensemble 模型識別異常日誌                    │
+│   │   Anomaly    │  產出：每筆日誌的異常分數 (0~1)                         │
+│   └──────┬───────┘                                                      │
+│          │                                                              │
+│          ▼                                                              │
+│   ┌──────────────┐                                                      │
+│   │  STAGE III   │  概念提取：NMF 降維至潛在概念空間                       │
+│   │   Concept    │  產出：k 維概念向量 (如 k=50)                          │
+│   └──────┬───────┘                                                      │
+│          │                                                              │
+│          ▼                                                              │
+│   ┌──────────────┐                                                      │
+│   │  STAGE IV    │  序列分群：HMM 識別攻擊演變階段                         │
+│   │  Clustering  │  產出：每筆日誌的群集標籤                               │
+│   └──────┬───────┘                                                      │
+│          │                                                              │
+│          ├──────────────────────────────────┐                           │
+│          │                                  │                           │
+│          ▼                                  ▼                           │
+│   ┌──────────────┐                   ┌──────────────┐                   │
+│   │  STAGE V     │                   │ MITRE ATT&CK │                   │
+│   │ External KB  │ ◄─────────────────│   知識庫     │                   │
+│   └──────┬───────┘                   └──────────────┘                   │
+│          │                                                              │
+│          ▼                                                              │
+│   ┌──────────────┐                                                      │
+│   │  STAGE VI    │  自動標註：群集 × MITRE 相似度 → 攻擊技術標籤            │
+│   │ Auto Labeling│  產出：帶標籤的 CSV 檔案                               │
+│   └──────────────┘                                                      │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
+---
 
-#### Preprocessing
-> [詳見 Preprocessing.md](./docs/Preprocessing.md)
+## Pipeline 六階段詳解
 
-對於日誌數據的預處理步驟包括以下幾個主要部分:
-1. **Templatize**: 將日誌序列分成模板與參數兩部分，模板部分保留文字資訊，參數部分以佔位符(E.g. <*>)表示。
-2. **Vectorize**: 使用 Bert Embedding 將模板部分轉換為向量表示，便於後續的機器學習處理。
-3. **Chunkize(optional)**: 利用Bi-LSTM+Attention模型，根據日誌的時序性將日誌序列劃分為多個區塊，以捕捉上下文信息。
-4. **Concatenate**: 將模板向量與參數部分重新組合，形成最終的預處理日誌表示。
-5. **Add anchoring**: 在預處理後的日誌表示中添加錨點，以便於後續的標註和分析。
-6. **Save**: 將預處理後的日誌數據保存到指定位置，供後續步驟使用。
+### Stage I：預處理 (Preprocessing)
 
-對於外部參考文本的預處理則包括:
-1. **Text Cleaning**: 清理文本數據，去除無關字符和格式化問題。
-2. **Tokenization**: 將文本分割成詞語或子詞單位，便於後續的語言模型處理。
-3. **Embedding**: 使用 Bert 模型將文本轉換為向量表示。
-4. **Save**: 將預處理後的參考文本保存，以供概念提取步驟使用。
+> 📄 詳細文件：[Preprocessing.md](./docs/Preprocessing.md)、[Embedding.md](./docs/Embedding.md)、[Templatize.md](./docs/Templatize.md)
 
-#### Embedding
-> [詳見 Embedding.md](./docs/Embedding.md)
-提供BERT嵌入模組 (`models/bert.py`)，用於載入和使用不同的BERT模型進行文本嵌入。
-支援多種BERT使用，特別整合了針對網路安全領域優化的模型（如SecBERT），將非結構化的日誌文本或威脅情報轉換為高維度的語義向量，以利後續的相似度計算與分類。
+#### 目的
+將非結構化的原始日誌轉換為**固定維度的語義向量**，使後續機器學習模型能夠處理。
 
-#### External Sources
-> [詳見 External_Sources.md](./docs/External_Sources.md)
-提供整合外部威脅情資（如MITRE ATT&CK、CAPEC）的文本作為參考基準，用於增強日誌標註與分析的證據能力。
-主要功能包括:
-- **載入外部知識庫**: 支援MITRE ATT&CK (戰術與技術)、CAPEC (攻擊模式)、NVD/CVE (漏洞資料)等。
-- **文本預處理**: 實作ConceptUML論文中的預處理流程，包含Zipf's Law過濾。
-- **語義檢索**: 利用BERT Embedding與NMF主題模型進行相似度比對。 **之後要改到concept_extraction**
+#### 處理流程
 
-#### Weighting
-> [詳見 Weighting.md](./docs/Weighting.md)
+```
+原始 CSV 日誌
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  日誌解析   │ ──► │  BERT 嵌入  │ ──► │  向量儲存   │
+│ (Drain)     │     │ (768 dim)   │     │ (Arrow)     │
+└─────────────┘     └─────────────┘     └─────────────┘
+```
 
-對於日誌數據的加權步驟包括以下幾個主要目的:
-* 透過全域的頻率資訊，提升關鍵日誌模板在相似度計算中的影響力。
-* **核心想法:** 在不同來源的日誌都包含的序列，通常意味<br> **1.** 並不是異常行為， 或者 **2.** 並不是能夠區分攻擊行為的關鍵日誌。因此，這些日誌模板在相似度計算中應該被降低權重。
-* 方法: 透過非監督式學習的方式，找出這些全域頻率較高的日誌模板，並根據結果作為加權的依據。
+| 子步驟 | 說明 | 輸出 |
+|--------|------|------|
+| **日誌解析** | 使用 Drain 演算法將日誌拆解為「模板」+「參數」 | `Template`: `CreateFile <*> SUCCESS` |
+| **BERT 嵌入** | 將模板轉換為 768 維向量（支援 SecBERT、Sentence-BERT） | `embedding`: `[0.23, -0.15, ...]` |
+| **向量儲存** | 以 Arrow 格式高效儲存 | `data/Embeddings/` |
 
-對於外部參考文本的加權目的:
-* 不同來源的參考文本，其重要性可能有所不同。例如，某些攻擊手法的描述可能更為詳細和準確，這些文本在概念提取中的影響力應該更大。
-* 本專案目的在將序列資料標記為*Mitre ATT&CK*的 Technique，因此Mitre ATT&CK的文本應該被賦予較高的權重。
-* 另外，其他來源資料分布為 non i.i.d.，因此需要透過加權的方式，調整不同來源文本在相似度計算中的影響力，希望能藉此找出不同文本的全域概念。
+#### 輸入輸出
 
-#### Concept Extraction
-> [詳見 Concept_Extraction.md](./docs/Concept_Extraction.md)
+- **輸入**：`data/input_logs/*.csv`（原始日誌 CSV）
+- **輸出**：`data/Embeddings/{dataset_id}/`（嵌入向量資料集）
 
-1. 透過NMF(Non-negative Matrix Factorization)方法，從預處理後的日誌數據中提取潛在的概念。(X = H * W)
-   * X: 預處理後的日誌數據矩陣 (m x n)
-   * H: 日誌與概念的關聯矩陣 (m x k)
-   * W: 概念與特徵的關聯矩陣 (k x n)
-* 其中k為假定一個數據隱含概念的數量，可以根據實際需求進行調整。
+---
 
-#### Sequence Clustering
-> [詳見 Sequence_Clustering.md](./docs/Sequence_Clustering.md)
+### Stage II：異常偵測 (Anomaly Detection)
 
-* 將數據序列將假定為由多個隱藏狀態所組成，並利用**隱馬可夫模型(Hidden Markov Model, HMM)**進行建模與訓練。
-* 透過HMM模型，捕捉數據序列中的時序特性，並將相似的序列歸類到同一群組中。
+> 📄 詳細文件：[Anomaly_Detection.md](./docs/Anomaly_Detection.md)
 
-#### Auto Labeling
-> [詳見 Auto_Labeling.md](./docs/Auto_Labeling.md)
+#### 目的
+識別行為異常的日誌，作為後續標註的**優先權重**——異常分數越高，越可能是攻擊行為。
 
-* 透過比較日誌數據中的概念與外部參考文本（MITRE ATT&CK）中的概念之間的相似度，進行自動標註。
-* **核心流程**:
-  1. 計算各 HMM Cluster 的 Centroid 向量（加權平均，權重為異常分數）
-  2. 將 MITRE ATT&CK 嵌入轉換至相同的概念空間（使用相同的 NMF 模型）
-  3. 計算 Cluster Centroid 與各 MITRE 技術向量的餘弦相似度
-  4. 結合異常分數與相似度計算最終信心度：`confidence = anomaly_weight × anomaly_score + similarity_weight × similarity`
-  5. 根據 `similarity × confidence` 是否超過閾值決定最終標籤（技術 ID 或 Benign）
-* **輸出格式**: CSV 檔案，包含原始日誌欄位 + `predicted_technique`, `similarity_score`, `confidence` 等標註資訊
+#### 核心機制
 
-## Quick Start(快速開始)
+```
+                    ┌─── Isolation Forest ───┐
+                    │                        │
+嵌入向量 ───►      ├─── COPOD ──────────────┼───► Ensemble ───► 異常分數
+                    │                        │      加權平均     (0~1)
+                    ├─── AutoEncoder ────────┤
+                    │                        │
+                    └─── PCA + GMM ──────────┘
+```
 
-### Environment Setup
-### Configuration
-### Running the Pipeline
+| 演算法 | 原理 | 優勢 |
+|--------|------|------|
+| **Isolation Forest** | 樹型結構隔離異常點 | 高效處理高維資料 |
+| **COPOD** | 機率密度估計 | 對極端值敏感 |
+| **AutoEncoder** | 重建誤差檢測 | 捕捉非線性異常 |
+| **PCA + GMM** | 降維後高斯混合 | 識別分布外樣本 |
 
-## Update & Changelog (更新日誌)
+#### 輸入輸出
 
-* 2025-11-16: Init
-* 2025-11-21: 
-  * 創立專案架構: Readme.md
-  * 新建preprocess與Drain作為預設parser for Logs
-* 2025-11-25: 
-  * 更新 Readme.md，補充外部文件爬蟲相關架構
-* 2025-12-05:
-  * 新增 BERT 嵌入模組 (`models/bert.py`) 及相關文件說明
-  * 整合 BERT API 至 ExternalSourceManager 模組
+- **輸入**：`data/Embeddings/{dataset_id}/`
+- **輸出**：`data/Detection_Results/`（含 `ensemble_score` 欄位）
+
+---
+
+### Stage III：概念提取 (Concept Extraction)
+
+> 📄 詳細文件：[Concept_Extraction.md](./docs/Concept_Extraction.md)
+
+#### 目的
+將高維嵌入（768 維）降維至**潛在概念空間**（如 50 維），使日誌與 MITRE 技術可在同一空間進行比較。
+
+#### 核心機制：NMF（非負矩陣分解）
+
+```
+X (768 維嵌入)  ≈  H (概念權重)  ×  W (概念基矩陣)
+   n × 768           n × k            k × 768
+
+X：原始嵌入矩陣
+H：每筆日誌在 k 個概念上的權重分佈
+W：k 個概念的定義（由全域訓練學習）
+```
+
+#### 關鍵設計
+
+| 策略 | 說明 |
+|------|------|
+| **全域聯合訓練** | 聚合多資料集 + 外部知識訓練統一的概念基矩陣 W |
+| **L1 稀疏約束** | 強制每筆日誌只屬於少數概念，提升可解釋性 |
+| **獨立批次轉換** | 使用固定的 W 對各資料集進行轉換，確保可比性 |
+
+#### 輸入輸出
+
+- **輸入**：`data/Embeddings/`、`data/ExternalKnowledge/`
+- **輸出**：`data/ConceptVectors/{dataset_id}/`、`models/nmf_concept_model.pkl`
+
+---
+
+### Stage IV：序列分群 (Sequence Clustering)
+
+> 📄 詳細文件：[Sequence_Clustering.md](./docs/Sequence_Clustering.md)
+
+#### 目的
+識別日誌序列中的**攻擊演變階段**（如：初始存取 → 執行 → 持久化 → 清理），將同一階段的日誌歸為同一群集。
+
+#### 核心機制：HMM（隱馬可夫模型）
+
+```
+觀測序列：[概念向量 1] → [概念向量 2] → [概念向量 3] → ...
+              ↓              ↓              ↓
+隱藏狀態：  [狀態 A]   →   [狀態 A]   →   [狀態 B]   → ...
+           (初始存取)     (初始存取)     (執行階段)
+```
+
+#### 關鍵設計
+
+| 策略 | 說明 |
+|------|------|
+| **Per-Dataset 訓練** | 每個資料集獨立訓練 HMM，捕捉特定攻擊的獨有階段 |
+| **雙軌特徵** | 訓練用常態化資料（確保收斂）、應用用原始資料（保留語義） |
+| **一階差分** | 額外計算變化率特徵，識別攻擊階段的轉換點 |
+| **BIC 選擇 K** | 使用貝葉斯資訊量準則自動選擇最佳狀態數 |
+
+#### 輸入輸出
+
+- **輸入**：`data/ConceptVectors/{dataset_id}/`
+- **輸出**：`data/SequenceClusters/{dataset_id}/`（`labels.npy`、`model.pkl`）
+
+---
+
+### Stage V：外部知識嵌入 (External Knowledge)
+
+> 📄 詳細文件：[External_Sources.md](./docs/External_Sources.md)
+
+#### 目的
+將 MITRE ATT&CK 攻擊技術描述轉換為**與日誌相同格式的概念向量**，作為標註的比對基準。
+
+#### 處理流程
+
+```
+MITRE ATT&CK 技術描述
+        │
+        ▼
+   BERT 嵌入 (768 維)
+        │
+        ▼
+   NMF 轉換 (使用 Stage III 訓練的 W)
+        │
+        ▼
+   概念向量 (k 維)
+```
+
+#### 支援的外部來源
+
+| 來源 | 用途 |
+|------|------|
+| **MITRE ATT&CK** | 攻擊技術標籤（主要） |
+| **CAPEC** | 攻擊模式補充 |
+| **NVD/CVE** | 漏洞關聯 |
+
+#### 輸入輸出
+
+- **輸入**：`data/reference_resources/MitreTechniques.csv`
+- **輸出**：`data/ExternalKnowledge/MITRE_ATTACK/`
+
+---
+
+### Stage VI：自動標註 (Auto Labeling)
+
+> 📄 詳細文件：[Auto_Labeling.md](./docs/Auto_Labeling.md)
+
+#### 目的
+將 HMM 分群結果與 MITRE ATT&CK 比對，自動為每筆日誌分配攻擊技術標籤。
+
+#### 標註流程
+
+```
+       Cluster Centroid ─────┐
+      (異常加權平均)         │
+                             ├──► 餘弦相似度 ──► 閾值判斷 ──► 技術標籤
+       MITRE 概念向量 ───────┘                      │           或
+                                                    │        "Benign"
+       異常分數 ─────────────────► 信心度調整 ──────┘
+```
+
+#### 信心度計算
+
+$$\text{confidence} = w_a \times \text{anomaly\_score} + w_s \times \text{similarity}$$
+
+$$\text{final\_score} = \text{similarity} \times \text{confidence}$$
+
+- 若 $\text{final\_score} < \text{threshold}$，標記為 `Benign`
+- 否則標記為最相似的 MITRE 技術 ID（如 `T1059.001`）
+
+#### 輸出範例
+
+| log_index | cluster_id | predicted_technique | similarity | confidence |
+|-----------|------------|---------------------|------------|------------|
+| 0 | 2 | T1059.001 (PowerShell) | 0.78 | 0.80 |
+| 1 | 0 | Benign | 0.45 | 0.33 |
+
+#### 輸入輸出
+
+- **輸入**：`data/ConceptVectors/`、`data/SequenceClusters/`、`data/Detection_Results/`、`data/ExternalKnowledge/`
+- **輸出**：`result/Labeling_Results/{dataset_id}_Labeled.csv`
+
+---
+
+## 專案目錄結構
+
+```
+Logs-Labeling/
+├── Logs Labeling/           # 核心程式碼
+│   ├── Pipeline.py          # 主流程控制
+│   ├── config.py            # 參數配置
+│   ├── preprocess/          # Stage I：預處理
+│   │   ├── preprocess.py    # LogLoader, LogEmbedder
+│   │   └── drain.py         # Drain 日誌解析器
+│   ├── anomaly_dection/     # Stage II：異常偵測
+│   │   └── log_detector.py  # Ensemble 異常偵測
+│   ├── conception_extraction.py  # Stage III：概念提取
+│   ├── sequence_clustering.py    # Stage IV：序列分群
+│   ├── external_sources/    # Stage V：外部知識
+│   │   └── build_mitre_raw_embeddings.py
+│   ├── auto_labeling.py     # Stage VI：自動標註
+│   ├── models/              # 模型相關
+│   │   └── bert.py          # BERT 嵌入 API
+│   └── visualization/       # 視覺化工具
+│
+├── data/                    # 資料目錄
+│   ├── input_logs/          # 原始日誌
+│   ├── Embeddings/          # Stage I 輸出
+│   ├── Detection_Results/   # Stage II 輸出
+│   ├── ConceptVectors/      # Stage III 輸出
+│   ├── SequenceClusters/    # Stage IV 輸出
+│   └── ExternalKnowledge/   # Stage V 輸出
+│
+├── result/                  # 最終結果
+│   └── Labeling_Results/    # Stage VI 輸出
+│
+├── docs/                    # 詳細文件
+│   ├── Preprocessing.md
+│   ├── Anomaly_Detection.md
+│   ├── Concept_Extraction.md
+│   ├── Sequence_Clustering.md
+│   ├── External_Sources.md
+│   └── Auto_Labeling.md
+│
+└── requirements.txt         # 依賴套件
+```
+
+---
+
+## 快速開始
+
+### 環境安裝
+
+```bash
+# 建立 Conda 環境
+conda create -n LogsLabeling python=3.10
+conda activate LogsLabeling
+
+# 安裝依賴
+pip install -r requirements.txt
+```
+
+### 準備資料
+
+1. 將原始日誌 CSV 檔案放入 `data/input_logs/`
+2. 確保每個 CSV 包含 `Operation`、`Path`、`Result` 等欄位
+
+### 執行 Pipeline
+
+```python
+from Pipeline import main
+
+# 執行完整流程
+main()
+```
+
+或逐階段執行：
+
+```python
+from Pipeline import STAGE_I, STAGE_II, STAGE_III, STAGE_IV, STAGE_V, STAGE_VI
+
+STAGE_I(N=50)    # 處理前 50 個資料集
+STAGE_II()       # 異常偵測
+STAGE_III()      # 概念提取
+STAGE_IV()       # 序列分群
+STAGE_V()        # 建立 MITRE 嵌入
+STAGE_VI()       # 自動標註
+```
+
+### 查看結果
+
+標註結果位於 `result/Labeling_Results/`，每個資料集產生一個 `{dataset_id}_Labeled.csv`。
+
+---
+
+## 更新日誌
+
+| 日期 | 更新內容 |
+|------|---------|
+| 2025-12-05 | 新增 BERT 嵌入模組 (`models/bert.py`)、整合 BERT API |
+| 2025-11-25 | 更新外部知識爬蟲架構 |
+| 2025-11-21 | 建立專案架構、新增 Drain 解析器 |
+| 2025-11-16 | 專案初始化 |
+
 ---
 

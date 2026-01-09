@@ -191,12 +191,12 @@ def STAGE_VI():
 
 def main():
     
-    #init()
+    init()
     N = 50
-    # STAGE_I(N)
-    # STAGE_II()
-    # STAGE_III()
-    # STAGE_IV()
+    STAGE_I(N)
+    STAGE_II()
+    STAGE_III()
+    STAGE_IV()
     STAGE_V()
     STAGE_VI()
     

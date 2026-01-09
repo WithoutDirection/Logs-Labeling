@@ -59,9 +59,9 @@ $$
 ### 在 Pipeline 中執行
 
 ```python
-from Pipeline import STAGE_V
+from Pipeline import STAGE_VI
 
-STAGE_V()  # 執行自動標註
+STAGE_VI()  # 執行自動標註
 ```
 
 ### 獨立執行
