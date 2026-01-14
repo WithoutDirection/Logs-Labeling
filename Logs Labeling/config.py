@@ -172,6 +172,12 @@ LABELING_TOP_K = 3
 # 是否使用原始嵌入向量進行比對（True: Raw Embeddings, False: Concept Vectors）
 LABELING_USE_RAW_EMBEDDINGS = False
 
+# 混合評分設定 (Hybrid Scoring)
+LABELING_USE_TFIDF = True           # 是否啟用 TF-IDF 輔助評分
+LABELING_WEIGHT_EMBEDDING = 0.7     # 嵌入向量相似度權重
+LABELING_WEIGHT_TFIDF = 0.3         # TF-IDF 關鍵字相似度權重
+MITRE_TFIDF_DIR = os.path.join(EXTERNAL_KNOWLEDGE_DIR, "MITRE_TFIDF")
+
 # 標註結果輸出目錄
 LABELING_RESULTS_DIR = os.path.join(RESULT_DIR, "Labeling_Results")
 

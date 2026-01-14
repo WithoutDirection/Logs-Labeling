@@ -23,6 +23,8 @@ import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 import pyarrow.feather as feather
 import pyarrow
+import scipy.sparse
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 # * 調整匯入路徑
 CURRENT_DIR = str(Path(__file__).resolve().parent)
@@ -75,13 +77,21 @@ class LabelingConfig:
     anomaly_weight: float = getattr(config, 'LABELING_ANOMALY_WEIGHT', 0.3)
     similarity_weight: float = getattr(config, 'LABELING_SIMILARITY_WEIGHT', 0.7)
     top_k_techniques: int = getattr(config, 'LABELING_TOP_K', 3)
+    use_raw_embeddings: bool = getattr(config, 'LABELING_USE_RAW_EMBEDDINGS', False)
+    
+    # TF-IDF Hybrid Scoring
+    use_tfidf: bool = getattr(config, 'LABELING_USE_TFIDF', False)
+    weight_embedding: float = getattr(config, 'LABELING_WEIGHT_EMBEDDING', 0.7)
+    weight_tfidf: float = getattr(config, 'LABELING_WEIGHT_TFIDF', 0.3)
     
     # 路徑設定
     concept_vectors_dir: str = config.CONCEPT_VECTORS_DIR
     cluster_results_dir: str = config.CLUSTER_RESULTS_DIR
     detection_results_dir: str = config.DETECTION_RESULTS_DIR
     mitre_embeddings_dir: str = getattr(config, 'MITRE_EXTERNAL_KNOWLEDGE_DIR', os.path.join(config.EXTERNAL_KNOWLEDGE_DIR, "MITRE_ATTACK"))
+    mitre_tfidf_dir: str = getattr(config, 'MITRE_TFIDF_DIR', os.path.join(config.EXTERNAL_KNOWLEDGE_DIR, "MITRE_TFIDF"))
     input_logs_dir: str = config.INPUT_LOGS_DIR
+    intermediate_data_dir: str = config.INTERMEDIATE_DATA_DIR
     labeling_results_dir: str = getattr(config, 'LABELING_RESULTS_DIR', os.path.join(config.RESULT_DIR, "Labeling_Results"))
     nmf_model_path: str = config.NMF_MODEL_PATH
 
