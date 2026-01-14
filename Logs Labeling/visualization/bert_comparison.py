@@ -107,9 +107,9 @@ class BertEmbeddingComparator:
             print(f"\n載入: {key}")
             try:
                 self.models[key] = get_bert_model(key, auto_load=True)
-                print(f"  ✓ 成功，維度: {self.models[key].get_embedding_dim()}")
+                print(f"  成功，維度: {self.models[key].get_embedding_dim()}")
             except Exception as e:
-                print(f"  ✗ 失敗: {e}")
+                print(f"  失敗: {e}")
     
     def _load_datasets(self, n: int) -> Dict[str, List[str]]:
         """載入資料集文本"""
@@ -139,7 +139,7 @@ class BertEmbeddingComparator:
                 
                 self.texts[name] = texts
             except Exception as e:
-                print(f"  ✗ {file}: {e}")
+                print(f"  失敗: {file}: {e}")
         
         print(f"\n成功載入 {len(self.texts)} 個資料集")
         return self.texts
@@ -236,7 +236,7 @@ class BertEmbeddingComparator:
             )
             
             results[model_key] = reducer.fit_transform(combined)
-            print(f"  ✓ 完成: {results[model_key].shape}")
+            print(f"  完成: {results[model_key].shape}")
         
         return results
     
@@ -412,7 +412,7 @@ class BertEmbeddingComparator:
             
             path = join_path(self.output_dir, f"{model}_umap_3d.html")
             fig.write_html(path)
-            print(f"  ✓ {model}: {path}")
+            print(f"  {model}: {path}")
     
     def _plot_dispersion(self, save_path: str):
         """繪製分散程度比較圖"""

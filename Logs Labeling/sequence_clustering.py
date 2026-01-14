@@ -97,6 +97,40 @@ class SequenceClustering:
                 print(f"    [Warning] {msg}")
             return None, float("-inf"), msg
 
+    def _compute_bic(self, model: hmm.GaussianHMM, X: np.ndarray, log_likelihood: float) -> float:
+        """
+        計算 BIC (Bayesian Information Criterion)。
+        
+        BIC = -2 * log_likelihood + n_params * log(n_samples)
+        
+        較小的 BIC 表示較好的模型（在擬合度與複雜度之間取得平衡）
+        """
+        n_samples, n_features = X.shape
+        n_components = model.n_components
+        
+        # 計算參數數量
+        # - 初始狀態機率: n_components - 1
+        # - 轉移矩陣: n_components * (n_components - 1)
+        # - 均值: n_components * n_features
+        # - 共變異數 (diag): n_components * n_features
+        if self.covariance_type == "diag":
+            n_params = (
+                (n_components - 1) +  # 初始狀態
+                n_components * (n_components - 1) +  # 轉移矩陣
+                n_components * n_features +  # 均值
+                n_components * n_features  # 對角共變異數
+            )
+        else:  # full
+            n_params = (
+                (n_components - 1) +
+                n_components * (n_components - 1) +
+                n_components * n_features +
+                n_components * n_features * (n_features + 1) // 2
+            )
+        
+        bic = -2 * log_likelihood + n_params * np.log(n_samples)
+        return bic
+
     def _grid_search(
         self,
         dataset_id: str,
@@ -107,32 +141,48 @@ class SequenceClustering:
     ) -> Tuple[Optional[hmm.GaussianHMM], int, float]:
         """
         執行 Grid Search 尋找最佳 K 值。
-        針對單一 Dataset 內部並行化，加速優化過程。
+        使用 BIC 準則選擇最佳模型（避免過度擬合）。
         """
-        best_model, best_k, best_score = None, None, float("-inf")
+        best_model, best_k, best_bic = None, None, float("inf")
+        best_score = float("-inf")
         failure_logs: List[str] = []
+        
+        k_results = []  # 記錄每個 K 的結果供分析
 
         for k in range(k_min, k_max + 1):
             consecutive_fail = 0
+            k_best_model, k_best_score = None, float("-inf")
+            
             for i in range(n_starts):
                 seed = self.random_state + k * n_starts + i
                 model, score, err_msg = self._train_single_hmm(dataset_id, X, k, seed)
-                if model is not None and score > best_score:
-                    best_score = score
-                    best_model = model
-                    best_k = k
+                
+                if model is not None and score > k_best_score:
+                    k_best_score = score
+                    k_best_model = model
+                
                 if err_msg:
                     failure_logs.append(err_msg)
                     consecutive_fail += 1
                     if consecutive_fail >= self.failure_per_k_limit:
-                        # 這個 K 多次失敗，提早跳下一個 K
                         break
                 else:
                     consecutive_fail = 0
+            
+            # 使用 BIC 比較不同 K 的模型
+            if k_best_model is not None:
+                bic = self._compute_bic(k_best_model, X, k_best_score)
+                k_results.append((k, k_best_score, bic))
+                
+                if bic < best_bic:
+                    best_bic = bic
+                    best_model = k_best_model
+                    best_k = k
+                    best_score = k_best_score
 
-            if best_model is not None and best_k == k:
-                # 若該 K 已獲得成功模型且得分最佳，繼續嘗試下一個 K 以尋找更佳結果
-                continue
+        # 輸出 K 選擇過程（方便調試）
+        if k_results:
+            print(f"    [K 選擇] " + ", ".join([f"K={k}(BIC={bic:.0f})" for k, _, bic in k_results[:5]]))
 
         if failure_logs and len(failure_logs) >= self.failure_warning_limit and best_model is None:
             print(f"    [Warning] {dataset_id}: 超過 {self.failure_warning_limit} 次失敗，嘗試縮減 K={k_min} 單次重試")
@@ -383,27 +433,66 @@ class SequenceClustering:
 
 def load_concept_vectors(
     dataset_ids: Optional[List[str]] = None,
+    prefer_concepts: bool = True,
 ) -> Dict[str, np.ndarray]:
-    # * 從 ConceptVectors 目錄載入概念向量
+    """
+    從 ConceptVectors 目錄載入概念向量。
+    
+    Args:
+        dataset_ids: 指定載入的 Dataset ID（None 則載入全部）
+        prefer_concepts: 若同一 Dataset 有多個版本，優先使用 _concepts 目錄
+        
+    Returns:
+        {dataset_id: concept_vectors}
+    """
     print("\n載入概念向量...")
     vectors_dir = config.CONCEPT_VECTORS_DIR
     if not os.path.exists(vectors_dir):
         raise FileNotFoundError(f"找不到概念向量目錄: {vectors_dir}")
 
-    result = {}
+    # * 第一階段：收集所有候選目錄並分類
+    candidates = {}  # {dataset_id: {suffix: subdir_path}}
     
-    # * 遍歷子目錄
     for subdir in os.listdir(vectors_dir):
         subdir_path = os.path.join(vectors_dir, subdir)
         if not os.path.isdir(subdir_path):
             continue
         
-        dataset_id = subdir.replace("_concepts", "")
+        # * 解析 dataset_id 和後綴
+        dataset_id = subdir
+        suffix = ""
+        for s in ["_concepts", "_embeddings", "_logvectors"]:
+            if subdir.endswith(s):
+                dataset_id = subdir.replace(s, "")
+                suffix = s
+                break
+        
         if dataset_ids is not None and dataset_id not in dataset_ids:
             continue
         
+        if dataset_id not in candidates:
+            candidates[dataset_id] = {}
+        candidates[dataset_id][suffix] = subdir_path
+    
+    # * 第二階段：選擇最佳版本並載入
+    result = {}
+    suffix_priority = ["_concepts", "_embeddings", "_logvectors", ""] if prefer_concepts else ["_embeddings", "_concepts", "_logvectors", ""]
+    
+    for dataset_id, versions in candidates.items():
+        # 按優先順序選擇
+        selected_path = None
+        selected_suffix = None
+        for suffix in suffix_priority:
+            if suffix in versions:
+                selected_path = versions[suffix]
+                selected_suffix = suffix
+                break
+        
+        if selected_path is None:
+            continue
+        
         # * 載入 Arrow/Feather 格式
-        arrow_path = os.path.join(subdir_path, "data-00000-of-00001.arrow")
+        arrow_path = os.path.join(selected_path, "data-00000-of-00001.arrow")
         if not os.path.exists(arrow_path):
             print(f"[Warning] 找不到 Arrow 檔案: {arrow_path}")
             continue
@@ -415,6 +504,11 @@ def load_concept_vectors(
             else:
                 vectors = table.to_pandas().values
             result[dataset_id] = vectors
+            
+            # 顯示選擇的版本（方便調試）
+            if len(versions) > 1:
+                print(f"    {dataset_id}: 使用 {selected_suffix or '(無後綴)'} 版本")
+                
         except Exception as e:
             print(f"[Warning] 載入失敗 {arrow_path}: {e}")
             continue
