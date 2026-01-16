@@ -15,7 +15,7 @@ import os
 import sys
 import pickle
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Union
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -91,9 +91,11 @@ class LabelingConfig:
     mitre_embeddings_dir: str = getattr(config, 'MITRE_EXTERNAL_KNOWLEDGE_DIR', os.path.join(config.EXTERNAL_KNOWLEDGE_DIR, "MITRE_ATTACK"))
     mitre_tfidf_dir: str = getattr(config, 'MITRE_TFIDF_DIR', os.path.join(config.EXTERNAL_KNOWLEDGE_DIR, "MITRE_TFIDF"))
     input_logs_dir: str = config.INPUT_LOGS_DIR
+    log_vectors_dir: str = config.LOG_VECTORS_DIR  # Added this field
     intermediate_data_dir: str = config.INTERMEDIATE_DATA_DIR
     labeling_results_dir: str = getattr(config, 'LABELING_RESULTS_DIR', os.path.join(config.RESULT_DIR, "Labeling_Results"))
     nmf_model_path: str = config.NMF_MODEL_PATH
+    ground_truth_path: str = os.path.join(config.DATA_DIR, "groundtruth", "abilities.csv")
 
 
 class AutoLabeler:
@@ -122,6 +124,8 @@ class AutoLabeler:
         self.mitre_technique_ids: Optional[List[str]] = None
         self.mitre_technique_names: Optional[List[str]] = None
         self.mitre_concept_vectors: Optional[np.ndarray] = None
+        self.mitre_tfidf_matrix: Optional[scipy.sparse.csr_matrix] = None
+        self.tfidf_vectorizer: Optional[TfidfVectorizer] = None
         
         # NMF 模型
         self.nmf_model = None
@@ -129,6 +133,29 @@ class AutoLabeler:
         
         # 結果
         self.labeling_results: Dict[str, pd.DataFrame] = {}
+
+        # Ground Truth
+        self.ground_truth = self._load_ground_truth()
+
+    def _load_ground_truth(self) -> Dict[str, Dict[str, str]]:
+        """載入 Ground Truth"""
+        if not os.path.exists(self.config.ground_truth_path):
+            print(f"[Warning] Ground Truth 不存在: {self.config.ground_truth_path}")
+            return {}
+        try:
+            df = pd.read_csv(self.config.ground_truth_path)
+            # filename -> {tid, t_name}
+            gt = {}
+            for _, row in df.iterrows():
+                fname = str(row['filename']).strip()
+                gt[fname] = {
+                    "tid": row['tid'],
+                    "t_name": row['t_name']
+                }
+            return gt
+        except Exception as e:
+            print(f"[Error] 載入 Ground Truth 失敗: {e}")
+            return {}
     
     # ======================== 資料載入 ========================
     
@@ -252,6 +279,64 @@ class AutoLabeler:
         )
         return self.anomaly_scores
     
+    def load_log_vectors_for_dataset(self, dataset_id: str) -> Optional[np.ndarray]:
+        """載入原始日誌嵌入向量"""
+        base_dir = config.LOG_VECTORS_DIR 
+        
+        # 尋找對應目錄
+        target_dir = None
+        candidates = [
+            os.path.join(base_dir, f"{dataset_id}_raw_events_embeddings"),
+        ]
+        
+        for cand in candidates:
+            if os.path.exists(cand):
+                target_dir = cand
+                break
+        
+        if not target_dir and os.path.exists(base_dir):
+            # 模糊比對
+            for sub in os.listdir(base_dir):
+                if sub.startswith(dataset_id) and "embeddings" in sub:
+                     target_dir = os.path.join(base_dir, sub)
+                     break
+        
+        if not target_dir:
+            print(f"[Warning] 找不到嵌入目錄 for {dataset_id}")
+            return None
+            
+        # 載入向量
+        try:
+            arrow_path = os.path.join(target_dir, "data-00000-of-00001.arrow")
+            if os.path.exists(arrow_path):
+                try:
+                    table = feather.read_table(arrow_path)
+                    for col in ["embeddings", "embedding", "vectors", "vector"]:
+                        if col in table.column_names:
+                            return np.array(table[col].to_pylist())
+                except Exception:
+                    # Fallback to datasets library
+                    try:
+                        from datasets import load_from_disk
+                        ds = load_from_disk(target_dir)
+                        if hasattr(ds, "keys") and not hasattr(ds, "column_names"):
+                             first_key = next(iter(ds.keys()))
+                             ds = ds[first_key]
+                        
+                        for col in ["embeddings", "embedding", "vectors", "vector"]:
+                            if col in ds.column_names:
+                                return np.array(ds[col])
+                    except ImportError:
+                        print("[Error] 需要 'datasets' 套件來讀取此格式，但未安裝。")
+                        return None
+                    except Exception as e_ds:
+                         print(f"[Error] load_from_disk 失敗: {e_ds}")
+            
+        except Exception as e:
+            print(f"[Error] 載入嵌入向量失敗 {target_dir}: {e}")
+            
+        return None
+
     def load_mitre_embeddings(
         self,
         embeddings_dir: Optional[str] = None,
@@ -329,6 +414,29 @@ class AutoLabeler:
             n = len(self.mitre_embeddings)
             self.mitre_technique_ids = [f"T{i:04d}" for i in range(n)]
             self.mitre_technique_names = self.mitre_technique_ids
+            
+    def load_mitre_tfidf(self) -> None:
+        """載入 MITRE TF-IDF 向量與模型"""
+        if not self.config.use_tfidf:
+            return
+
+        tfidf_dir = self.config.mitre_tfidf_dir
+        print(f"\n載入 MITRE TF-IDF 資料: {tfidf_dir}")
+        
+        vec_path = os.path.join(tfidf_dir, "tfidf_vectorizer.pkl")
+        mat_path = os.path.join(tfidf_dir, "mitre_tfidf_matrix.pkl")
+        
+        if not os.path.exists(vec_path) or not os.path.exists(mat_path):
+            print(f"[Warning] TF-IDF 檔案遺失，將跳過 TF-IDF 載入 ({tfidf_dir})")
+            return
+            
+        with open(vec_path, "rb") as f:
+            self.tfidf_vectorizer = pickle.load(f)
+            
+        with open(mat_path, "rb") as f:
+            self.mitre_tfidf_matrix = pickle.load(f)
+            
+        print(f"已載入 TF-IDF Vectorizer 與 Matrix {self.mitre_tfidf_matrix.shape}")
     
     def transform_mitre_to_concepts(self) -> np.ndarray:
         """將 MITRE 嵌入轉換至概念空間"""
@@ -348,6 +456,129 @@ class AutoLabeler:
     
     # ======================== 核心標註邏輯 ========================
     
+    def load_log_tfidf(self, dataset_id: str) -> Optional[scipy.sparse.csr_matrix]:
+        """載入預計算的日誌 TF-IDF 向量"""
+        base_dir = self.config.log_vectors_dir 
+        
+        # 尋找候選路徑
+        candidates = [
+            os.path.join(base_dir, f"{dataset_id}_embeddings", "tfidf.npz"),
+            os.path.join(base_dir, f"{dataset_id}_raw_events_embeddings", "tfidf.npz"),
+            os.path.join(base_dir, dataset_id, "tfidf.npz")
+        ]
+        
+        # 嘗試去除後綴
+        cleaned_id = dataset_id
+        for suffix in ["_embeddings", "_concepts", "_vectors"]:
+            if cleaned_id.endswith(suffix):
+                cleaned_id = cleaned_id[:-len(suffix)]
+        
+        candidates.append(os.path.join(base_dir, f"{cleaned_id}_embeddings", "tfidf.npz"))
+        candidates.append(os.path.join(base_dir, f"{cleaned_id}_raw_events_embeddings", "tfidf.npz"))
+
+        for p in candidates:
+            if os.path.exists(p):
+                try:
+                    return scipy.sparse.load_npz(p)
+                except Exception as e:
+                    print(f"[Warning] 載入預計算 TF-IDF 失敗 {p}: {e}")
+        return None
+
+    def load_log_texts(self, dataset_id: str) -> List[str]:
+        """載入資料集的原始日誌文字（用於 TF-IDF）"""
+        # 嘗試去除常規後綴以匹配原始日誌檔名
+        cleaned_id = dataset_id
+        for suffix in ["_embeddings", "_concepts", "_vectors"]:
+            if cleaned_id.endswith(suffix):
+                cleaned_id = cleaned_id[:-len(suffix)]
+                
+        # 嘗試從 Intermediate_data 尋找檔案
+        candidates = [
+            f"{dataset_id}.csv",
+            f"{cleaned_id}.csv",  # 嘗試去除後綴的 ID
+            f"{dataset_id}_raw_events.csv",
+            f"{cleaned_id}_raw_events.csv",
+            f"syslogs_{dataset_id}_audit_log.csv",
+            f"syslogs_{cleaned_id}_audit_log.csv"
+        ]
+        
+        df = None
+        # 1. 嘗試 Intermediate Data
+        for cand in candidates:
+            p = os.path.join(self.config.intermediate_data_dir, cand)
+            if os.path.exists(p):
+                try:
+                    df = pd.read_csv(p)
+                    break
+                except:
+                    pass
+                    
+        # 2. 回退到 Input Logs
+        if df is None:
+            input_path = os.path.join(self.config.input_logs_dir, f"{dataset_id}.csv")
+            if os.path.exists(input_path):
+                try:
+                    df = pd.read_csv(input_path)
+                except:
+                    pass
+
+        if df is None:
+             print(f"[Warning] 無法載入日誌文字: {dataset_id}")
+             return []
+
+        # 提取文字
+        if "ConcatenatedLog" in df.columns:
+            return df["ConcatenatedLog"].fillna("").astype(str).tolist()
+        elif "Template" in df.columns and "Parameters" in df.columns:
+            return (df["Template"].fillna("") + " " + df["Parameters"].fillna("")).astype(str).tolist()
+        elif "Content" in df.columns:
+            return df["Content"].fillna("").astype(str).tolist()
+        elif "Event" in df.columns:
+            return df["Event"].fillna("").astype(str).tolist()
+        else:
+             # 合併所有欄位
+             return df.astype(str).apply(lambda x: ' '.join(x), axis=1).tolist()
+
+    def compute_tfidf_centroids(
+        self,
+        log_input: Union[List[str], scipy.sparse.csr_matrix],
+        cluster_labels: np.ndarray,
+        anomaly_scores: Optional[np.ndarray] = None
+    ) -> Dict[int, scipy.sparse.csr_matrix]:
+        """計算各 Cluster 的 TF-IDF Centroid"""
+        if not self.tfidf_vectorizer:
+            return {}
+            
+        unique_clusters = np.unique(cluster_labels)
+        centroids = {}
+        
+        try:
+            # 轉換所有日誌
+            if isinstance(log_input, list):
+                tfidf_matrix = self.tfidf_vectorizer.transform(log_input)
+            else:
+                tfidf_matrix = log_input
+            
+            for cluster_id in unique_clusters:
+                mask = cluster_labels == cluster_id
+                cluster_vectors = tfidf_matrix[mask]
+                
+                # 計算 Centroid
+                if anomaly_scores is not None and len(anomaly_scores) == len(cluster_labels):
+                    scores = anomaly_scores[mask]
+                    weights = scores / (scores.sum() + 1e-8)
+                    # 加權平均: weights (n,) @ vectors (n, d) -> (1, d)
+                    centroid = scipy.sparse.csr_matrix(weights.reshape(1, -1) @ cluster_vectors)
+                else:
+                    centroid = cluster_vectors.mean(axis=0)
+                    centroid = scipy.sparse.csr_matrix(centroid)
+                    
+                centroids[int(cluster_id)] = centroid
+        except Exception as e:
+            print(f"[Error] TF-IDF Centroid 計算失敗: {e}")
+            
+        return centroids
+
     def compute_cluster_centroids(
         self,
         dataset_id: str,
@@ -397,6 +628,7 @@ class AutoLabeler:
         self,
         centroid: np.ndarray,
         avg_anomaly_score: float,
+        tfidf_centroid: Optional[scipy.sparse.csr_matrix] = None
     ) -> Dict[str, Any]:
         """
         將單一 Cluster Centroid 與 MITRE 技術進行比對
@@ -408,18 +640,55 @@ class AutoLabeler:
         Returns:
             Dict with matching results
         """
-        if self.mitre_concept_vectors is None:
-            raise ValueError("請先執行 transform_mitre_to_concepts()")
+        # Determine which vectors to compare against based on config
+        if self.config.use_raw_embeddings:
+            if self.mitre_embeddings is None:
+                raise ValueError("請先載入 MITRE 嵌入 (mitre_embeddings)")
+            target_vectors = self.mitre_embeddings
+        else:
+            if self.mitre_concept_vectors is None:
+                raise ValueError("請先執行 transform_mitre_to_concepts()")
+            target_vectors = self.mitre_concept_vectors
         
-        # 計算與所有 MITRE 技術的相似度
+        # 1. 計算嵌入向量相似度
         centroid_2d = centroid.reshape(1, -1)
-        similarities = cosine_similarity(centroid_2d, self.mitre_concept_vectors)[0]
+        if centroid_2d.shape[1] != target_vectors.shape[1]:
+             raise ValueError(f"維度不匹配: Centroid {centroid_2d.shape[1]} vs Target {target_vectors.shape[1]}")
+
+        emb_similarities = cosine_similarity(centroid_2d, target_vectors)[0]
         
-        # 取 Top-K
+        # 2. 計算 TF-IDF 相似度 (若啟用)
+        tfidf_similarities = None
+        if self.config.use_tfidf and tfidf_centroid is not None and self.mitre_tfidf_matrix is not None:
+            try:
+                tfidf_similarities = cosine_similarity(tfidf_centroid, self.mitre_tfidf_matrix)[0]
+            except Exception as e:
+                print(f"[Warning] TF-IDF 相似度計算失敗: {e}")
+        
+        # 3. 融合分數
+        if tfidf_similarities is not None:
+            w_emb = self.config.weight_embedding
+            w_tfidf = self.config.weight_tfidf
+            total = w_emb + w_tfidf
+            if total > 0:
+                final_similarities = (w_emb * emb_similarities + w_tfidf * tfidf_similarities) / total
+            else:
+                final_similarities = emb_similarities
+        else:
+            final_similarities = emb_similarities
+
+        # 使用融合後的相似度進行排名
+        similarities = final_similarities
+        
+        # Collect all techniques that pass the score of top one * 0.95
+        passing_indices = np.where(similarities >= (similarities.max() * 0.8))[0]
+        passing_indices = passing_indices[np.argsort(similarities[passing_indices])[::-1]]
+
+        # Also keep a Top-K view for quick inspection.
         top_k_indices = np.argsort(similarities)[-self.config.top_k_techniques:][::-1]
         
         # 最高相似度
-        best_idx = top_k_indices[0]
+        best_idx = int(np.argmax(similarities))
         best_similarity = float(similarities[best_idx])
         best_technique_id = self.mitre_technique_ids[best_idx]
         best_technique_name = self.mitre_technique_names[best_idx]
@@ -433,23 +702,37 @@ class AutoLabeler:
         
         # 決定最終標籤
         final_score = best_similarity * confidence
-        if final_score < self.config.confidence_threshold:
+        if best_similarity < self.config.similarity_threshold or final_score < self.config.confidence_threshold:
             predicted_technique = "Benign"
         else:
             predicted_technique = best_technique_id
         
         return {
             "predicted_technique": predicted_technique,
-            "technique_name": best_technique_name if predicted_technique != "Benign" else "Benign",
+            "technique_name": best_technique_name,  # Always show actual name
             "similarity_score": best_similarity,
+            "emb_similarity": float(emb_similarities[best_idx]),
+            "tfidf_similarity": float(tfidf_similarities[best_idx]) if tfidf_similarities is not None else 0.0,
             "anomaly_score": avg_anomaly_score,
             "confidence": confidence,
             "final_score": final_score,
+            "passing_techniques": [
+                {
+                    "technique_id": self.mitre_technique_ids[idx],
+                    "technique_name": self.mitre_technique_names[idx],
+                    "similarity": float(similarities[idx]),
+                    "emb_sim": float(emb_similarities[idx]),
+                    "tfidf_sim": float(tfidf_similarities[idx]) if tfidf_similarities is not None else 0.0,
+                }
+                for idx in passing_indices
+            ],
             "top_k_techniques": [
                 {
                     "technique_id": self.mitre_technique_ids[idx],
                     "technique_name": self.mitre_technique_names[idx],
                     "similarity": float(similarities[idx]),
+                    "emb_sim": float(emb_similarities[idx]),
+                    "tfidf_sim": float(tfidf_similarities[idx]) if tfidf_similarities is not None else 0.0,
                 }
                 for idx in top_k_indices
             ],
@@ -475,47 +758,116 @@ class AutoLabeler:
         
         print(f"\n[Labeling] {dataset_id}")
         
-        # 檢查資料是否存在
-        if dataset_id not in self.concept_vectors:
-            raise ValueError(f"找不到資料集 {dataset_id} 的概念向量")
+        # 準備向量資料 (Concept vs Raw)
+        if self.config.use_raw_embeddings:
+            print(f"    [Mode] 使用原始嵌入向量 (Raw Embeddings)")
+            vectors = self.load_log_vectors_for_dataset(dataset_id)
+            if vectors is None:
+                raise ValueError(f"無法載入資料集 {dataset_id} 的原始嵌入")
+        else:
+            if dataset_id not in self.concept_vectors:
+                raise ValueError(f"找不到資料集 {dataset_id} 的概念向量")
+            vectors = self.concept_vectors[dataset_id]
+
         if dataset_id not in self.cluster_labels:
             raise ValueError(f"找不到資料集 {dataset_id} 的分群標籤")
         
-        concept_vectors = self.concept_vectors[dataset_id]
         cluster_labels = self.cluster_labels[dataset_id]
         anomaly_scores = self.anomaly_scores.get(dataset_id)
         
-        n_samples = len(concept_vectors)
+        n_samples = len(vectors)
         print(f"    樣本數: {n_samples}")
         print(f"    群集數: {len(np.unique(cluster_labels))}")
         
         # 計算 Cluster Centroids
         centroids, avg_anomaly_scores = self.compute_cluster_centroids(
-            dataset_id, concept_vectors, cluster_labels, anomaly_scores
+            dataset_id, vectors, cluster_labels, anomaly_scores
         )
+        
+        # 計算 TF-IDF Centroids
+        tfidf_centroids = {}
+        if self.config.use_tfidf:
+            # 優先嘗試載入預計算的 TF-IDF 向量
+            precomputed_tfidf = self.load_log_tfidf(dataset_id)
+            if precomputed_tfidf is not None:
+                print(f"    [Info] 使用預計算的 TF-IDF 向量 (shape={precomputed_tfidf.shape})...")
+                if precomputed_tfidf.shape[0] == len(cluster_labels):
+                    tfidf_centroids = self.compute_tfidf_centroids(
+                        precomputed_tfidf, cluster_labels, anomaly_scores
+                    )
+                else:
+                     print(f"    [Warning] 預計算 TF-IDF 數量 ({precomputed_tfidf.shape[0]}) 與標籤數量 ({len(cluster_labels)}) 不一致，嘗試回退至原始文本...")
+                     precomputed_tfidf = None # Fallback
+
+            if not tfidf_centroids and precomputed_tfidf is None:
+                # Fallback to loading text
+                log_texts = self.load_log_texts(dataset_id)
+                if log_texts:
+                    if len(log_texts) == len(cluster_labels):
+                        print(f"    [Info] 計算 {len(log_texts)} 筆日誌的 TF-IDF Centroids...")
+                        tfidf_centroids = self.compute_tfidf_centroids(
+                            log_texts, cluster_labels, anomaly_scores
+                        )
+                    else:
+                        print(f"    [Warning] 日誌文本數量 ({len(log_texts)}) 與標籤數量 ({len(cluster_labels)}) 不一致，略過 TF-IDF")
         
         # 對每個 Cluster 進行標註
         cluster_results = {}
         for cluster_id, centroid in centroids.items():
             result = self.match_cluster_to_technique(
-                centroid, avg_anomaly_scores[cluster_id]
+                centroid, 
+                avg_anomaly_scores[cluster_id],
+                tfidf_centroid=tfidf_centroids.get(cluster_id)
             )
             cluster_results[cluster_id] = result
         
+        # 尋找 Ground Truth
+        gt_tid = None
+        gt_name = None
+        
+        # 嘗試匹配 dataset_id
+        candidates = [dataset_id]
+        
+        # 去除常見後綴
+        cleaned_id = dataset_id
+        for suffix in ["_embeddings", "_concepts", "_vectors", "_raw_events"]:
+             if cleaned_id.endswith(suffix):
+                 cleaned_id = cleaned_id[:-len(suffix)]
+        candidates.append(cleaned_id)
+        
+        
+        for cand in candidates:
+             if cand in self.ground_truth:
+                 gt_tid = self.ground_truth[cand]["tid"]
+                 gt_name = self.ground_truth[cand]["t_name"]
+                 break
+
         # 將標註結果映射回每個樣本
         sample_results = []
         for i in range(n_samples):
             cluster_id = int(cluster_labels[i])
             result = cluster_results[cluster_id]
+
+            top_k = result.get("top_k_techniques") or []
+            top_k_str = "; ".join(
+                f"{c['technique_id']} {c['technique_name']} ({c['similarity']:.4f} [E:{c.get('emb_sim',0):.2f} T:{c.get('tfidf_sim',0):.2f}])"
+                for c in top_k
+            )
             
             sample_result = {
                 "log_index": i,
                 "cluster_id": cluster_id,
+                "ground_truth_tid": gt_tid,
+                "ground_truth_name": gt_name,
                 "predicted_technique": result["predicted_technique"],
                 "technique_name": result["technique_name"],
                 "similarity_score": result["similarity_score"],
+                "emb_similarity": result.get("emb_similarity", 0.0),
+                "tfidf_similarity": result.get("tfidf_similarity", 0.0),
                 "anomaly_score": anomaly_scores[i] if anomaly_scores is not None else result["anomaly_score"],
                 "confidence": result["confidence"],
+                "passing_techniques": top_k_str,  # Replaced with Top-K instead of Passing
+                "passing_techniques_count": len(top_k),
             }
             sample_results.append(sample_result)
         
@@ -571,7 +923,12 @@ class AutoLabeler:
         
         # 確定要處理的資料集
         if dataset_ids is None:
-            dataset_ids = list(set(self.concept_vectors.keys()) & set(self.cluster_labels.keys()))
+            if self.config.use_raw_embeddings:
+                # 原始嵌入模式：只要有 Cluster Labels 就嘗試標註 (Embeddings 會在 label_dataset 中動態載入)
+                dataset_ids = list(self.cluster_labels.keys())
+            else:
+                # 概念向量模式：需要同時有 Concept Vectors 和 Cluster Labels
+                dataset_ids = list(set(self.concept_vectors.keys()) & set(self.cluster_labels.keys()))
         
         print("=" * 60)
         print(f"批次自動標註 - 共 {len(dataset_ids)} 個資料集")
@@ -626,7 +983,13 @@ def run_auto_labeling(
     
     # 載入所有必要資料
     labeler.load_nmf_model()
-    labeler.load_concept_vectors(dataset_ids)
+    
+    if not labeler.config.use_raw_embeddings:
+        try:
+            labeler.load_concept_vectors(dataset_ids)
+        except Exception as e:
+            print(f"[Warning] 概念向量載入失敗: {e}. 若使用 Raw Embeddings 可忽略。")
+
     labeler.load_cluster_labels(dataset_ids)
     labeler.load_anomaly_scores(dataset_ids)
 
@@ -638,6 +1001,7 @@ def run_auto_labeling(
         force_rebuild=False,
     )
     labeler.load_mitre_embeddings(resolved_mitre_dir)
+    labeler.load_mitre_tfidf()
     labeler.transform_mitre_to_concepts()
     
     # 執行標註

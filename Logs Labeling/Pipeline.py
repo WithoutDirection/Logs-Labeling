@@ -24,20 +24,35 @@ import numpy as np
 
 def init():
     # * 0. 配置資料夾並清除先前實驗結果
-    config.DATA_DIR = os.path.join("data")
-    config.INPUT_LOGS_DIR = os.path.join(config.DATA_DIR, "input_logs")
+    # config.DATA_DIR = os.path.join("data")
+    # config.INPUT_LOGS_DIR = os.path.join(config.DATA_DIR, "input_logs")
     # 清除 data 資料夾中除了 INPUT_LOGS_DIR 以外的所有檔案與資料夾
     if os.path.exists(config.DATA_DIR):
-        input_logs_name = os.path.basename(config.INPUT_LOGS_DIR)
+        # 定義保留清單 (包含資料夾名稱)
+        PRESERVED_ITEMS = {
+            os.path.basename(config.INPUT_LOGS_DIR),
+            "ExternalKnowledge",
+            "reference_resources",
+            "groundtruth"
+        }
+        
         for item in os.listdir(config.DATA_DIR):
+            if item in PRESERVED_ITEMS:
+                continue
+                
             item_path = os.path.join(config.DATA_DIR, item)
-            if item != input_logs_name:
-                if os.path.isdir(item_path):
+            if os.path.isdir(item_path):
+                try:
                     shutil.rmtree(item_path)
                     print(f"已刪除資料夾: {item_path}")
-                else:
+                except Exception as e:
+                    print(f"刪除失敗 {item_path}: {e}")
+            else:
+                 try:
                     os.remove(item_path)
                     print(f"已刪除檔案: {item_path}")
+                 except Exception as e:
+                    print(f"刪除失敗 {item_path}: {e}")
 
 def STAGE_I(N:int ):
     
