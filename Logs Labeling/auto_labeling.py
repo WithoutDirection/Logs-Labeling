@@ -95,7 +95,6 @@ class LabelingConfig:
     intermediate_data_dir: str = config.INTERMEDIATE_DATA_DIR
     labeling_results_dir: str = getattr(config, 'LABELING_RESULTS_DIR', os.path.join(config.RESULT_DIR, "Labeling_Results"))
     nmf_model_path: str = config.NMF_MODEL_PATH
-    ground_truth_path: str = os.path.join(config.DATA_DIR, "groundtruth", "abilities.csv")
 
 
 class AutoLabeler:
@@ -133,29 +132,6 @@ class AutoLabeler:
         
         # 結果
         self.labeling_results: Dict[str, pd.DataFrame] = {}
-
-        # Ground Truth
-        self.ground_truth = self._load_ground_truth()
-
-    def _load_ground_truth(self) -> Dict[str, Dict[str, str]]:
-        """載入 Ground Truth"""
-        if not os.path.exists(self.config.ground_truth_path):
-            print(f"[Warning] Ground Truth 不存在: {self.config.ground_truth_path}")
-            return {}
-        try:
-            df = pd.read_csv(self.config.ground_truth_path)
-            # filename -> {tid, t_name}
-            gt = {}
-            for _, row in df.iterrows():
-                fname = str(row['filename']).strip()
-                gt[fname] = {
-                    "tid": row['tid'],
-                    "t_name": row['t_name']
-                }
-            return gt
-        except Exception as e:
-            print(f"[Error] 載入 Ground Truth 失敗: {e}")
-            return {}
     
     # ======================== 資料載入 ========================
     
@@ -286,7 +262,9 @@ class AutoLabeler:
         # 尋找對應目錄
         target_dir = None
         candidates = [
+            os.path.join(base_dir, f"{dataset_id}_embeddings"),
             os.path.join(base_dir, f"{dataset_id}_raw_events_embeddings"),
+            os.path.join(base_dir, dataset_id)
         ]
         
         for cand in candidates:
@@ -307,6 +285,12 @@ class AutoLabeler:
             
         # 載入向量
         try:
+            # 1. Try NumPy
+            npy_path = os.path.join(target_dir, "embeddings.npy")
+            if os.path.exists(npy_path):
+                return np.load(npy_path)
+            
+            # 2. Try Arrow / HuggingFace Dataset
             arrow_path = os.path.join(target_dir, "data-00000-of-00001.arrow")
             if os.path.exists(arrow_path):
                 try:
@@ -737,6 +721,37 @@ class AutoLabeler:
                 for idx in top_k_indices
             ],
         }
+
+    def process_single_dataset(
+        self,
+        dataset_id: str,
+        concept_vectors: np.ndarray,
+        cluster_labels: np.ndarray,
+        output_dir: Optional[str] = None,
+        nmf_extractor: Any = None,
+    ) -> pd.DataFrame:
+        """
+        處理單一資料集標註 (整合 NMF/Pipeline 呼叫)
+        """
+        # 1. 儲存資料到內部狀態
+        self.concept_vectors[dataset_id] = concept_vectors
+        self.cluster_labels[dataset_id] = cluster_labels
+        
+        # 2. 如果使用概念向量比對，確保 MITRE 概念向量已準備好
+        if not self.config.use_raw_embeddings:
+            if self.mitre_concept_vectors is None:
+                if nmf_extractor and getattr(nmf_extractor, "model", None):
+                   print("[Info] 使用傳入的 NMF Extractor 轉換 MITRE 概念...")
+                   self.nmf_model = nmf_extractor.model
+                   self._nmf_scaler = getattr(nmf_extractor, "scaler", None)
+                   self.transform_mitre_to_concepts()
+                elif self.nmf_model:
+                   self.transform_mitre_to_concepts()
+                else:
+                    print("[Warning] 無法轉換 MITRE 概念 (缺少 NMF 模型)")
+
+        # 3. 呼叫標註邏輯
+        return self.label_dataset(dataset_id, output_dir)
     
     def label_dataset(
         self,
@@ -784,7 +799,7 @@ class AutoLabeler:
             dataset_id, vectors, cluster_labels, anomaly_scores
         )
         
-        # 計算 TF-IDF Centroids
+        # 計算 TF-IDF Centroids (NEW)
         tfidf_centroids = {}
         if self.config.use_tfidf:
             # 優先嘗試載入預計算的 TF-IDF 向量
@@ -821,27 +836,6 @@ class AutoLabeler:
             )
             cluster_results[cluster_id] = result
         
-        # 尋找 Ground Truth
-        gt_tid = None
-        gt_name = None
-        
-        # 嘗試匹配 dataset_id
-        candidates = [dataset_id]
-        
-        # 去除常見後綴
-        cleaned_id = dataset_id
-        for suffix in ["_embeddings", "_concepts", "_vectors", "_raw_events"]:
-             if cleaned_id.endswith(suffix):
-                 cleaned_id = cleaned_id[:-len(suffix)]
-        candidates.append(cleaned_id)
-        
-        
-        for cand in candidates:
-             if cand in self.ground_truth:
-                 gt_tid = self.ground_truth[cand]["tid"]
-                 gt_name = self.ground_truth[cand]["t_name"]
-                 break
-
         # 將標註結果映射回每個樣本
         sample_results = []
         for i in range(n_samples):
@@ -857,8 +851,6 @@ class AutoLabeler:
             sample_result = {
                 "log_index": i,
                 "cluster_id": cluster_id,
-                "ground_truth_tid": gt_tid,
-                "ground_truth_name": gt_name,
                 "predicted_technique": result["predicted_technique"],
                 "technique_name": result["technique_name"],
                 "similarity_score": result["similarity_score"],
@@ -903,152 +895,6 @@ class AutoLabeler:
         
         self.labeling_results[dataset_id] = result_df
         return result_df
-    
-    def process_single_dataset(
-        self,
-        dataset_id: str,
-        concept_vectors: np.ndarray,
-        cluster_labels: np.ndarray,
-        output_dir: Optional[str] = None,
-        nmf_extractor=None,
-    ) -> Optional[Dict[str, Any]]:
-        """
-        對單一 Dataset 執行自動標註（Per-Dataset API）
-        
-        此方法與 ConceptExtractor.process_single_dataset() 和 
-        SequenceClustering.process_single_dataset() 保持一致的 API 風格，
-        方便在 Pipeline 中統一調用。
-        
-        核心邏輯：
-        1. 如果有 NMF extractor，將 MITRE 嵌入投影至相同概念空間
-        2. 計算 Cluster Centroid 與投影後 MITRE 向量的餘弦相似度
-        3. 根據相似度為每個 Cluster 標註最匹配的 MITRE 技術
-        
-        Args:
-            dataset_id: Dataset 識別碼
-            concept_vectors: 概念向量矩陣 (N, n_concepts)
-            cluster_labels: HMM 分群標籤
-            output_dir: 輸出目錄
-            nmf_extractor: ConceptExtractor 物件（用於投影 MITRE 嵌入）
-            
-        Returns:
-            標註結果字典，包含 'labels' 和 'output_path'
-        """
-        output_dir = output_dir or self.config.labeling_results_dir
-        
-        if self.mitre_embeddings is None:
-            print(f"    [Warning] MITRE 嵌入未載入，跳過標註")
-            return None
-        
-        try:
-            # 計算每個 Cluster 的 Centroid
-            unique_clusters = np.unique(cluster_labels)
-            cluster_centroids = {}
-            
-            for cluster_id in unique_clusters:
-                mask = cluster_labels == cluster_id
-                cluster_vectors = concept_vectors[mask]
-                centroid = np.mean(cluster_vectors, axis=0)
-                cluster_centroids[cluster_id] = centroid
-            
-            centroid_matrix = np.array([cluster_centroids[c] for c in unique_clusters])
-            
-            # 判斷是否需要 NMF 投影
-            mitre_dim = self.mitre_embeddings.shape[1]
-            concept_dim = centroid_matrix.shape[1]
-            
-            if nmf_extractor is not None and hasattr(nmf_extractor, '_is_fitted') and nmf_extractor._is_fitted:
-                # 使用 extractor 投影 MITRE 嵌入
-                nmf_input_dim = nmf_extractor.model.components_.shape[1]
-                
-                if mitre_dim == nmf_input_dim:
-                    print(f"    [NMF 投影] 將 MITRE 嵌入投影至概念空間...")
-                    mitre_projected = nmf_extractor.transform_local(self.mitre_embeddings)
-                    similarities = cosine_similarity(centroid_matrix, mitre_projected)
-                else:
-                    print(f"    [Warning] NMF 輸入維度 ({nmf_input_dim}) 與 MITRE 維度 ({mitre_dim}) 不符")
-                    return self._generate_placeholder_result(dataset_id, cluster_labels, output_dir)
-            elif mitre_dim != concept_dim:
-                # 無 NMF 模型且維度不符
-                print(f"    [Info] 維度不符 (MITRE={mitre_dim}, Concept={concept_dim})，無 NMF 模型，使用簡化標註")
-                return self._generate_placeholder_result(dataset_id, cluster_labels, output_dir)
-            else:
-                # 維度匹配，直接計算相似度
-                similarities = cosine_similarity(centroid_matrix, self.mitre_embeddings)
-            
-            # 為每個 cluster 找最佳匹配
-            cluster_to_technique = {}
-            for i, cluster_id in enumerate(unique_clusters):
-                best_idx = np.argmax(similarities[i])
-                best_sim = similarities[i, best_idx]
-                technique_id = self.mitre_technique_ids[best_idx] if self.mitre_technique_ids else f"T{best_idx}"
-                technique_name = self.mitre_technique_names[best_idx] if self.mitre_technique_names else "Unknown"
-                cluster_to_technique[cluster_id] = {
-                    "technique_id": technique_id,
-                    "technique_name": technique_name,
-                    "similarity": float(best_sim),
-                }
-            
-            # 顯示 Top-3 匹配技術
-            print(f"    [Top-3 匹配技術]")
-            for cid in list(unique_clusters)[:3]:
-                tech = cluster_to_technique[cid]
-                name_display = tech['technique_name'][:30] + "..." if len(tech['technique_name']) > 30 else tech['technique_name']
-                print(f"      Cluster {cid}: {tech['technique_id'][:30]}... ({name_display}) sim={tech['similarity']:.3f}")
-            
-            # 生成每筆日誌的標註
-            labeling_results = []
-            for log_idx in range(len(cluster_labels)):
-                cluster_id = cluster_labels[log_idx]
-                tech_info = cluster_to_technique[cluster_id]
-                labeling_results.append({
-                    "log_index": log_idx,
-                    "cluster_id": int(cluster_id),
-                    "technique_id": tech_info["technique_id"],
-                    "technique_name": tech_info["technique_name"],
-                    "confidence": tech_info["similarity"],
-                })
-            
-            # 儲存結果
-            ensure_dir(output_dir)
-            output_path = os.path.join(output_dir, f"{dataset_id}_labels.csv")
-            df = pd.DataFrame(labeling_results)
-            df.to_csv(output_path, index=False)
-            print(f"    標註結果已存至 {output_path}")
-            
-            return {"labels": labeling_results, "output_path": output_path}
-            
-        except Exception as e:
-            print(f"    [Error] 標註失敗: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
-    
-    def _generate_placeholder_result(
-        self,
-        dataset_id: str,
-        cluster_labels: np.ndarray,
-        output_dir: str,
-    ) -> Dict[str, Any]:
-        """生成佔位符標註結果（維度不符時使用）"""
-        labels = [
-            {
-                "log_index": i,
-                "cluster_id": int(cluster_labels[i]),
-                "technique_id": "TBD",
-                "technique_name": "待人工標註",
-                "confidence": 0.0,
-            }
-            for i in range(len(cluster_labels))
-        ]
-        
-        ensure_dir(output_dir)
-        output_path = os.path.join(output_dir, f"{dataset_id}_labels.csv")
-        df = pd.DataFrame(labels)
-        df.to_csv(output_path, index=False)
-        print(f"    [Placeholder] 標註結果已存至 {output_path}")
-        
-        return {"labels": labels, "output_path": output_path}
     
     def batch_label_all(
         self,
@@ -1174,18 +1020,12 @@ def load_anomaly_weights(
 ) -> Dict[str, np.ndarray]:
     """
     載入異常偵測分數作為後續標註的權重（供 Pipeline.py STAGE_II 使用）
-    
-    支援以下格式：
-    1. HuggingFace Datasets (Arrow 格式) - 優先
-    2. NumPy .npy 檔案 - 備選
     """
-    from datasets import load_from_disk
-    
     if not os.path.exists(detection_results_dir):
         print(f"[Warning] 找不到異常偵測結果目錄: {detection_results_dir}")
         return {}
     
-    # 嘗試載入整合結果 (舊格式)
+    # 嘗試載入整合結果
     scores = _load_scores_dict(detection_results_dir)
     if scores:
         print(f"[Info] 已載入 {len(scores)} 個資料集的異常分數權重")
@@ -1199,31 +1039,6 @@ def load_anomaly_weights(
             continue
         
         dataset_id = subdir.replace("_detection", "").replace("_embeddings", "")
-        
-        # 方法 1：嘗試載入 Arrow 格式 (HuggingFace Datasets)
-        state_json = os.path.join(subdir_path, "state.json")
-        if os.path.exists(state_json):
-            try:
-                ds = load_from_disk(subdir_path)
-                # 優先使用 ensemble 分數，否則找任何 score 欄位
-                score_col = None
-                for col in ["ensemble", "ensemble_score", "ensemble_raw"]:
-                    if col in ds.column_names:
-                        score_col = col
-                        break
-                if score_col is None:
-                    for col in ds.column_names:
-                        if "score" in col.lower() or "anomaly" in col.lower():
-                            score_col = col
-                            break
-                
-                if score_col:
-                    weights[dataset_id] = np.array(ds[score_col])
-                    continue
-            except Exception as e:
-                print(f"[Warning] 載入 Arrow 格式失敗 {subdir_path}: {e}")
-        
-        # 方法 2：嘗試載入 .npy 格式
         for fname in ["ensemble_scores.npy", "scores.npy", "anomaly_scores.npy"]:
             path = os.path.join(subdir_path, fname)
             if os.path.exists(path):
