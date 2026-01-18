@@ -253,9 +253,9 @@ def visualize_all(
         
         try:
             # 取得概念向量
-            concept_key = dataset_id.replace("_embeddings", "")
+            concept_key = dataset_id
             if concept_key not in concept_vectors:
-                print(f"    [Skip] 找不到概念向量")
+                print("    [Skip] 找不到概念向量")
                 continue
             concept_matrix = concept_vectors[concept_key]
             

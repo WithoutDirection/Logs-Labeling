@@ -650,7 +650,7 @@ def generate_detection_summary(
         corr_method = getattr(config, 'CORRELATION_METHOD', 'pearson')
         global_corr_matrix = combined_df.corr(method=corr_method)
     
-    print(f"✓ 已收集 {len(results)} 個資料集的結果")
+    print(f"已收集 {len(results)} 個資料集的結果")
     
     # ========== 階段 2: 基礎視覺化 ==========
     if generate_visualizations:

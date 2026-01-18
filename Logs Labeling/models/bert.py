@@ -145,10 +145,10 @@ class SentenceBERTModel(BaseBERTModel):
         try:
             self.model = SentenceTransformer(self.model_name, cache_folder=self.cache_dir)
             self.is_loaded = True
-            print(f"  ✓ 模型載入成功")
+            print(f"  模型載入成功")
             print(f"  嵌入維度：{self.get_embedding_dim()}")
         except Exception as e:
-            print(f"  ✗ 模型載入失敗：{e}")
+            print(f"  模型載入失敗：{e}")
             raise
         return self
     
@@ -273,10 +273,10 @@ class TransformerBERTModel(BaseBERTModel):
             self.model.to(self.device)
             self.model.eval()
             self.is_loaded = True
-            print(f"  ✓ 模型在 {self.device} 上載入成功")
+            print(f"  模型在 {self.device} 上載入成功")
             print(f"  嵌入維度：{self.get_embedding_dim()}")
         except Exception as e:
-            print(f"  ✗ 模型載入失敗：{e}")
+            print(f"  模型載入失敗：{e}")
             raise
         return self
     

@@ -1,21 +1,20 @@
 """
 ConceptExtractor：使用 NMF/LDA 將日誌向量映射至潛在概念空間
 
+# * Per-Dataset NMF 策略：每個 Dataset 獨立訓練專屬模型
+# * 結合 External Knowledge 作為對比基準（語義錨點）
 # * GPU 加速的 NMF（乘法更新規則 + L1 稀疏性）
 # * 自動處理 OOM（動態調整 batch size）
 # * GPU 不可用時自動回退至 sklearn CPU
-# * GPU 併發控制：use_gpu=True 時強制 n_jobs=1
-# * 代表性樣本提取功能
 """
 
 import sys
 import shutil
 import pickle
 from pathlib import Path
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Dict
 
 import numpy as np
-from joblib import Parallel, delayed
 import pyarrow as pa
 import pyarrow.feather as feather
 from sklearn.decomposition import NMF, LatentDirichletAllocation
@@ -38,12 +37,10 @@ from config import (
     NMF_MAX_ITER,
     NMF_TOL,
     NMF_INIT,
-    CONCEPT_SAMPLE_RATIO,
     NMF_MODEL_PATH,
     CONCEPT_VECTORS_DIR,
     EXTERNAL_KNOWLEDGE_DIR,
     SEED,
-    CONCEPT_BATCH_N_JOBS,
     NMF_USE_GPU,
     NMF_GPU_BATCH_SIZE,
     NMF_GPU_EPSILON,
@@ -58,12 +55,12 @@ from models.NMF_gpu import NMFGpu, _check_cuda_available
 
 class ConceptExtractor:
     """
-    使用 NMF/LDA 從日誌向量中萍取潛在概念
+    使用 NMF/LDA 從日誌向量中萃取潛在概念（Per-Dataset 策略）
     
-    # * 流程：prepare_training_data() → fit_global_model() → transform_dataset()
+    # * Per-Dataset 策略：每個 Dataset 獨立訓練專屬 NMF 模型
+    # * External Knowledge 作為語義錨點，凸顯 Dataset 的特異性
+    # * 流程：fit_local_model() → transform_local() → save_local_model()
     # * GPU 加速：NMF 優先使用 PyTorch GPU
-    # * GPU 併發控制：use_gpu=True 時強制 n_jobs=1（避免 VRAM 競爭）
-    # * 代表性樣本：可提取每個概念的代表性日誌索引
     """
     
     def __init__(
@@ -75,8 +72,6 @@ class ConceptExtractor:
         tol: float = NMF_TOL,
         init: str = NMF_INIT,
         random_state: int = SEED,
-        model_path: str = NMF_MODEL_PATH,
-        n_jobs: int = CONCEPT_BATCH_N_JOBS,
         use_gpu: bool = NMF_USE_GPU,
         gpu_batch_size: Optional[int] = NMF_GPU_BATCH_SIZE,
         gpu_epsilon: float = NMF_GPU_EPSILON,
@@ -90,123 +85,30 @@ class ConceptExtractor:
         self.tol = tol
         self.init = init
         self.random_state = random_state
-        self.model_path = model_path
         
-        # * GPU 併發控制：GPU 時強制單執行緒
+        # * GPU 設定
         self.use_gpu = use_gpu
-        if use_gpu and _check_cuda_available():
-            self.n_jobs = 1  # * 避免 VRAM 競爭
-            if n_jobs != 1:
-                print("GPU 模式下設定 n_jobs=1 ")
-        else:
-            self.n_jobs = n_jobs
-        
         self.gpu_batch_size = gpu_batch_size
         self.gpu_epsilon = gpu_epsilon
         self.gpu_check_interval = gpu_check_interval
         self.gpu_verbose = gpu_verbose
         
+        # * Per-Dataset 模型儲存
         self.model = None
         self.scaler = MinMaxScaler()
         self._is_fitted = False
         self._is_gpu_model = False
+        self._dataset_sample_count = 0  # 記錄 Dataset 的樣本數量
+        self._effective_n_concepts = n_concepts  # 實際使用的概念數
+        
+        # * 外部知識快取
+        self._external_vectors: Optional[np.ndarray] = None
 
     def _resolve_path(self, path: str) -> str:
-        # * 轉相對路徑為專案根目錄下的絕對路徑
+        """轉相對路徑為專案根目錄下的絕對路徑"""
         return str(Path(path)) if Path(path).is_absolute() else str(Path(PROJECT_ROOT) / path)
     
-    # ======================== 資料準備 ========================
-    
-    def _validate_and_append_vectors(
-        self,
-        vectors: np.ndarray,
-        ref_dim: Optional[int],
-        source_name: str,
-        all_vectors: List[np.ndarray],
-    ) -> Optional[int]:
-        # * 驗證向量維度並加入集合
-        vectors = np.asarray(vectors)
-        if vectors.ndim == 1:
-            vectors = vectors.reshape(-1, 1)
-        if vectors.ndim != 2:
-            print(f"跳過 {source_name}: 非預期維度 {vectors.ndim}")
-            return ref_dim
-        
-        if ref_dim is None:
-            ref_dim = vectors.shape[1]
-        elif vectors.shape[1] != ref_dim:
-            print(f"跳過 {source_name}: 維度 {vectors.shape[1]} != {ref_dim}")
-            return ref_dim
-        
-        all_vectors.append(vectors)
-        return ref_dim
-    
-    def prepare_training_data(
-        self,
-        log_vectors_dir: str = LOG_VECTORS_DIR,
-        external_knowledge_dir: Optional[str] = EXTERNAL_KNOWLEDGE_DIR,
-        sample_ratio: float = CONCEPT_SAMPLE_RATIO,
-    ) -> np.ndarray:
-        """
-        從多個來源聚合並抽樣向量，建立全域訓練資料。
-        
-        參數：
-            log_vectors_dir：包含各 LogID 子資料夾的根目錄
-            external_knowledge_dir：外部知識向量的目錄（如 MITRE）
-            sample_ratio：每個資料集抽樣比例
-            
-        回傳：
-            X_train：聚合後的訓練矩陣（n_samples, n_features）
-        """
-        log_vectors_dir = self._resolve_path(log_vectors_dir)
-        external_knowledge_dir = (
-            self._resolve_path(external_knowledge_dir)
-            if external_knowledge_dir else None
-        )
-        all_vectors = []
-        np.random.seed(self.random_state)
-        ref_dim: Optional[int] = None
-        
-        # * 載入外部知識向量（若存在）
-        if external_knowledge_dir and exists(external_knowledge_dir):
-            for subdir in get_dirs(external_knowledge_dir):
-                ext_path = join_path(external_knowledge_dir, subdir)
-                vectors = self._load_arrow_data(ext_path)
-                if vectors is not None:
-                    ref_dim = self._validate_and_append_vectors(
-                        vectors, ref_dim, f"外部知識 {subdir}", all_vectors
-                    )
-                    if all_vectors and all_vectors[-1] is vectors:
-                        print(f"載入外部知識: {subdir}, shape={vectors.shape}")
-        
-        # * 從每個 LogVectors 資料集進行抽樣
-        if exists(log_vectors_dir):
-            for log_id_dir in get_dirs(log_vectors_dir):
-                dataset_path = join_path(log_vectors_dir, log_id_dir)
-                vectors = self._load_arrow_data(dataset_path)
-                if vectors is None:
-                    continue
-
-                old_len = len(all_vectors)
-                ref_dim = self._validate_and_append_vectors(
-                    vectors, ref_dim, log_id_dir, all_vectors
-                )
-                
-                # * 若成功加入，進行抽樣
-                if len(all_vectors) > old_len:
-                    full_vectors = all_vectors.pop()
-                    n_samples = max(1, int(len(full_vectors) * sample_ratio))
-                    indices = np.random.choice(len(full_vectors), n_samples, replace=False)
-                    all_vectors.append(full_vectors[indices])
-                    print(f"抽樣 {n_samples}/{len(full_vectors)} 自 {log_id_dir}")
-        
-        if not all_vectors:
-            raise ValueError("找不到訓練資料，請檢查輸入目錄。")
-        
-        # * 將所有向量垂直堆疊
-        X_train = np.vstack(all_vectors)
-        print(f"訓練資料準備完成: {X_train.shape}")
-        return X_train
+    # ======================== 資料載入 ========================
     
     def _load_arrow_data(self, dir_path: str) -> Optional[np.ndarray]:
         """
@@ -222,7 +124,7 @@ class ConceptExtractor:
                     return np.array(ds[vec_col])
                 return ds.to_pandas().values
             except Exception as e:
-                print(f"HF 載入失敗 {dir_path}: {e}")
+                print(f"    [Warning] HF 載入失敗 {dir_path}: {e}")
         
         # * 嘗試以 Feather 格式讀取 Arrow 檔案
         for fname in ["data.arrow", "data-00000-of-00001.arrow"]:
@@ -243,33 +145,141 @@ class ConceptExtractor:
                 return np.array(table[col].to_pylist())
         return table.to_pandas().values
     
-    # ======================== 模型訓練（Model Training） ========================
-    
-    def fit_global_model(self, X_train: np.ndarray) -> "ConceptExtractor":
+    def load_external_knowledge(
+        self,
+        external_knowledge_dir: str = EXTERNAL_KNOWLEDGE_DIR,
+    ) -> Optional[np.ndarray]:
         """
-        在聚合後的資料上訓練全域概念模型（NMF 或 LDA）。
+        載入所有外部知識向量（MITRE、CAPEC 等）作為語義錨點。
         
-        對於 NMF：
-            - 優先使用 GPU 加速（若 use_gpu=True 且 CUDA 可用）
-            - 自動處理 OOM 問題（動態調整 batch size）
-            - GPU 不可用時自動回退至 sklearn CPU 實作
+        這些向量會與每個 Dataset 聯合訓練 NMF，用於：
+        1. 提供跨 Technique 的語義基準
+        2. 幫助 NMF 學習「Dataset 與已知攻擊模式的關聯」
         
-        對於 LDA：
-            - 使用 sklearn 的 LatentDirichletAllocation
+        Returns:
+            外部知識向量矩陣，若無則回傳 None
+        """
+        external_knowledge_dir = self._resolve_path(external_knowledge_dir)
         
-        參數：
-            X_train：訓練矩陣（n_samples, n_features）
+        if not exists(external_knowledge_dir):
+            print(f"    [Warning] 找不到外部知識目錄: {external_knowledge_dir}")
+            return None
+        
+        all_vectors = []
+        ref_dim: Optional[int] = None
+        
+        for subdir in get_dirs(external_knowledge_dir):
+            ext_path = join_path(external_knowledge_dir, subdir)
+            vectors = self._load_arrow_data(ext_path)
             
-        回傳：
+            if vectors is None:
+                continue
+                
+            vectors = np.asarray(vectors)
+            if vectors.ndim == 1:
+                vectors = vectors.reshape(-1, 1)
+            if vectors.ndim != 2:
+                continue
+            
+            # 驗證維度一致性
+            if ref_dim is None:
+                ref_dim = vectors.shape[1]
+            elif vectors.shape[1] != ref_dim:
+                print(f"    [Warning] 維度不符 {subdir}: {vectors.shape[1]} != {ref_dim}")
+                continue
+            
+            all_vectors.append(vectors)
+            print(f"    載入外部知識: {subdir}, shape={vectors.shape}")
+        
+        if not all_vectors:
+            return None
+        
+        self._external_vectors = np.vstack(all_vectors)
+        print(f"    外部知識總計: {self._external_vectors.shape}")
+        return self._external_vectors
+    
+    def load_dataset_vectors(self, dataset_path: str) -> np.ndarray:
+        """
+        載入單一 Dataset 的 Log Vectors。
+        
+        Args:
+            dataset_path: Dataset 資料夾路徑
+            
+        Returns:
+            Log Vectors 矩陣 (n_samples, n_features)
+        """
+        dataset_path = self._resolve_path(dataset_path)
+        vectors = self._load_arrow_data(dataset_path)
+        
+        if vectors is None:
+            raise FileNotFoundError(f"找不到資料: {dataset_path}")
+        
+        vectors = np.asarray(vectors)
+        if vectors.ndim == 1:
+            vectors = vectors.reshape(-1, 1)
+        
+        return vectors
+    
+    # ======================== Per-Dataset 模型訓練 ========================
+    
+    def fit_local_model(
+        self,
+        dataset_vectors: np.ndarray,
+        external_vectors: Optional[np.ndarray] = None,
+        dataset_id: str = "unknown",
+    ) -> "ConceptExtractor":
+        """
+        針對單一 Dataset 訓練局部 NMF 模型（Per-Dataset 策略）。
+        
+        策略：
+        1. 將 Dataset + External Knowledge 聯合訓練 NMF
+        2. External Knowledge 作為語義錨點，凸顯 Dataset 的特異性
+        3. 訓練後僅對 Dataset 部分進行轉換與後續 HMM
+        
+        這樣萃取出的概念會反映：
+        - 該 Dataset 與已知攻擊模式的相似性
+        - 該 Dataset 的獨特行為模式
+        
+        Args:
+            dataset_vectors: 單一 Dataset 的 Log Vectors (n_samples, n_features)
+            external_vectors: 外部知識向量（若為 None 則使用快取的 _external_vectors）
+            dataset_id: Dataset 識別碼（用於日誌輸出）
+            
+        Returns:
             self（已訓練完成的萃取器）
         """
-        print(f"開始訓練 {self.method.upper()} 模型...")
+        print(f"\n    [Per-Dataset NMF] 訓練 {dataset_id}...")
         
-        # * 以 Min-Max 縮放確保非負性
-        print("正在進行 Min-Max 縮放...")
+        # * 使用外部向量（優先傳入參數，其次使用快取）
+        ext_vectors = external_vectors if external_vectors is not None else self._external_vectors
+        
+        # * 聯合訓練資料（Dataset + External）
+        dataset_vectors = np.asarray(dataset_vectors, dtype=np.float64)
+        self._dataset_sample_count = len(dataset_vectors)
+        
+        if ext_vectors is not None:
+            # 驗證維度
+            if dataset_vectors.shape[1] != ext_vectors.shape[1]:
+                raise ValueError(
+                    f"維度不符: Dataset={dataset_vectors.shape[1]}, "
+                    f"External={ext_vectors.shape[1]}"
+                )
+            X_train = np.vstack([dataset_vectors, ext_vectors])
+            print(f"    Dataset: {self._dataset_sample_count} 筆, External: {len(ext_vectors)} 筆")
+        else:
+            X_train = dataset_vectors
+            print(f"    Dataset: {self._dataset_sample_count} 筆 (無外部知識)")
+        
+        # * 動態調整概念數量：避免概念數超過樣本數
+        n_samples = len(X_train)
+        effective_n_concepts = min(self.n_concepts, n_samples - 1, dataset_vectors.shape[1])
+        if effective_n_concepts < self.n_concepts:
+            print(f"    [Warning] 動態調整概念數: {self.n_concepts} → {effective_n_concepts}")
+        self._effective_n_concepts = effective_n_concepts
+        
+        # * Min-Max 縮放確保非負性
         X_scaled = self.scaler.fit_transform(X_train)
-        X_scaled = np.clip(X_scaled, 0, None)  # Extra safety for numerical stability
-        print(f"縮放完成，開始擬合模型（n_concepts={self.n_concepts}, max_iter={self.max_iter}）...")
+        X_scaled = np.clip(X_scaled, 0, None)
         
         # * 初始化並擬合模型
         if self.method == "nmf":
@@ -277,7 +287,9 @@ class ConceptExtractor:
             
             if use_gpu_nmf:
                 self.model = NMFGpu(
-                    n_components=self.n_concepts,                    l1_reg=self.l1_reg,                    max_iter=self.max_iter,
+                    n_components=effective_n_concepts,
+                    l1_reg=self.l1_reg,
+                    max_iter=self.max_iter,
                     tol=self.tol,
                     epsilon=self.gpu_epsilon,
                     random_state=self.random_state,
@@ -288,9 +300,9 @@ class ConceptExtractor:
                 self._is_gpu_model = True
             else:
                 if self.use_gpu:
-                    print("⚠️ GPU 不可用，改用 sklearn CPU NMF")
+                    print("    [Warning] GPU 不可用，改用 sklearn CPU NMF")
                 self.model = NMF(
-                    n_components=self.n_concepts,
+                    n_components=effective_n_concepts,
                     init=self.init,
                     solver="cd",
                     max_iter=self.max_iter,
@@ -301,7 +313,7 @@ class ConceptExtractor:
                 
         elif self.method == "lda":
             self.model = LatentDirichletAllocation(
-                n_components=self.n_concepts,
+                n_components=effective_n_concepts,
                 max_iter=self.max_iter,
                 random_state=self.random_state,
                 learning_method="batch",
@@ -314,275 +326,307 @@ class ConceptExtractor:
         self._is_fitted = True
         
         device_info = "GPU" if self._is_gpu_model else "CPU"
-        print(f"✅ 全域 {self.method.upper()} 模型訓練完成（{device_info}），概念數量: {self.n_concepts}")
+        print(f"    [完成] {self.method.upper()} 訓練完成（{device_info}），概念數: {effective_n_concepts}")
         return self
-    
-    def save_model(self, path: Optional[str] = None) -> None:
-        # * 儲存模型至磁碟
-        save_path = self._resolve_path(path or self.model_path)
-        ensure_dir(get_parent_dir(save_path))
-        
-        with open(save_path, "wb") as f:
-            pickle.dump({
-                "model": self.model,
-                "scaler": self.scaler,
-                "n_concepts": self.n_concepts,
-                "method": self.method,
-                "n_jobs": self.n_jobs,
-                "is_gpu_model": self._is_gpu_model,
-                "use_gpu": self.use_gpu,
-                "gpu_batch_size": self.gpu_batch_size,
-            }, f)
-        print(f"模型已儲存至 {save_path}")
-    
-    def load_model(self, path: Optional[str] = None) -> "ConceptExtractor":
-        # * 從磁碟載入模型
-        load_path = self._resolve_path(path or self.model_path)
-        
-        with open(load_path, "rb") as f:
-            data = pickle.load(f)
-        
-        self.model = data["model"]
-        self.scaler = data["scaler"]
-        self.n_concepts = data["n_concepts"]
-        self.method = data["method"]
-        self.n_jobs = data.get("n_jobs", -1)
-        self._is_gpu_model = data.get("is_gpu_model", False)
-        self.use_gpu = data.get("use_gpu", self.use_gpu)
-        self.gpu_batch_size = data.get("gpu_batch_size", self.gpu_batch_size)
-        self._is_fitted = True
-        
-        device_info = "GPU" if self._is_gpu_model else "CPU"
-        print(f"模型已從 {load_path} 載入（{device_info} 模型）")
-        return self
-    
-    def extract_representative_samples(
-        self,
-        X: np.ndarray,
-        top_n: int = 10,
-    ) -> dict:
-        # * 提取每個概念的代表性樣本索引（Top-N 權重）
-        # * 用於人工標註概念語義或自動生成概念標籤
-        if not self._is_fitted:
-            raise RuntimeError("尚未訓練模型。請先呼叫 fit_global_model()。")
-        
-        # * 轉換至概念空間
-        H = self.transform(X)
-        
-        # * 對每個概念找出權重最高的 Top-N 樣本
-        representative_indices = {}
-        for concept_idx in range(self.n_concepts):
-            concept_weights = H[:, concept_idx]
-            # * 降序排列，取前 N 個索引
-            top_indices = np.argsort(concept_weights)[::-1][:top_n]
-            representative_indices[concept_idx] = top_indices.tolist()
-        
-        print(f"已提取 {self.n_concepts} 個概念的代表性樣本（每個概念 Top-{top_n}）")
-        return representative_indices
     
     # ======================== 資料轉換 ========================
     
-    def transform(self, X: np.ndarray) -> np.ndarray:
-        # * 使用凍結的基矩陣將向量投影至概念空間
-        if not self._is_fitted:
-            raise RuntimeError("尚未訓練模型。請先呼叫 fit_global_model()。")
+    def transform_local(self, X: np.ndarray) -> np.ndarray:
+        """
+        使用局部模型將向量投影至概念空間。
         
-        # * 套用與訓練相同的縮放
+        Args:
+            X: 輸入向量矩陣 (n_samples, n_features)
+            
+        Returns:
+            概念向量矩陣 (n_samples, n_concepts)
+        """
+        if not self._is_fitted:
+            raise RuntimeError("尚未訓練模型。請先呼叫 fit_local_model()。")
+        
         X_scaled = self.scaler.transform(X)
         X_scaled = np.clip(X_scaled, 0, None)
         
         return self.model.transform(X_scaled)
     
-    def transform_dataset(
+    def transform_dataset_only(self, dataset_vectors: np.ndarray) -> np.ndarray:
+        """
+        僅轉換 Dataset 部分（排除 External Knowledge）。
+        
+        這是 Per-Dataset 策略的核心：
+        - 訓練時使用 Dataset + External Knowledge
+        - 轉換時僅對 Dataset 進行投影
+        
+        Args:
+            dataset_vectors: 原始 Dataset 向量（與訓練時相同）
+            
+        Returns:
+            Dataset 的概念向量矩陣
+        """
+        return self.transform_local(dataset_vectors)
+    
+    # ======================== 模型存取 ========================
+    
+    def save_local_model(
         self,
+        output_dir: str,
+        dataset_id: str,
+    ) -> str:
+        """
+        儲存 Per-Dataset 模型至指定目錄。
+        
+        Args:
+            output_dir: 輸出根目錄
+            dataset_id: Dataset 識別碼
+            
+        Returns:
+            模型檔案路徑
+        """
+        output_dir = self._resolve_path(output_dir)
+        dataset_output_dir = join_path(output_dir, f"{dataset_id}_concepts")
+        ensure_dir(dataset_output_dir)
+        
+        model_path = join_path(dataset_output_dir, "nmf_model.pkl")
+        
+        with open(model_path, "wb") as f:
+            pickle.dump({
+                "model": self.model,
+                "scaler": self.scaler,
+                "n_concepts": self._effective_n_concepts,
+                "method": self.method,
+                "is_gpu_model": self._is_gpu_model,
+                "dataset_sample_count": self._dataset_sample_count,
+            }, f)
+        
+        print(f"    模型已儲存至 {model_path}")
+        return model_path
+    
+    def load_local_model(
+        self,
+        model_path: str,
+    ) -> "ConceptExtractor":
+        """
+        載入 Per-Dataset 模型。
+        
+        Args:
+            model_path: 模型檔案路徑
+            
+        Returns:
+            self
+        """
+        model_path = self._resolve_path(model_path)
+        
+        with open(model_path, "rb") as f:
+            data = pickle.load(f)
+        
+        self.model = data["model"]
+        self.scaler = data["scaler"]
+        self._effective_n_concepts = data["n_concepts"]
+        self.method = data["method"]
+        self._is_gpu_model = data.get("is_gpu_model", False)
+        self._dataset_sample_count = data.get("dataset_sample_count", 0)
+        self._is_fitted = True
+        
+        device_info = "GPU" if self._is_gpu_model else "CPU"
+        print(f"    模型已從 {model_path} 載入（{device_info}）")
+        return self
+    
+    # ======================== 單一 Dataset 完整流程 ========================
+    
+    def process_single_dataset(
+        self,
+        dataset_id: str,
         input_path: str,
-        output_path: str,
+        output_dir: str = CONCEPT_VECTORS_DIR,
+        external_knowledge_dir: str = EXTERNAL_KNOWLEDGE_DIR,
         copy_metadata: bool = True,
-    ) -> None:
+    ) -> np.ndarray:
         """
-        轉換單一資料集並儲存到結構化的輸出目錄。
+        處理單一 Dataset 的完整流程：載入 → 訓練 → 轉換 → 存檔。
         
-        參數：
-            input_path：輸入 LogVectors 資料夾路徑
-            output_path：輸出 ConceptVectors 資料夾路徑
-            copy_metadata：是否複製 state.json 與 dataset_info.json
+        這是 Per-Dataset 策略的主入口點。
+        
+        Args:
+            dataset_id: Dataset 識別碼
+            input_path: 輸入 LogVectors 資料夾路徑
+            output_dir: 輸出 ConceptVectors 根目錄
+            external_knowledge_dir: 外部知識目錄
+            copy_metadata: 是否複製 metadata 檔案
+            
+        Returns:
+            Dataset 的概念向量矩陣
         """
-        if not self._is_fitted:
-            raise RuntimeError("尚未訓練模型。請先載入或訓練模型。")
-        
         input_path = self._resolve_path(input_path)
-        output_path = self._resolve_path(output_path)
-
-        # * 載入輸入向量
-        X = self._load_arrow_data(input_path)
-        if X is None:
-            print(f"在 {input_path} 找不到資料，已跳過。")
-            return
+        output_dir = self._resolve_path(output_dir)
         
-        # * 轉換至概念空間
-        H = self.transform(X)
+        print(f"\n[Processing] {dataset_id}")
         
-        # * 儲存轉換後資料
-        ensure_dir(output_path)
-        output_arrow = join_path(output_path, "data-00000-of-00001.arrow")
+        # * Step 1: 載入外部知識（若尚未載入）
+        if self._external_vectors is None:
+            self.load_external_knowledge(external_knowledge_dir)
         
-        table = pa.table({"concept_vector": H.tolist()})
-        feather.write_feather(table, output_arrow)
-        print(f"轉換完成 {input_path} -> {output_path}, shape={H.shape}")
+        # * Step 2: 載入 Dataset 向量
+        dataset_vectors = self.load_dataset_vectors(input_path)
+        print(f"    載入 Dataset: {dataset_vectors.shape}")
         
-        # * 複製中繼資料（metadata）檔案
-        if copy_metadata:
-            for meta_file in ["state.json", "dataset_info.json"]:
-                src, dst = join_path(input_path, meta_file), join_path(output_path, meta_file)
-                if exists(src):
-                    shutil.copy2(src, dst)
-    
-    def _transform_single_dataset(
-        self,
-        log_id_dir: str,
-        log_vectors_dir: str,
-        concept_vectors_dir: str,
-    ) -> Optional[str]:
-        """
-        轉換單一資料集（內部方法，供並行處理使用）。
-        
-        回傳：
-            成功時回傳輸出路徑，失敗時回傳 None
-        """
-        input_path = join_path(log_vectors_dir, log_id_dir)
-        output_name = log_id_dir.replace("_logvectors", "_concepts")
-        output_path = join_path(concept_vectors_dir, output_name)
-        
-        try:
-            self.transform_dataset(input_path, output_path)
-            return output_path
-        except Exception as e:
-            print(f"轉換 {log_id_dir} 時發生錯誤: {e}")
-            return None
-    
-    def batch_transform(
-        self,
-        log_vectors_dir: str = LOG_VECTORS_DIR,
-        concept_vectors_dir: str = CONCEPT_VECTORS_DIR,
-        n_jobs: Optional[int] = None,
-    ) -> None:
-        """
-        將 LogVectors 目錄中的所有資料集轉換為 ConceptVectors。
-        
-        支援多 CPU 並行處理以加速批次轉換。
-        
-        參數：
-            log_vectors_dir：輸入 LogVectors 的根目錄
-            concept_vectors_dir：輸出 ConceptVectors 的根目錄
-            n_jobs：並行工作數（None 時使用實例預設值，-1 使用所有 CPU）
-        """
-        log_vectors_dir = self._resolve_path(log_vectors_dir)
-        concept_vectors_dir = self._resolve_path(concept_vectors_dir)
-        n_jobs = n_jobs if n_jobs is not None else self.n_jobs
-
-        if not exists(log_vectors_dir):
-            raise FileNotFoundError(f"Input directory not found: {log_vectors_dir}")
-        
-        ensure_dir(concept_vectors_dir)
-        
-        log_id_dirs = list(get_dirs(log_vectors_dir))
-        total = len(log_id_dirs)
-        print(f"開始並行批次轉換：共 {total} 個資料集，使用 n_jobs={n_jobs}")
-        
-        # * 使用 joblib 進行並行處理
-        results = Parallel(n_jobs=n_jobs, verbose=10)(
-            delayed(self._transform_single_dataset)(
-                log_id_dir, log_vectors_dir, concept_vectors_dir
-            )
-            for log_id_dir in log_id_dirs
+        # * Step 3: Per-Dataset NMF 訓練
+        self.fit_local_model(
+            dataset_vectors=dataset_vectors,
+            dataset_id=dataset_id,
         )
         
-        # * 統計成功與失敗數量
-        success_count = sum(1 for r in results if r is not None)
-        print(f"批次轉換完成：成功 {success_count}/{total}，輸出目錄：{concept_vectors_dir}")
+        # * Step 4: 轉換至概念空間（僅 Dataset 部分）
+        concept_vectors = self.transform_dataset_only(dataset_vectors)
+        
+        # * Step 5: 儲存結果
+        output_name = dataset_id.replace("_logvectors", "").replace("_embeddings", "")
+        dataset_output_dir = join_path(output_dir, f"{output_name}_concepts")
+        ensure_dir(dataset_output_dir)
+        
+        # 儲存概念向量
+        output_arrow = join_path(dataset_output_dir, "data-00000-of-00001.arrow")
+        table = pa.table({"concept_vector": concept_vectors.tolist()})
+        feather.write_feather(table, output_arrow)
+        
+        # 儲存模型
+        self.save_local_model(output_dir, output_name)
+        
+        # 複製 metadata
+        if copy_metadata:
+            for meta_file in ["state.json", "dataset_info.json"]:
+                src = join_path(input_path, meta_file)
+                dst = join_path(dataset_output_dir, meta_file)
+                if exists(src):
+                    shutil.copy2(src, dst)
+        
+        print(f"    [完成] 概念向量已存至 {dataset_output_dir}, shape={concept_vectors.shape}")
+        
+        return concept_vectors
     
-    # ======================== 分析工具（Analysis Utilities） ========================
+    # ======================== 分析工具 ========================
     
     def get_concept_basis(self) -> np.ndarray:
         """
         回傳已學得的概念基矩陣 W。
         
-        回傳：
-            W：NMF 的基矩陣（n_concepts, n_features），
-               或 LDA 的主題-詞彙分佈
+        Returns:
+            W：NMF 的基矩陣 (n_concepts, n_features)
         """
         if not self._is_fitted:
             raise RuntimeError("Model not fitted.")
         return self.model.components_
     
-    def get_reconstruction_error(self, X: np.ndarray) -> float:
-        """計算給定資料的重建誤差。"""
-        if not self._is_fitted:
-            raise RuntimeError("Model not fitted.")
+    def extract_representative_samples(
+        self,
+        concept_vectors: np.ndarray,
+        top_n: int = 10,
+    ) -> Dict[int, List[int]]:
+        """
+        提取每個概念的代表性樣本索引（Top-N 權重）。
         
-        X_scaled = self.scaler.transform(X)
-        X_scaled = np.clip(X_scaled, 0, None)
-        H = self.model.transform(X_scaled)
-        W = self.model.components_
-        X_reconstructed = H @ W
+        用於人工標註概念語義或自動生成概念標籤。
         
-        return np.mean((X_scaled - X_reconstructed) ** 2)
+        Args:
+            concept_vectors: 概念向量矩陣 (n_samples, n_concepts)
+            top_n: 每個概念提取的代表性樣本數量
+            
+        Returns:
+            {concept_idx: [sample_indices]}
+        """
+        representative_indices = {}
+        n_concepts = concept_vectors.shape[1]
+        
+        for concept_idx in range(n_concepts):
+            concept_weights = concept_vectors[:, concept_idx]
+            top_indices = np.argsort(concept_weights)[::-1][:top_n]
+            representative_indices[concept_idx] = top_indices.tolist()
+        
+        return representative_indices
 
 
-# ======================== 便捷函式（Convenience Functions） ========================
+# ======================== 便捷函式 ========================
 
-def train_concept_extractor(
-    log_vectors_dir: str = LOG_VECTORS_DIR,
-    external_knowledge_dir: Optional[str] = EXTERNAL_KNOWLEDGE_DIR,
-    n_concepts: int = NMF_COMPONENTS,
-    sample_ratio: float = CONCEPT_SAMPLE_RATIO,
-    model_path: str = NMF_MODEL_PATH,
-    method: Literal["nmf", "lda"] = "nmf",
-    n_jobs: int = -1,
-) -> ConceptExtractor:
-    """
-    端到端訓練流程：準備資料、訓練模型並儲存。
-    
-    參數：
-        n_jobs：批次轉換時的並行工作數（-1 表示使用所有 CPU）
-    """
-    extractor = ConceptExtractor(
-        n_concepts=n_concepts, 
-        method=method, 
-        model_path=model_path,
-        n_jobs=n_jobs,
-    )
-    
-    X_train = extractor.prepare_training_data(
-        log_vectors_dir=log_vectors_dir,
-        external_knowledge_dir=external_knowledge_dir,
-        sample_ratio=sample_ratio,
-    )
-    
-    extractor.fit_global_model(X_train)
-    extractor.save_model()
-    
-    return extractor
-
-
-def transform_all_datasets(
-    model_path: str = NMF_MODEL_PATH,
+def process_all_datasets(
     log_vectors_dir: str = LOG_VECTORS_DIR,
     concept_vectors_dir: str = CONCEPT_VECTORS_DIR,
-    n_jobs: int = -1,
-) -> None:
+    external_knowledge_dir: str = EXTERNAL_KNOWLEDGE_DIR,
+    n_concepts: int = NMF_COMPONENTS,
+    dataset_ids: Optional[List[str]] = None,
+) -> Dict[str, np.ndarray]:
     """
-    載入已訓練模型，並將所有 LogVectors 轉換為 ConceptVectors。
+    批次處理所有 Dataset（Per-Dataset NMF 策略）。
     
-    參數：
-        n_jobs：並行工作數（-1 表示使用所有 CPU）
+    每個 Dataset 獨立訓練專屬 NMF 模型。
+    
+    Args:
+        log_vectors_dir: LogVectors 根目錄
+        concept_vectors_dir: ConceptVectors 輸出根目錄
+        external_knowledge_dir: 外部知識目錄
+        n_concepts: 概念數量
+        dataset_ids: 指定處理的 Dataset ID（None 則處理全部）
+        
+    Returns:
+        {dataset_id: concept_vectors}
     """
-    extractor = ConceptExtractor(n_jobs=n_jobs)
-    extractor.load_model(model_path)
-    extractor.batch_transform(log_vectors_dir, concept_vectors_dir, n_jobs=n_jobs)
+    log_vectors_dir = str(Path(log_vectors_dir)) if Path(log_vectors_dir).is_absolute() else str(Path(PROJECT_ROOT) / log_vectors_dir)
+    
+    if not exists(log_vectors_dir):
+        raise FileNotFoundError(f"找不到 LogVectors 目錄: {log_vectors_dir}")
+    
+    # 取得所有 Dataset 目錄
+    all_dirs = list(get_dirs(log_vectors_dir))
+    if dataset_ids is not None:
+        all_dirs = [d for d in all_dirs if any(did in d for did in dataset_ids)]
+    
+    total = len(all_dirs)
+    print(f"\n{'=' * 60}")
+    print(f"Per-Dataset 概念提取 - 共 {total} 個資料集")
+    print(f"{'=' * 60}")
+    
+    results = {}
+    
+    # 建立共用的 extractor（外部知識只載入一次）
+    extractor = ConceptExtractor(n_concepts=n_concepts)
+    extractor.load_external_knowledge(external_knowledge_dir)
+    
+    for idx, log_id_dir in enumerate(all_dirs, 1):
+        print(f"\n=== [{idx}/{total}] ===")
+        
+        dataset_id = log_id_dir.replace("_logvectors", "").replace("_embeddings", "")
+        input_path = join_path(log_vectors_dir, log_id_dir)
+        
+        try:
+            # 每個 Dataset 重新初始化模型（但共用外部知識快取）
+            extractor.model = None
+            extractor._is_fitted = False
+            
+            concept_vectors = extractor.process_single_dataset(
+                dataset_id=dataset_id,
+                input_path=input_path,
+                output_dir=concept_vectors_dir,
+                external_knowledge_dir=external_knowledge_dir,
+            )
+            results[dataset_id] = concept_vectors
+            
+        except Exception as e:
+            print(f"    [Error] 處理 {dataset_id} 失敗: {e}")
+            continue
+    
+    # 統計摘要
+    print(f"\n{'=' * 60}")
+    print(f"處理摘要")
+    print(f"{'=' * 60}")
+    print(f"成功處理: {len(results)}/{total} 個資料集")
+    
+    return results
 
 
 if __name__ == "__main__":
-    # 範例用法
-    extractor = train_concept_extractor()
-    transform_all_datasets()
+    # 範例用法：Per-Dataset 概念提取
+    results = process_all_datasets()
+    
+    if results:
+        avg_concepts = np.mean([v.shape[1] for v in results.values()])
+        print(f"\n平均概念數: {avg_concepts:.2f}")
+    
+    print("\n[完成] Per-Dataset 概念提取已完成。")

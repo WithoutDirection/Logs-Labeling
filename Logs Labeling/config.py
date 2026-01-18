@@ -122,7 +122,7 @@ CORRELATION_METHOD = "pearson"  # 可選: "pearson", "spearman", "kendall"
 # ==================== 序列分群（HMM；每資料集分開） ====================
 HMM_STATES = 3  # 基本狀態數（若未啟用搜尋時）
 HMM_K_MIN = 1  # 隱藏狀態下界
-HMM_K_MAX = 10  # 隱藏狀態上界（常見攻擊序列約 3-5 階段）
+HMM_K_MAX = 15  # 隱藏狀態上界（常見攻擊序列約 3-5 階段）
 HMM_COVARIANCE_TYPE = "diag"  # 共變異數型式: "diag" 或 "full"
 HMM_MIN_COVAR = 0.1  # 最小共變異數，避免矩陣奇異
 HMM_N_STARTS = 4  # 隨機初始化次數（平衡耗時與穩定性）

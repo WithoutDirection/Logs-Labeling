@@ -451,7 +451,7 @@ class NMFGpu:
         self.reconstruction_err_ = self._compute_reconstruction_error_batched(X, self.components_)
         
         if self.verbose:
-            print(f"✅ NMF 訓練完成，迭代: {self.n_iter_}, 誤差: {self.reconstruction_err_:.6f}")
+            print(f"NMF 訓練完成，迭代: {self.n_iter_}, 誤差: {self.reconstruction_err_:.6f}")
         
         return self
     

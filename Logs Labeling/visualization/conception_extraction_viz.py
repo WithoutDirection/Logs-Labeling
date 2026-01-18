@@ -266,7 +266,7 @@ class StructuralVisualizer:
         try:
             import plotly.express as px
         except ImportError:
-            print("⚠️ 缺少 plotly 套件")
+            print("[Warning] 缺少 plotly 套件")
             return None
         
         df = pd.DataFrame({
@@ -283,7 +283,7 @@ class StructuralVisualizer:
         if output_path:
             Path(output_path).parent.mkdir(parents=True, exist_ok=True)
             fig.write_html(str(output_path))
-            print(f"✅ 3D 圖表已儲存至 {output_path}")
+            print(f"[Done] 3D 圖表已儲存至 {output_path}")
         
         return fig
     
@@ -327,7 +327,7 @@ class ConceptVisualization:
         """對多個資料集執行視覺化流程"""
         available = self.loader.list_available_datasets()
         if not available:
-            print("❌ 找不到任何 ConceptVectors 資料集")
+            print("[Error] 找不到任何 ConceptVectors 資料集")
             return {}
         
         if n_datasets:
@@ -343,30 +343,30 @@ class ConceptVisualization:
             results = {"dataset": dataset_name}
             
             if H_matrix is None:
-                print(f"⚠️ 無法載入概念向量，跳過")
+                print(f"[Warning] 無法載入概念向量，跳過")
                 continue
             
-            print(f"✅ 概念向量載入成功: shape={H_matrix.shape}")
+            print(f"[Done] 概念向量載入成功: shape={H_matrix.shape}")
             
             # 模組 A：語義解釋性
             if raw_logs:
-                print(f"\n📝 模組 A：語義解釋性分析 (日誌數量: {len(raw_logs)})")
+                print(f"\n[Module A] 語義解釋性分析 (日誌數量: {len(raw_logs)})")
                 representatives = self.semantic.get_representative_samples(H_matrix, raw_logs)
                 keywords = self.semantic.extract_keywords(representatives)
                 definition_table = self.semantic.build_concept_definition_table(representatives, keywords)
                 
                 table_path = self.output_dir / f"{dataset_name}_concept_definitions.csv"
                 definition_table.to_csv(table_path, index=False, encoding='utf-8-sig')
-                print(f"   ✅ 概念定義表已儲存至 {table_path}")
-                print(f"\n   📊 概念定義表摘要（前 10 個概念）:\n{definition_table.head(10).to_string(index=False)}")
+                print(f"   [Done] 概念定義表已儲存至 {table_path}")
+                print(f"\n   [Summary] 概念定義表摘要（前 10 個概念）:\n{definition_table.head(10).to_string(index=False)}")
                 
                 results.update({"representatives": representatives, "keywords": keywords, "definition_table": definition_table})
             else:
-                print("⚠️ 無法載入原始日誌，跳過語義分析")
+                print("[Warning] 無法載入原始日誌，跳過語義分析")
             
             # 模組 B：結構分離度
             if embeddings is not None:
-                print(f"\n🔬 模組 B：結構分離度分析 (原始嵌入維度: {embeddings.shape})")
+                print(f"\n結構分離度分析 (原始嵌入維度: {embeddings.shape})")
                 labels = self.structural.get_dominant_concept_labels(H_matrix)
                 print(f"   主導概念分布: {len(np.unique(labels))} 個概念被激活")
                 
@@ -375,7 +375,7 @@ class ConceptVisualization:
                 )
                 results["3d_figures"] = {"original": fig_orig, "nmf": fig_nmf}
             else:
-                print("⚠️ 無法載入原始嵌入，跳過結構分析")
+                print("[Warning] 無法載入原始嵌入，跳過結構分析")
             
             all_results[dataset_name] = results
         
@@ -396,7 +396,7 @@ def main():
     if available:
         sample_logs = viz.loader.load_raw_logs(available[0])
         if sample_logs:
-            print("\n📋 原始日誌範例（前 3 條）:")
+            print("\n原始日誌範例（前 3 條）:")
             for i, log in enumerate(sample_logs[:3]):
                 print(f"   {i+1}. {log[:150]}..." if len(log) > 150 else f"   {i+1}. {log}")
     
@@ -404,8 +404,8 @@ def main():
     results = viz.run_multi_dataset()
     
     print("\n" + "="*60)
-    print(f"✅ 視覺化分析完成，共處理 {len(results)} 個資料集")
-    print(f"📁 結果已儲存至: {viz.output_dir}")
+    print(f"視覺化分析完成，共處理 {len(results)} 個資料集")
+    print(f"結果已儲存至: {viz.output_dir}")
     print("="*60)
     
     return results
