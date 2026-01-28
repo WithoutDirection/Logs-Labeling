@@ -440,9 +440,10 @@ class ConceptExtractor:
         output_dir: str = CONCEPT_VECTORS_DIR,
         external_knowledge_dir: str = EXTERNAL_KNOWLEDGE_DIR,
         copy_metadata: bool = True,
+        use_tfidf_weighting: bool = True,
     ) -> np.ndarray:
         """
-        處理單一 Dataset 的完整流程：載入 → 訓練 → 轉換 → 存檔。
+        處理單一 Dataset 的完整流程：載入 → (選用 TF-IDF 加權) → 訓練 → 轉換 → 存檔。
         
         這是 Per-Dataset 策略的主入口點。
         
@@ -452,6 +453,7 @@ class ConceptExtractor:
             output_dir: 輸出 ConceptVectors 根目錄
             external_knowledge_dir: 外部知識目錄
             copy_metadata: 是否複製 metadata 檔案
+            use_tfidf_weighting: 是否使用 TF-IDF 調整嵌入權重
             
         Returns:
             Dataset 的概念向量矩陣
@@ -469,6 +471,10 @@ class ConceptExtractor:
         dataset_vectors = self.load_dataset_vectors(input_path)
         print(f"    載入 Dataset: {dataset_vectors.shape}")
         
+        # * [TF-IDF Integration] 權重調整
+        if use_tfidf_weighting:
+            dataset_vectors = self._apply_tfidf_weighting(dataset_id, dataset_vectors, input_path)
+
         # * Step 3: Per-Dataset NMF 訓練
         self.fit_local_model(
             dataset_vectors=dataset_vectors,
@@ -503,6 +509,74 @@ class ConceptExtractor:
         
         return concept_vectors
     
+    def _apply_tfidf_weighting(self, dataset_id: str, vectors: np.ndarray, input_path: str) -> np.ndarray:
+        """
+        利用 TF-IDF 調整嵌入向量權重。
+        
+        策略:
+        1. 載入該 Dataset 的預計算 TF-IDF 向量 (sparse matrix)
+        2. 計算每筆資料的 TF-IDF 強度 (L2 norm 或 Max weight)
+        3. 用強度縮放原始嵌入向量
+        """
+        try:
+            import scipy.sparse
+            # 尋找 tfidf.npz
+            tfidf_path = join_path(input_path, "tfidf.npz")
+            
+            # Debug: Print checking paths
+            print(f"    [Debug] Checking main path: {tfidf_path}")
+            
+            if not exists(tfidf_path):
+                # 嘗試去除/增加後綴
+                parent = str(Path(input_path).parent)
+                candidates = [
+                    join_path(input_path, "tfidf.npz"),
+                    join_path(parent, f"{dataset_id}_embeddings", "tfidf.npz"),
+                    join_path(parent, f"{dataset_id}_raw_events_embeddings", "tfidf.npz")
+                ]
+                print(f"    [Debug] Checking candidates: {candidates}")
+                for c in candidates:
+                    if exists(c):
+                        tfidf_path = c
+                        break
+            
+            if exists(tfidf_path):
+                tfidf_matrix = scipy.sparse.load_npz(tfidf_path)
+                if tfidf_matrix.shape[0] != vectors.shape[0]:
+                    print(f"    [Warning] TF-IDF shape {tfidf_matrix.shape} != Embedding shape {vectors.shape}，略過加權")
+                    return vectors
+                    
+                # 計算權重因子 (Normalized Sum of Top Keywords)
+                # 假設: 有顯著關鍵字的 log 應該更重要
+                # axis=1 sum gives rough importance
+                # 這裡使用 1 + sigmoid(norm) 稍微放大重要 log 的向量
+                
+                # Simple approach: L2 Norm of TFIDF vector
+                if scipy.sparse.issparse(tfidf_matrix):
+                    norms = scipy.sparse.linalg.norm(tfidf_matrix, axis=1)
+                else:
+                    norms = np.linalg.norm(tfidf_matrix, axis=1)
+                
+                # Normalize norms to 0-1 range for safe scaling
+                if norms.max() > 0:
+                    norms = norms / norms.max()
+                
+                # Scaling factor: Base 1.0 + (0.0 ~ 0.5 boost based on TFIDF strength)
+                # 這會讓包含強特徵關鍵字的 log 在 NMF 中影響力變大
+                scaling_factors = 1.0 + (0.5 * norms)
+                
+                # Apply scaling row-wise
+                weighted_vectors = vectors * scaling_factors[:, np.newaxis]
+                
+                print(f"    [TF-IDF] 已應用 TF-IDF 加權。Avg factor: {scaling_factors.mean():.4f}")
+                return weighted_vectors
+            else:
+                 print(f"    [TF-IDF] 找不到 tfidf.npz，略過加權")
+        except Exception as e:
+            print(f"    [Warning] TF-IDF 加權失敗: {e}")
+            
+        return vectors
+
     # ======================== 分析工具 ========================
     
     def get_concept_basis(self) -> np.ndarray:
