@@ -102,9 +102,59 @@ print(processor.get_zipf_filtered_words())
 | `NvdFetcher` | NVD/CVE | NVD API 2.0 |
 | `SigmaRulesFetcher` | Sigma Rules | 本地 YAML 解析 |
 
-## 3. 整合應用
+### 2.4 build_mitre_raw_embeddings (MITRE 嵌入建構器)
 
-### 3.1 查詢相似威脅技術
+位於 `build_mitre_raw_embeddings.py`，用於將 MITRE ATT&CK 技術描述轉換為 BERT 嵌入向量。這是 **Pipeline Stage III** 的核心模組。
+
+**使用方式：**
+
+```python
+from external_sources.build_mitre_raw_embeddings import build_mitre_raw_embeddings
+
+out_dir = build_mitre_raw_embeddings(
+    mitre_csv="data/reference_resources/MitreTechniquesTokens_V5.csv",
+    out_dir="data/ExternalKnowledge/MITRE_RAW_EMBEDDINGS",
+    bert_model="sentence-bert",
+    force_rebuild=False,  # 若已存在則跳過
+)
+```
+
+## 3. Pipeline 整合
+
+### 3.1 Stage III：外部知識嵌入
+
+在 Pipeline 的 Stage III 中，此模組負責建立 MITRE ATT&CK 的 BERT 嵌入向量：
+
+```python
+# Pipeline.py STAGE_III
+from external_sources.build_mitre_raw_embeddings import build_mitre_raw_embeddings
+
+def STAGE_III():
+    """建立外部知識嵌入"""
+    out_dir = build_mitre_raw_embeddings(
+        mitre_csv=config.MITRE_TECHNIQUES_CSV,
+        out_dir=config.MITRE_EXTERNAL_KNOWLEDGE_DIR,
+        bert_model=config.BERT_MODEL_NAME,
+        force_rebuild=False,
+    )
+    return {"output_dir": out_dir}
+```
+
+### 3.2 Stage IV：自動標註整合
+
+在 Stage IV 的自動標註步驟中，概念提取器會載入外部知識進行聯合訓練：
+
+```python
+# 在 STAGE_IV 中
+extractor = ConceptExtractor(n_concepts=config.NMF_COMPONENTS)
+extractor.load_external_knowledge(config.EXTERNAL_KNOWLEDGE_DIR)
+
+# 標註時 AutoLabeler 會載入 MITRE 嵌入進行比對
+labeler = AutoLabeler()
+labeler.load_mitre_embeddings()
+```
+
+### 3.3 查詢相似威脅技術
 
 將日誌或查詢語句轉換為向量，並在 MITRE ATT&CK 中尋找最相似的技術。
 
@@ -125,33 +175,20 @@ for r in results:
     print(f"相似度: {r['similarity']:.3f}")
 ```
 
-### 3.2 自動標註 (Auto Labeling)
+## 4. 配置參數
 
-在 `auto_labeling.py` 中，利用此模組對分群後的日誌進行自動標註。
+在 `config.py` 中的相關設定：
 
-```python
-def auto_label_with_sources(cluster_embeddings, manager, threshold=0.5):
-    """使用外部來源相似度自動標註分群"""
-    labels = []
-    for cluster_emb in cluster_embeddings:
-        # 找出最匹配的來源與技術
-        source_matches = manager.identify_source(cluster_emb)
-        
-        if source_matches:
-            # 取最高分的來源
-            best_source = max(source_matches.items(), 
-                            key=lambda x: x[1]['similarity'])
-            
-            if best_source[1]['similarity'] >= threshold:
-                labels.append(best_source[1].get('technique', 'Unknown'))
-            else:
-                labels.append('Benign') # 低於門檻視為良性
-        else:
-            labels.append('Benign')
-    return labels
-```
+| 參數 | 預設值 | 說明 |
+|------|--------|------|
+| `MITRE_TECHNIQUES_CSV` | `data/reference_resources/MitreTechniquesTokens_V5.csv` | MITRE 技術資料 CSV 路徑 |
+| `MITRE_EXTERNAL_KNOWLEDGE_DIR` | `data/ExternalKnowledge/MITRE_RAW_EMBEDDINGS` | MITRE 嵌入向量輸出目錄 |
+| `EXTERNAL_SOURCES_BERT_MODEL_NAME` | 與 `BERT_MODEL_NAME` 相同 | 嵌入使用的 BERT 模型 |
+| `EXTERNAL_SOURCES_EMBED_BATCH_SIZE` | `32` | 嵌入計算批次大小 |
+| `EXTERNAL_SOURCES_EMBED_NORMALIZE` | `True` | 是否正規化嵌入向量 |
+| `FETCHER_REQUEST_TIMEOUT_SECONDS` | `60` | 線上資料抓取超時時間 |
 
-## 4. 資料格式需求
+## 5. 資料格式需求
 
 若要匯入自訂的 CSV 來源，建議包含以下欄位：
 
@@ -169,13 +206,21 @@ def auto_label_with_sources(cluster_embeddings, manager, threshold=0.5):
 - `tokens`: 分詞後的內容
 - `cleaned_tokens`: 移除停用詞後的內容
 
-## 5. 依賴套件
+## 6. 依賴套件
 
 - `pandas`, `numpy`: 資料處理
 - `scikit-learn`: NMF, 餘弦相似度
 - `sentence-transformers`: BERT 向量化
 - `requests`: 線上資料抓取
 - `pyyaml`: (可選) 解析 Sigma 規則
+
+## 7. 相關模組
+
+- [Preprocessing](./Preprocessing.md) - Stage I：日誌預處理與嵌入
+- [Anomaly_Detection](./Anomaly_Detection.md) - Stage II：異常偵測
+- [Concept_Extraction](./Concept_Extraction.md) - Stage IV-a：概念提取（NMF）
+- [Sequence_Clustering](./Sequence_Clustering.md) - Stage IV-b：序列分群（HMM）
+- [Auto_Labeling](./Auto_Labeling.md) - Stage IV-c：自動標註
 
 ---
 此文件說明基於 `external_sources/README.md` 及其程式碼實作。

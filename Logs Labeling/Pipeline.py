@@ -99,43 +99,36 @@ def STAGE_II():
     Stage II: 異常檢測
     
     使用多模型整合方法檢測日誌異常：
-    1. 載入嵌入向量
-    2. 執行多模型異常檢測（IsolationForest, LOF, AutoEncoder 等）
-    3. 生成視覺化報告
-    4. 輸出異常分數供後續標註使用
+    1. 載入 Log Vector
+    2. 執行多模型異常檢測（IsolationForest, COPOD, AutoEncoder, PCA+GMM）
+    3. 整合分數並生成視覺化報告
     """
-    from anomaly_dection.log_detector import run_detection_pipeline, generate_detection_summary
-    from auto_labeling import load_anomaly_weights
+    from anomaly_dection import run_detection
+    
+    # 取得配置
+    models = getattr(config, "DETECTION_MODELS", ["isolation_forest", "copod", "autoencoder", "pca_gmm"])
     
     print("=" * 60)
     print("STAGE II: 異常檢測")
     print("=" * 60)
+    print(f"  模型: {', '.join(models)}")
     print(f"  輸入: {config.LOG_VECTORS_DIR}")
     print(f"  輸出: {config.DETECTION_RESULTS_DIR}")
     print()
     
-    results = run_detection_pipeline(
+    result = run_detection(
         input_dir=config.LOG_VECTORS_DIR,
         output_dir=config.DETECTION_RESULTS_DIR,
-        models=getattr(config, "DETECTION_MODELS", None),
+        viz_dir=getattr(config, 'DETECTION_VIZ_DIR', None),
+        models=models,
+        generate_viz=True,
         verbose=True
     )
     
-    if results:
-        generate_detection_summary(
-            results, 
-            output_dir=config.DETECTION_VIZ_DIR,
-            generate_visualizations=True,
-            enable_advanced_plots=True
-        )
-    
-    # 載入異常分數供後續標註使用
-    anomaly_weights = load_anomaly_weights(config.DETECTION_RESULTS_DIR)
-    
     print(f"\n[Stage II 完成]")
-    print(f"  異常分數: {len(anomaly_weights)} 個資料集")
+    print(f"  已處理: {result['n_datasets']} 個資料集")
     
-    return {"anomaly_weights": anomaly_weights, "results": results}
+    return result
     
 def STAGE_III():
     """
@@ -144,26 +137,26 @@ def STAGE_III():
     將 MITRE ATT&CK 技術描述轉換為嵌入向量，
     供後續概念提取與自動標註使用。
     """
-    from external_sources.build_mitre_raw_embeddings import build_mitre_raw_embeddings
+    from external_sources import build_knowledge_base
 
     print("=" * 60)
     print("STAGE III: 建立外部知識嵌入")
     print("=" * 60)
-    print(f"  MITRE CSV: {getattr(config, 'MITRE_TECHNIQUES_CSV', 'N/A')}")
+    print(f"  知識來源: MITRE ATT&CK")
     print(f"  BERT 模型: {getattr(config, 'BERT_MODEL_NAME', 'sentence-bert')}")
     print()
     
-    out_dir = build_mitre_raw_embeddings(
-        mitre_csv=getattr(config, "MITRE_TECHNIQUES_CSV", None),
-        out_dir=getattr(config, "MITRE_EXTERNAL_KNOWLEDGE_DIR", None),
-        bert_model=getattr(config, "BERT_MODEL_NAME", None),
-        force_rebuild=False,
-    )
+    result = build_knowledge_base(force_rebuild=False, verbose=True)
     
     print(f"\n[Stage III 完成]")
-    print(f"  輸出: {out_dir}")
+    if result.get("cached"):
+        print(f"  狀態: 使用快取")
+    else:
+        print(f"  狀態: 新建完成")
+    print(f"  技術數量: {result['n_techniques']}")
+    print(f"  嵌入維度: {result['embedding_dim']}")
     
-    return {"output_dir": out_dir}
+    return result
 
 
 def STAGE_IV():
@@ -308,4 +301,4 @@ def main(n_datasets: int = 5):
 
 
 if __name__ == "__main__":
-    main()
+    main(167) 

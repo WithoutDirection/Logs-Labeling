@@ -27,7 +27,6 @@ from anomaly_dection.isolation_forest import IsolationForestDetector, IsolationF
 from anomaly_dection.copod import COPODDetector, COPODConfig
 from anomaly_dection.autoencoder import AutoEncoderDetector, AutoEncoderConfig
 from anomaly_dection.pca_gmm import PCAGMMDetector, PCAGMMConfig
-from visualization.anomaly_comparison import generate_detection_summary
 
 SEED = config.SEED
 
@@ -603,14 +602,7 @@ def run_detection_pipeline(
 
 
 if __name__ == "__main__":
-    # 執行偵測流程
-    results = run_detection_pipeline(
-        input_dir=config.LOG_VECTORS_DIR,
-        output_dir=config.DETECTION_RESULTS_DIR,
-        models=None,  # 使用 config 預設值
-        verbose=True
-    )
-    
-    # 生成摘要與視覺化
-    if results:
-        generate_detection_summary(results, output_dir=config.DETECTION_VIZ_DIR, generate_visualizations=True)
+    # 使用便捷 API 執行完整流程
+    from anomaly_dection import run_detection
+    result = run_detection(verbose=True)
+    print(f"\n完成！處理了 {result['n_datasets']} 個資料集")

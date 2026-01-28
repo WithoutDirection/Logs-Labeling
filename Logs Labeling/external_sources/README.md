@@ -156,7 +156,55 @@ Text preprocessing with Zipf's law and embedding utilities.
 | `NvdFetcher` | NVD/CVE | NVD API 2.0 |
 | `SigmaRulesFetcher` | Sigma | Local YAML |
 
-## Integration with Pipeline
+## Integration with Pipeline (Four-Stage Architecture)
+
+### Pipeline Stage III: External Knowledge Embedding
+
+This module is primarily used in **Stage III** to build MITRE ATT&CK embeddings:
+
+```python
+# In Pipeline.py STAGE_III
+from external_sources.build_mitre_raw_embeddings import build_mitre_raw_embeddings
+
+def STAGE_III():
+    """Stage III: Build External Knowledge Embeddings"""
+    out_dir = build_mitre_raw_embeddings(
+        mitre_csv=config.MITRE_TECHNIQUES_CSV,
+        out_dir=config.MITRE_EXTERNAL_KNOWLEDGE_DIR,
+        bert_model=config.BERT_MODEL_NAME,
+        force_rebuild=False,
+    )
+    return {"output_dir": out_dir}
+```
+
+### Pipeline Stage IV: Per-Dataset Processing
+
+In Stage IV, the external knowledge is used for NMF joint training and auto-labeling:
+
+```python
+# In Pipeline.py STAGE_IV
+from conception_extraction import ConceptExtractor
+from auto_labeling import AutoLabeler
+
+# Step 4a: NMF Concept Extraction (loads external knowledge)
+extractor = ConceptExtractor(n_concepts=config.NMF_COMPONENTS)
+extractor.load_external_knowledge(config.EXTERNAL_KNOWLEDGE_DIR)
+
+# Step 4c: Auto Labeling (loads MITRE embeddings)
+labeler = AutoLabeler()
+labeler.load_mitre_embeddings()
+
+# For each dataset:
+for dataset_id in all_datasets:
+    concept_vectors = extractor.process_single_dataset(...)
+    cluster_labels = clusterer.process_single_dataset(...)
+    labeling_result = labeler.process_single_dataset(
+        dataset_id=dataset_id,
+        concept_vectors=concept_vectors,
+        cluster_labels=cluster_labels,
+        nmf_extractor=extractor,
+    )
+```
 
 ### In `concept_extraction.py`:
 
@@ -202,6 +250,17 @@ def auto_label_with_sources(cluster_embeddings, manager, threshold=0.5):
     
     return labels
 ```
+
+## Configuration (config.py)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `MITRE_TECHNIQUES_CSV` | `data/reference_resources/MitreTechniquesTokens_V5.csv` | MITRE data CSV path |
+| `MITRE_EXTERNAL_KNOWLEDGE_DIR` | `data/ExternalKnowledge/MITRE_RAW_EMBEDDINGS` | Output embeddings directory |
+| `EXTERNAL_SOURCES_BERT_MODEL_NAME` | Same as `BERT_MODEL_NAME` | BERT model for embedding |
+| `EXTERNAL_SOURCES_EMBED_BATCH_SIZE` | `32` | Embedding batch size |
+| `EXTERNAL_SOURCES_EMBED_NORMALIZE` | `True` | Normalize embeddings |
+| `FETCHER_REQUEST_TIMEOUT_SECONDS` | `60` | Online fetch timeout |
 
 ## Dependencies
 

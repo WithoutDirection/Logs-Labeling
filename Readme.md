@@ -8,13 +8,11 @@
 
 - [專案簡介](#專案簡介)
 - [核心流程概覽](#核心流程概覽)
-- [Pipeline 六階段詳解](#pipeline-六階段詳解)
-  - [Stage I：預處理 (Preprocessing)](#stage-i預處理-preprocessing)
+- [Pipeline 四階段詳解](#pipeline-四階段詳解)
+  - [Stage I：預處理與嵌入 (Preprocessing & Embedding)](#stage-i預處理與嵌入-preprocessing--embedding)
   - [Stage II：異常偵測 (Anomaly Detection)](#stage-ii異常偵測-anomaly-detection)
-  - [Stage III：概念提取 (Concept Extraction)](#stage-iii概念提取-concept-extraction)
-  - [Stage IV：序列分群 (Sequence Clustering)](#stage-iv序列分群-sequence-clustering)
-  - [Stage V：外部知識嵌入 (External Knowledge)](#stage-v外部知識嵌入-external-knowledge)
-  - [Stage VI：自動標註 (Auto Labeling)](#stage-vi自動標註-auto-labeling)
+  - [Stage III：外部知識嵌入 (External Knowledge)](#stage-iii外部知識嵌入-external-knowledge)
+  - [Stage IV：Per-Dataset 處理 (NMF → HMM → Auto Labeling)](#stage-ivper-dataset-處理-nmf--hmm--auto-labeling)
 - [專案目錄結構](#專案目錄結構)
 - [快速開始](#快速開始)
 - [更新日誌](#更新日誌)
@@ -48,7 +46,7 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 
 ![Structure](./docs/assests/LogsLabeling%20Structure.png)
 
-本專案將日誌標註拆解為 **六個獨立階段**，每個階段各司其職：
+本專案採用 **Per-Dataset 策略**，將日誌標註拆解為 **四個獨立階段**，確保每個 Technique 的標註不會被其他 Technique 混淆：
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -59,7 +57,7 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 │       │                                                                 │
 │       ▼                                                                 │
 │   ┌──────────────┐                                                      │
-│   │  STAGE I     │  預處理：日誌解析 → BERT 嵌入 → 向量化                   │
+│   │  STAGE I     │  預處理與嵌入：日誌解析 → BERT 嵌入 → 向量化             │
 │   │ Preprocessing│  產出：768 維語義向量                                  │
 │   └──────┬───────┘                                                      │
 │          │                                                              │
@@ -69,42 +67,40 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 │   │   Anomaly    │  產出：每筆日誌的異常分數 (0~1)                         │
 │   └──────┬───────┘                                                      │
 │          │                                                              │
-│          ▼                                                              │
-│   ┌──────────────┐                                                      │
-│   │  STAGE III   │  概念提取：NMF 降維至潛在概念空間                       │
-│   │   Concept    │  產出：k 維概念向量 (如 k=50)                          │
-│   └──────┬───────┘                                                      │
+│          │       ┌───────────────────────────────────────┐              │
+│          │       │  STAGE III: 外部知識嵌入               │              │
+│          │       │  將 MITRE ATT&CK 描述轉換為 BERT 向量  │              │
+│          │       └───────────────┬───────────────────────┘              │
+│          │                       │                                      │
+│          ▼                       ▼                                      │
+│   ┌──────────────────────────────────────────────────────────────┐      │
+│   │  STAGE IV: Per-Dataset 處理 (每個 Dataset 獨立執行)           │      │
+│   │                                                              │      │
+│   │  ┌────────────┐   ┌────────────┐   ┌────────────┐           │      │
+│   │  │ 概念提取   │ → │ 序列分群   │ → │ 自動標註   │           │      │
+│   │  │   (NMF)    │   │   (HMM)    │   │ (Labeling) │           │      │
+│   │  └────────────┘   └────────────┘   └────────────┘           │      │
+│   │                                                              │      │
+│   │  • NMF: 與外部知識聯合訓練，降維至 k 維概念空間               │      │
+│   │  • HMM: 識別攻擊演變階段，產出群集標籤                        │      │
+│   │  • Labeling: 比對 MITRE 技術，分配攻擊技術標籤                │      │
+│   └──────────────────────────────────────────────────────────────┘      │
 │          │                                                              │
 │          ▼                                                              │
 │   ┌──────────────┐                                                      │
-│   │  STAGE IV    │  序列分群：HMM 識別攻擊演變階段                         │
-│   │  Clustering  │  產出：每筆日誌的群集標籤                               │
-│   └──────┬───────┘                                                      │
-│          │                                                              │
-│          ├──────────────────────────────────┐                           │
-│          │                                  │                           │
-│          ▼                                  ▼                           │
-│   ┌──────────────┐                   ┌──────────────┐                   │
-│   │  STAGE V     │                   │ MITRE ATT&CK │                   │
-│   │ External KB  │ ◄─────────────────│   知識庫     │                   │
-│   └──────┬───────┘                   └──────────────┘                   │
-│          │                                                              │
-│          ▼                                                              │
-│   ┌──────────────┐                                                      │
-│   │  STAGE VI    │  自動標註：群集 × MITRE 相似度 → 攻擊技術標籤            │
-│   │ Auto Labeling│  產出：帶標籤的 CSV 檔案                               │
-│   └──────────────┘                                                      │
+│   │   輸出結果   │  帶標籤的 CSV 檔案                                    │
+│   └──────────────┘  result/Labeling_Results/{dataset_id}_Labeled.csv    │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Pipeline 六階段詳解
+## Pipeline 四階段詳解
 
-### Stage I：預處理 (Preprocessing)
+### Stage I：預處理與嵌入 (Preprocessing & Embedding)
 
-> 📄 詳細文件：[Preprocessing.md](./docs/Preprocessing.md)、[Embedding.md](./docs/Embedding.md)、[Templatize.md](./docs/Templatize.md)
+>  詳細文件：[Preprocessing.md](./docs/Preprocessing.md)、[Embedding.md](./docs/Embedding.md)、[Templatize.md](./docs/Templatize.md)
 
 #### 目的
 將非結構化的原始日誌轉換為**固定維度的語義向量**，使後續機器學習模型能夠處理。
@@ -123,9 +119,18 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 
 | 子步驟 | 說明 | 輸出 |
 |--------|------|------|
-| **日誌解析** | 使用 Drain 演算法將日誌拆解為「模板」+「參數」 | `Template`: `CreateFile <*> SUCCESS` |
-| **BERT 嵌入** | 將模板轉換為 768 維向量（支援 SecBERT、Sentence-BERT） | `embedding`: `[0.23, -0.15, ...]` |
+| **日誌解析** | 使用 Drain 演算法將日誌拆解為「模板」+「參數」（可透過 `ENABLE_PARSER` 設定啟用/停用） | `Template`: `CreateFile <*> SUCCESS` |
+| **BERT 嵌入** | 將模板轉換為 768 維向量（支援 Sentence-BERT、SecBERT 等，透過 `BERT_MODEL_NAME` 設定） | `embedding`: `[0.23, -0.15, ...]` |
 | **向量儲存** | 以 Arrow 格式高效儲存 | `data/Embeddings/` |
+
+#### 配置參數
+
+| 參數 | 預設值 | 說明 |
+|------|--------|------|
+| `ENABLE_PARSER` | `True` | 是否啟用日誌解析 |
+| `DEFAULT_PARSER` | `"drain"` | 預設解析器 |
+| `BERT_MODEL_NAME` | `"sentence-bert"` | BERT 模型名稱 |
+| `ZIPF_PERCENTILE` | `0.05` | Zipf 法則高頻詞過濾比例 |
 
 #### 輸入輸出
 
@@ -136,7 +141,7 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 
 ### Stage II：異常偵測 (Anomaly Detection)
 
-> 📄 詳細文件：[Anomaly_Detection.md](./docs/Anomaly_Detection.md)
+>  詳細文件：[Anomaly_Detection.md](./docs/Anomaly_Detection.md)
 
 #### 目的
 識別行為異常的日誌，作為後續標註的**優先權重**——異常分數越高，越可能是攻擊行為。
@@ -146,7 +151,7 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 ```
                     ┌─── Isolation Forest ───┐
                     │                        │
-嵌入向量 ───►      ├─── COPOD ──────────────┼───► Ensemble ───► 異常分數
+嵌入向量 ───►         ├─── COPOD ──────────────┼───► Ensemble ───► 異常分數
                     │                        │      加權平均     (0~1)
                     ├─── AutoEncoder ────────┤
                     │                        │
@@ -160,98 +165,42 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 | **AutoEncoder** | 重建誤差檢測 | 捕捉非線性異常 |
 | **PCA + GMM** | 降維後高斯混合 | 識別分布外樣本 |
 
+#### 配置參數
+
+| 參數 | 預設值 | 說明 |
+|------|--------|------|
+| `DETECTION_MODELS` | `["isolation_forest", "copod", "autoencoder", "pca_gmm"]` | 啟用的偵測模型 |
+| `IF_CONTAMINATION` | `0.05` | Isolation Forest 預期異常比例 |
+| `MAD_THRESHOLD_MULTIPLIER` | `3.0` | MAD 自適應閾值乘數 |
+| `ENSEMBLE_WEIGHTS` | 各模型 0.25 | 模型加權平均權重 |
+
 #### 輸入輸出
 
 - **輸入**：`data/Embeddings/{dataset_id}/`
-- **輸出**：`data/Detection_Results/`（含 `ensemble_score` 欄位）
+- **輸出**：`data/Detection_Results/`（含 `ensemble_score` 欄位）、`result/Anomaly_Detection/`（視覺化報告）
 
 ---
 
-### Stage III：概念提取 (Concept Extraction)
+### Stage III：外部知識嵌入 (External Knowledge)
 
-> 📄 詳細文件：[Concept_Extraction.md](./docs/Concept_Extraction.md)
-
-#### 目的
-將高維嵌入（768 維）降維至**潛在概念空間**（如 50 維），使日誌與 MITRE 技術可在同一空間進行比較。
-
-#### 核心機制：NMF（非負矩陣分解）
-
-```
-X (768 維嵌入)  ≈  H (概念權重)  ×  W (概念基矩陣)
-   n × 768           n × k            k × 768
-
-X：原始嵌入矩陣
-H：每筆日誌在 k 個概念上的權重分佈
-W：k 個概念的定義（由全域訓練學習）
-```
-
-#### 關鍵設計
-
-| 策略 | 說明 |
-|------|------|
-| **全域聯合訓練** | 聚合多資料集 + 外部知識訓練統一的概念基矩陣 W |
-| **L1 稀疏約束** | 強制每筆日誌只屬於少數概念，提升可解釋性 |
-| **獨立批次轉換** | 使用固定的 W 對各資料集進行轉換，確保可比性 |
-
-#### 輸入輸出
-
-- **輸入**：`data/Embeddings/`、`data/ExternalKnowledge/`
-- **輸出**：`data/ConceptVectors/{dataset_id}/`、`models/nmf_concept_model.pkl`
-
----
-
-### Stage IV：序列分群 (Sequence Clustering)
-
-> 📄 詳細文件：[Sequence_Clustering.md](./docs/Sequence_Clustering.md)
+>  詳細文件：[External_Sources.md](./docs/External_Sources.md)
 
 #### 目的
-識別日誌序列中的**攻擊演變階段**（如：初始存取 → 執行 → 持久化 → 清理），將同一階段的日誌歸為同一群集。
-
-#### 核心機制：HMM（隱馬可夫模型）
-
-```
-觀測序列：[概念向量 1] → [概念向量 2] → [概念向量 3] → ...
-              ↓              ↓              ↓
-隱藏狀態：  [狀態 A]   →   [狀態 A]   →   [狀態 B]   → ...
-           (初始存取)     (初始存取)     (執行階段)
-```
-
-#### 關鍵設計
-
-| 策略 | 說明 |
-|------|------|
-| **Per-Dataset 訓練** | 每個資料集獨立訓練 HMM，捕捉特定攻擊的獨有階段 |
-| **雙軌特徵** | 訓練用常態化資料（確保收斂）、應用用原始資料（保留語義） |
-| **一階差分** | 額外計算變化率特徵，識別攻擊階段的轉換點 |
-| **BIC 選擇 K** | 使用貝葉斯資訊量準則自動選擇最佳狀態數 |
-
-#### 輸入輸出
-
-- **輸入**：`data/ConceptVectors/{dataset_id}/`
-- **輸出**：`data/SequenceClusters/{dataset_id}/`（`labels.npy`、`model.pkl`）
-
----
-
-### Stage V：外部知識嵌入 (External Knowledge)
-
-> 📄 詳細文件：[External_Sources.md](./docs/External_Sources.md)
-
-#### 目的
-將 MITRE ATT&CK 攻擊技術描述轉換為**與日誌相同格式的概念向量**，作為標註的比對基準。
+將 MITRE ATT&CK 攻擊技術描述轉換為 **BERT 嵌入向量**，作為後續標註的比對基準。
 
 #### 處理流程
 
 ```
-MITRE ATT&CK 技術描述
+MITRE ATT&CK 技術描述 (CSV)
         │
         ▼
    BERT 嵌入 (768 維)
         │
         ▼
-   NMF 轉換 (使用 Stage III 訓練的 W)
+   儲存為外部知識向量
         │
         ▼
-   概念向量 (k 維)
+   供 Stage IV NMF 聯合訓練使用
 ```
 
 #### 支援的外部來源
@@ -262,51 +211,143 @@ MITRE ATT&CK 技術描述
 | **CAPEC** | 攻擊模式補充 |
 | **NVD/CVE** | 漏洞關聯 |
 
+#### 配置參數
+
+| 參數 | 預設值 | 說明 |
+|------|--------|------|
+| `MITRE_TECHNIQUES_CSV` | `data/reference_resources/MitreTechniquesTokens_V5.csv` | MITRE 技術資料路徑 |
+| `MITRE_EXTERNAL_KNOWLEDGE_DIR` | `data/ExternalKnowledge/MITRE_RAW_EMBEDDINGS` | 輸出嵌入向量目錄 |
+
 #### 輸入輸出
 
-- **輸入**：`data/reference_resources/MitreTechniques.csv`
-- **輸出**：`data/ExternalKnowledge/MITRE_ATTACK/`
+- **輸入**：`data/reference_resources/MitreTechniquesTokens_V5.csv`
+- **輸出**：`data/ExternalKnowledge/MITRE_RAW_EMBEDDINGS/`
 
 ---
 
-### Stage VI：自動標註 (Auto Labeling)
+### Stage IV：Per-Dataset 處理 (NMF → HMM → Auto Labeling)
 
-> 📄 詳細文件：[Auto_Labeling.md](./docs/Auto_Labeling.md)
+>  詳細文件：[Concept_Extraction.md](./docs/Concept_Extraction.md)、[Sequence_Clustering.md](./docs/Sequence_Clustering.md)、[Auto_Labeling.md](./docs/Auto_Labeling.md)
 
 #### 目的
-將 HMM 分群結果與 MITRE ATT&CK 比對，自動為每筆日誌分配攻擊技術標籤。
+對每個 Dataset **獨立執行**完整的概念提取、序列分群與自動標註流程，確保每個攻擊技術的標註不會被其他技術混淆。
 
-#### 標註流程
+#### 核心機制：Per-Dataset 策略
+
+```
+對每個 Dataset 獨立執行：
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Step 4a: 概念提取 (NMF)                                        │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  X (768 維嵌入) ≈ H (概念權重) × W (概念基矩陣)          │    │
+│  │  • 與外部知識聯合訓練統一的概念基矩陣 W                  │    │
+│  │  • 產出：k 維概念向量 (k=30)                             │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                            │                                    │
+│                            ▼                                    │
+│  Step 4b: 序列分群 (HMM)                                        │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  • 雙軌特徵：常態化訓練 + 原始資料應用                   │    │
+│  │  • 一階差分特徵識別階段轉換點                            │    │
+│  │  • BIC 自動選擇最佳狀態數                                │    │
+│  │  • 產出：群集標籤序列                                    │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                            │                                    │
+│                            ▼                                    │
+│  Step 4c: 自動標註 (Auto Labeling)                              │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  • Cluster Centroid 與 MITRE 向量餘弦相似度比對           │    │
+│  │  • 異常分數加權計算信心度                                 │    │
+│  │  • 閾值判斷：低於閾值標記為 Benign                        │    │
+│  │  • 產出：帶標籤的 CSV 檔案                                │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Step 4a：概念提取 (NMF)
+
+| 策略 | 說明 |
+|------|------|
+| **全域聯合訓練** | 聚合多資料集 + 外部知識訓練統一的概念基矩陣 W |
+| **L1 稀疏約束** | 強制每筆日誌只屬於少數概念，提升可解釋性 |
+| **GPU 加速** | 支援 CUDA GPU 加速大規模矩陣運算 |
+
+**配置參數**：
+
+| 參數 | 預設值 | 說明 |
+|------|--------|------|
+| `NMF_COMPONENTS` | `30` | 概念數量（潛在空間維度） |
+| `NMF_L1_REG` | `0.01` | L1 正則化強度 |
+| `NMF_USE_GPU` | `True` | 是否使用 GPU 加速 |
+
+#### Step 4b：序列分群 (HMM)
+
+| 策略 | 說明 |
+|------|------|
+| **Per-Dataset 訓練** | 每個資料集獨立訓練 HMM，捕捉特定攻擊的獨有階段 |
+| **雙軌特徵** | 訓練用常態化資料（確保收斂）、應用用原始資料（保留語義） |
+| **一階差分** | 額外計算變化率特徵，識別攻擊階段的轉換點 |
+| **BIC 選擇 K** | 使用貝葉斯資訊量準則自動選擇最佳狀態數 |
+
+**配置參數**：
+
+| 參數 | 預設值 | 說明 |
+|------|--------|------|
+| `HMM_K_MIN` | `1` | 隱藏狀態下界 |
+| `HMM_K_MAX` | `15` | 隱藏狀態上界 |
+| `HMM_COVARIANCE_TYPE` | `"diag"` | 共變異數型式 |
+| `HMM_N_ITER` | `100` | Baum-Welch 最大迭代次數 |
+
+#### Step 4c：自動標註 (Auto Labeling)
+
+**標註流程**：
 
 ```
        Cluster Centroid ─────┐
       (異常加權平均)         │
                              ├──► 餘弦相似度 ──► 閾值判斷 ──► 技術標籤
        MITRE 概念向量 ───────┘                      │           或
-                                                    │        "Benign"
-       異常分數 ─────────────────► 信心度調整 ──────┘
+         (NMF 投影)                                │        "Benign"
+       異常分數 ─────────────────► 信心度計算 ──────┘
 ```
 
-#### 信心度計算
+**信心度計算**：
 
 $$\text{confidence} = w_a \times \text{anomaly\_score} + w_s \times \text{similarity}$$
 
 $$\text{final\_score} = \text{similarity} \times \text{confidence}$$
 
-- 若 $\text{final\_score} < \text{threshold}$，標記為 `Benign`
-- 否則標記為最相似的 MITRE 技術 ID（如 `T1059.001`）
+- 若 $\text{similarity} < \text{threshold}$ 或 $\text{final\_score} < \text{threshold}$，標記為 `Benign`
+- 否則標記為最相似的 MITRE 技術名稱（如 "PowerShell"、"Video Capture"）
 
-#### 輸出範例
+**配置參數**：
 
-| log_index | cluster_id | predicted_technique | similarity | confidence |
-|-----------|------------|---------------------|------------|------------|
-| 0 | 2 | T1059.001 (PowerShell) | 0.78 | 0.80 |
-| 1 | 0 | Benign | 0.45 | 0.33 |
+| 參數 | 預設值 | 說明 |
+|------|--------|------|
+| `LABELING_SIMILARITY_THRESHOLD` | `0.3` | 相似度下界 |
+| `LABELING_CONFIDENCE_THRESHOLD` | `0.2` | 最終分數閾值 |
+| `LABELING_ANOMALY_WEIGHT` | `0.3` | 異常分數權重 |
+| `LABELING_SIMILARITY_WEIGHT` | `0.7` | 相似度權重 |
+| `LABELING_TOP_K` | `3` | 候選技術數量 |
 
 #### 輸入輸出
 
-- **輸入**：`data/ConceptVectors/`、`data/SequenceClusters/`、`data/Detection_Results/`、`data/ExternalKnowledge/`
-- **輸出**：`result/Labeling_Results/{dataset_id}_Labeled.csv`
+- **輸入**：
+  - `data/Embeddings/{dataset_id}/`（Stage I 產出）
+  - `data/Detection_Results/`（Stage II 產出）
+  - `data/ExternalKnowledge/`（Stage III 產出）
+- **輸出**：
+  - `data/ConceptVectors/{dataset_id}/`（概念向量）
+  - `data/SequenceClusters/{dataset_id}/`（群集標籤）
+  - `result/Labeling_Results/{dataset_id}_Labeled.csv`（最終標註結果）
+
+#### 輸出範例
+
+| original_idx | timestamp | anomaly_score | predicted_technique_1_label | predicted_technique_1_similarity | predicted_technique_1_confidence |
+|--------------|-----------|---------------|-----------------------------|---------------------------------|----------------------------------|
+| 0 | 2025-01-08 10:30:00 | 0.85 | PowerShell | 0.78 | 0.80 |
+| 1 | 2025-01-08 10:30:02 | 0.12 | Benign | 0.45 | 0.35 |
 
 ---
 
@@ -315,32 +356,34 @@ $$\text{final\_score} = \text{similarity} \times \text{confidence}$$
 ```
 Logs-Labeling/
 ├── Logs Labeling/           # 核心程式碼
-│   ├── Pipeline.py          # 主流程控制
+│   ├── Pipeline.py          # 主流程控制（四階段）
 │   ├── config.py            # 參數配置
-│   ├── preprocess/          # Stage I：預處理
+│   ├── preprocess/          # Stage I：預處理與嵌入
 │   │   ├── preprocess.py    # LogLoader, LogEmbedder
 │   │   └── drain.py         # Drain 日誌解析器
 │   ├── anomaly_dection/     # Stage II：異常偵測
 │   │   └── log_detector.py  # Ensemble 異常偵測
-│   ├── conception_extraction.py  # Stage III：概念提取
-│   ├── sequence_clustering.py    # Stage IV：序列分群
-│   ├── external_sources/    # Stage V：外部知識
+│   ├── external_sources/    # Stage III：外部知識嵌入
 │   │   └── build_mitre_raw_embeddings.py
-│   ├── auto_labeling.py     # Stage VI：自動標註
+│   ├── conception_extraction.py  # Stage IV-a：概念提取 (NMF)
+│   ├── sequence_clustering.py    # Stage IV-b：序列分群 (HMM)
+│   ├── auto_labeling.py     # Stage IV-c：自動標註
 │   ├── models/              # 模型相關
 │   │   └── bert.py          # BERT 嵌入 API
 │   └── visualization/       # 視覺化工具
 │
 ├── data/                    # 資料目錄
 │   ├── input_logs/          # 原始日誌
-│   ├── Embeddings/          # Stage I 輸出
-│   ├── Detection_Results/   # Stage II 輸出
-│   ├── ConceptVectors/      # Stage III 輸出
-│   ├── SequenceClusters/    # Stage IV 輸出
-│   └── ExternalKnowledge/   # Stage V 輸出
+│   ├── reference_resources/ # 外部知識資源（MITRE CSV 等）
+│   ├── Embeddings/          # Stage I 輸出（BERT 嵌入向量）
+│   ├── Detection_Results/   # Stage II 輸出（異常分數）
+│   ├── ExternalKnowledge/   # Stage III 輸出（MITRE 嵌入向量）
+│   ├── ConceptVectors/      # Stage IV-a 輸出（概念向量）
+│   └── SequenceClusters/    # Stage IV-b 輸出（群集標籤）
 │
 ├── result/                  # 最終結果
-│   └── Labeling_Results/    # Stage VI 輸出
+│   ├── Anomaly_Detection/   # Stage II 視覺化報告
+│   └── Labeling_Results/    # Stage IV-c 輸出（標註結果）
 │
 ├── docs/                    # 詳細文件
 │   ├── Preprocessing.md
@@ -378,21 +421,22 @@ pip install -r requirements.txt
 ```python
 from Pipeline import main
 
-# 執行完整流程
+# 執行完整流程（預設處理 5 個資料集）
 main()
+
+# 指定處理數量
+main(n_datasets=100)
 ```
 
 或逐階段執行：
 
 ```python
-from Pipeline import STAGE_I, STAGE_II, STAGE_III, STAGE_IV, STAGE_V, STAGE_VI
+from Pipeline import STAGE_I, STAGE_II, STAGE_III, STAGE_IV
 
-STAGE_I(N=50)    # 處理前 50 個資料集
-STAGE_II()       # 異常偵測
-STAGE_III()      # 概念提取
-STAGE_IV()       # 序列分群
-STAGE_V()        # 建立 MITRE 嵌入
-STAGE_VI()       # 自動標註
+STAGE_I(N=50)    # Stage I: 預處理前 50 個資料集並計算 BERT 嵌入
+STAGE_II()       # Stage II: 異常偵測
+STAGE_III()      # Stage III: 建立 MITRE 外部知識嵌入
+STAGE_IV()       # Stage IV: Per-Dataset 處理 (NMF → HMM → 標註)
 ```
 
 ### 查看結果
@@ -405,6 +449,7 @@ STAGE_VI()       # 自動標註
 
 | 日期 | 更新內容 |
 |------|---------|
+| 2026-01-15 | 重構 Pipeline 為四階段架構，採用 Per-Dataset 策略整合 NMF → HMM → Auto Labeling |
 | 2025-12-05 | 新增 BERT 嵌入模組 (`models/bert.py`)、整合 BERT API |
 | 2025-11-25 | 更新外部知識爬蟲架構 |
 | 2025-11-21 | 建立專案架構、新增 Drain 解析器 |

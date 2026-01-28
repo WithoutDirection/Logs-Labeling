@@ -15,3 +15,5 @@ HMM/
 *.pkl
 result/*/*.html
 result/Anomaly_Detection/*_score_distribution.png
+result_*
+*.log
