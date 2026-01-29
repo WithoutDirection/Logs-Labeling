@@ -69,6 +69,44 @@ class AutoLabeler:
         self._nmf_scaler = None
         self.labeling_results: Dict[str, pd.DataFrame] = {}
 
+    def load_log_vectors(self, input_path: str) -> Optional[np.ndarray]:
+        # * 載入原始 BERT 嵌入向量（用於計算 cluster centroids）
+        # * 支援 Arrow、npy、HuggingFace Dataset 格式
+        
+        # 嘗試 Arrow 格式
+        arrow_path = os.path.join(input_path, "data-00000-of-00001.arrow")
+        if os.path.exists(arrow_path):
+            try:
+                df = feather.read_table(arrow_path).to_pandas()
+                for col in ["embedding", "embeddings", "vector", "log_vector"]:
+                    if col in df.columns:
+                        return np.array(df[col].tolist())
+            except Exception:
+                pass
+        
+        # 嘗試 npy 格式
+        for fname in ["embeddings.npy", "log_vectors.npy", "vectors.npy"]:
+            npy_path = os.path.join(input_path, fname)
+            if os.path.exists(npy_path):
+                try:
+                    return np.load(npy_path)
+                except Exception:
+                    pass
+        
+        # 嘗試 HuggingFace Dataset
+        try:
+            from datasets import load_from_disk
+            ds = load_from_disk(input_path)
+            if hasattr(ds, "keys") and not hasattr(ds, "column_names"):
+                ds = ds[next(iter(ds.keys()))]
+            for col in ["embedding", "embeddings", "vector", "log_vector"]:
+                if col in ds.column_names:
+                    return np.array(ds[col])
+        except Exception:
+            pass
+        
+        return None
+
     def load_mitre_embeddings(self, embeddings_dir: Optional[str] = None) -> None:
         # * 載入 MITRE ATT&CK 嵌入向量
         embeddings_dir = embeddings_dir or self.config.mitre_embeddings_dir
@@ -202,41 +240,67 @@ class AutoLabeler:
         cluster_labels: np.ndarray,
         output_dir: Optional[str] = None,
         nmf_extractor=None,
+        log_vectors: Optional[np.ndarray] = None,
+        log_vectors_path: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         # * 對單一 Dataset 執行自動標註（Per-Dataset API）
-        # * 支援嵌入向量 + TF-IDF 混合評分
+        # * 輸出格式: original_idx, {原始欄位}, predicted_technique_K_name, predicted_technique_K_confidence
+        # * 使用 log_vectors (768維 BERT 嵌入) 計算 cluster centroids 以匹配 MITRE embeddings
         output_dir = output_dir or self.config.labeling_results_dir
+        top_k = self.config.top_k_techniques
         
         if self.mitre_embeddings is None:
             print(f"    [Warning] MITRE 嵌入未載入，跳過標註")
             return None
         
         try:
+            # * 載入原始資料集
+            original_df = self._load_original_dataset(dataset_id)
+            
+            # * 若未提供 log_vectors，嘗試從 log_vectors_path 載入
+            if log_vectors is None and log_vectors_path is not None:
+                log_vectors = self.load_log_vectors(log_vectors_path)
+            
             unique_clusters = np.unique(cluster_labels)
-            cluster_centroids = {}
-            for cluster_id in unique_clusters:
-                mask = cluster_labels == cluster_id
-                cluster_centroids[cluster_id] = np.mean(concept_vectors[mask], axis=0)
-            
-            centroid_matrix = np.array([cluster_centroids[c] for c in unique_clusters])
-            
-            # * 計算嵌入向量相似度
             mitre_dim = self.mitre_embeddings.shape[1]
-            concept_dim = centroid_matrix.shape[1]
             
-            if nmf_extractor is not None and hasattr(nmf_extractor, '_is_fitted') and nmf_extractor._is_fitted:
+            # * 決定使用哪種向量計算 cluster centroids
+            # * 優先使用 log_vectors (768維)，確保與 MITRE embeddings 維度匹配
+            if log_vectors is not None and log_vectors.shape[1] == mitre_dim:
+                print(f"    [使用原始嵌入] log_vectors {log_vectors.shape} 與 MITRE {self.mitre_embeddings.shape}")
+                vectors_for_centroid = log_vectors
+            elif nmf_extractor is not None and hasattr(nmf_extractor, '_is_fitted') and nmf_extractor._is_fitted:
+                # 嘗試將 MITRE 嵌入投影至 NMF 概念空間
                 nmf_input_dim = nmf_extractor.model.components_.shape[1]
                 if mitre_dim == nmf_input_dim:
                     print(f"    [NMF 投影] 將 MITRE 嵌入投影至概念空間...")
                     mitre_projected = nmf_extractor.transform_local(self.mitre_embeddings)
+                    # 使用概念向量計算 centroids，與投影後的 MITRE 比較
+                    cluster_centroids = {}
+                    for cluster_id in unique_clusters:
+                        mask = cluster_labels == cluster_id
+                        cluster_centroids[cluster_id] = np.mean(concept_vectors[mask], axis=0)
+                    centroid_matrix = np.array([cluster_centroids[c] for c in unique_clusters])
                     embedding_similarities = cosine_similarity(centroid_matrix, mitre_projected)
+                    # 跳過後續 centroid 計算，直接進入 TF-IDF 混合
+                    vectors_for_centroid = None
                 else:
                     print(f"    [Warning] NMF 維度不符，使用簡化標註")
-                    return self._generate_placeholder_result(dataset_id, cluster_labels, output_dir)
-            elif mitre_dim != concept_dim:
-                print(f"    [Info] 維度不符，使用簡化標註")
-                return self._generate_placeholder_result(dataset_id, cluster_labels, output_dir)
+                    return self._generate_placeholder_result(dataset_id, cluster_labels, output_dir, original_df, top_k)
             else:
+                concept_dim = concept_vectors.shape[1]
+                if mitre_dim != concept_dim:
+                    print(f"    [Info] 維度不符 (MITRE={mitre_dim}, concept={concept_dim})，使用簡化標註")
+                    return self._generate_placeholder_result(dataset_id, cluster_labels, output_dir, original_df, top_k)
+                vectors_for_centroid = concept_vectors
+            
+            # * 計算 Cluster Centroids（如果尚未計算）
+            if vectors_for_centroid is not None:
+                cluster_centroids = {}
+                for cluster_id in unique_clusters:
+                    mask = cluster_labels == cluster_id
+                    cluster_centroids[cluster_id] = np.mean(vectors_for_centroid[mask], axis=0)
+                centroid_matrix = np.array([cluster_centroids[c] for c in unique_clusters])
                 embedding_similarities = cosine_similarity(centroid_matrix, self.mitre_embeddings)
             
             # * 計算 TF-IDF 相似度並混合評分
@@ -252,41 +316,70 @@ class AutoLabeler:
                         self.config.weight_tfidf * tfidf_similarities
                     )
             
-            # * 為每個 cluster 找最佳匹配
-            cluster_to_technique = {}
+            # * 為每個 cluster 找 Top-K 匹配
+            cluster_to_techniques = {}
             for i, cluster_id in enumerate(unique_clusters):
-                best_idx = np.argmax(final_similarities[i])
-                best_sim = final_similarities[i, best_idx]
-                cluster_to_technique[cluster_id] = {
-                    "technique_id": self.mitre_technique_ids[best_idx] if self.mitre_technique_ids else f"T{best_idx}",
-                    "technique_name": self.mitre_technique_names[best_idx] if self.mitre_technique_names else "Unknown",
-                    "similarity": float(best_sim),
-                }
+                top_k_indices = np.argsort(final_similarities[i])[-top_k:][::-1]
+                
+                techniques_list = []
+                for idx in top_k_indices:
+                    technique_id = self.mitre_technique_ids[idx] if self.mitre_technique_ids else f"T{idx}"
+                    technique_name = self.mitre_technique_names[idx] if self.mitre_technique_names else "Unknown"
+                    sim_score = float(final_similarities[i, idx])
+                    
+                    techniques_list.append({
+                        "technique_name": technique_name,
+                        "confidence": sim_score,
+                    })
+                
+                cluster_to_techniques[cluster_id] = techniques_list
             
-            print(f"    [Top-3 匹配技術]")
+            # * 顯示 Top-3 Clusters 的匹配結果
+            print(f"    [Top-3 Cluster 匹配結果]")
             for cid in list(unique_clusters)[:3]:
-                tech = cluster_to_technique[cid]
+                tech = cluster_to_techniques[cid][0]
                 name_display = tech['technique_name'][:30] + "..." if len(tech['technique_name']) > 30 else tech['technique_name']
-                print(f"      Cluster {cid}: {tech['technique_id'][:30]}... ({name_display}) sim={tech['similarity']:.3f}")
+                print(f"      Cluster {cid}: {name_display} (conf={tech['confidence']:.3f})")
             
-            # * 生成標註結果
-            labeling_results = [
-                {
-                    "log_index": log_idx,
-                    "cluster_id": int(cluster_labels[log_idx]),
-                    "technique_id": cluster_to_technique[cluster_labels[log_idx]]["technique_id"],
-                    "technique_name": cluster_to_technique[cluster_labels[log_idx]]["technique_name"],
-                    "confidence": cluster_to_technique[cluster_labels[log_idx]]["similarity"],
-                }
-                for log_idx in range(len(cluster_labels))
-            ]
+            # * 建立結果 DataFrame（包含原始資料 + Top-K 預測）
+            result_data = []
+            for log_idx in range(len(cluster_labels)):
+                cluster_id = cluster_labels[log_idx]
+                techniques = cluster_to_techniques[cluster_id]
+                
+                row = {"original_idx": log_idx}
+                
+                # 加入原始資料欄位
+                if original_df is not None and log_idx < len(original_df):
+                    for col in original_df.columns:
+                        row[col] = original_df.iloc[log_idx][col]
+                
+                # 加入 Top-K 技術預測
+                for k_idx, tech in enumerate(techniques, 1):
+                    row[f"predicted_technique_{k_idx}_name"] = tech["technique_name"]
+                    row[f"predicted_technique_{k_idx}_confidence"] = tech["confidence"]
+                
+                result_data.append(row)
             
+            result_df = pd.DataFrame(result_data)
+            
+            # * 儲存結果
             ensure_dir(output_dir)
-            output_path = os.path.join(output_dir, f"{dataset_id}_labels.csv")
-            pd.DataFrame(labeling_results).to_csv(output_path, index=False)
+            output_path = os.path.join(output_dir, f"{dataset_id}_Labeled.csv")
+            result_df.to_csv(output_path, index=False)
             print(f"    標註結果已存至 {output_path}")
             
-            return {"labels": labeling_results, "output_path": output_path}
+            # * 統計 Top-1 標註分布
+            technique_counts = result_df["predicted_technique_1_name"].value_counts()
+            print(f"    Top-1 標註分布:")
+            for tech, count in list(technique_counts.items())[:5]:
+                print(f"        {tech}: {count} ({count/len(result_df)*100:.1f}%)")
+            
+            return {
+                "labels": result_data,
+                "output_path": output_path,
+                "result_df": result_df,
+            }
             
         except Exception as e:
             print(f"    [Error] 標註失敗: {e}")
@@ -294,16 +387,60 @@ class AutoLabeler:
             traceback.print_exc()
             return None
 
-    def _generate_placeholder_result(self, dataset_id: str, cluster_labels: np.ndarray, output_dir: str) -> Dict[str, Any]:
-        labels = [
-            {"log_index": i, "cluster_id": int(cluster_labels[i]), "technique_id": "TBD", "technique_name": "待人工標註", "confidence": 0.0}
-            for i in range(len(cluster_labels))
+    def _load_original_dataset(self, dataset_id: str) -> Optional[pd.DataFrame]:
+        # * 載入原始資料集（用於合併輸出）
+        candidates = [
+            os.path.join(self.config.input_logs_dir, f"{dataset_id}.csv"),
+            os.path.join(self.config.intermediate_data_dir, f"{dataset_id}.csv"),
         ]
+        
+        for path in candidates:
+            if os.path.exists(path):
+                try:
+                    df = pd.read_csv(path)
+                    print(f"    [載入原始資料] {path} ({len(df)} 筆, {len(df.columns)} 欄)")
+                    return df
+                except Exception as e:
+                    print(f"    [Warning] 載入原始資料失敗: {e}")
+        
+        print(f"    [Warning] 找不到原始資料集: {dataset_id}")
+        return None
+
+    def _generate_placeholder_result(
+        self,
+        dataset_id: str,
+        cluster_labels: np.ndarray,
+        output_dir: str,
+        original_df: Optional[pd.DataFrame] = None,
+        top_k: int = 3,
+    ) -> Dict[str, Any]:
+        # * 生成佔位符標註結果（維度不符時使用）
+        result_data = []
+        for i in range(len(cluster_labels)):
+            row = {"original_idx": i}
+            
+            if original_df is not None and i < len(original_df):
+                for col in original_df.columns:
+                    row[col] = original_df.iloc[i][col]
+            
+            for k in range(1, top_k + 1):
+                row[f"predicted_technique_{k}_name"] = "TBD"
+                row[f"predicted_technique_{k}_confidence"] = 0.0
+            
+            result_data.append(row)
+        
+        result_df = pd.DataFrame(result_data)
+        
         ensure_dir(output_dir)
-        output_path = os.path.join(output_dir, f"{dataset_id}_labels.csv")
-        pd.DataFrame(labels).to_csv(output_path, index=False)
+        output_path = os.path.join(output_dir, f"{dataset_id}_Labeled.csv")
+        result_df.to_csv(output_path, index=False)
         print(f"    [Placeholder] 標註結果已存至 {output_path}")
-        return {"labels": labels, "output_path": output_path}
+        
+        return {
+            "labels": result_data,
+            "output_path": output_path,
+            "result_df": result_df,
+        }
 
 
 def load_anomaly_weights(detection_results_dir: str = config.DETECTION_RESULTS_DIR) -> Dict[str, np.ndarray]:

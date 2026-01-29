@@ -312,6 +312,7 @@ def STAGE_IV():
                 cluster_labels=cluster_labels,
                 output_dir=config.LABELING_RESULTS_DIR,
                 nmf_extractor=extractor,
+                log_vectors_path=input_path,  # 傳遞路徑，由 API 內部載入
             )
             
             results[dataset_id] = {
