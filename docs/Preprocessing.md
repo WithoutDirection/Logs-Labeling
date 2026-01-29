@@ -1,6 +1,8 @@
 # 日誌預處理
 
-日誌預處理的三個主要階段：**日誌解析與模板化**、**文字嵌入**、以及 **Log Vector 生成**。
+日誌預處理階段包含四個步驟：**日誌解析與模板化**、**BERT 嵌入**、**Per-Log TF-IDF 預計算**、以及 **Log Vector 生成**。
+
+> **對應 Pipeline Stage I**：`STAGE_I(N, enable_tfidf=True)`
 
 ---
 
@@ -68,7 +70,46 @@
 
 ---
 
-## 階段三：Log Vector 生成 (LogChunker)
+## 階段三：Per-Log TF-IDF 預計算（可選）
+
+> 此步驟整合於 Stage I，透過 `enable_tfidf=True` 參數控制
+
+### 輸入
+- **中間資料 CSV**：位於 `data/Intermediate_data/` 的原始日誌文字
+- **MITRE TF-IDF Vectorizer**：預訓練於 MITRE ATT&CK 語料的詞彙表 (`data/ExternalKnowledge/MITRE_TFIDF/tfidf_vectorizer.pkl`)
+
+### 輸出
+- **稀疏 TF-IDF 矩陣**：儲存於 `data/Embeddings/{dataset_id}_embeddings/tfidf.npz`
+- 矩陣維度：`(n_logs, vocab_size)`，其中 `vocab_size` 約 5000
+
+### 處理流程
+
+1. **載入 Vectorizer**：讀取預訓練的 TfidfVectorizer，確保詞彙表與 MITRE 一致
+2. **文字提取**：按優先順序讀取欄位：`ConcatenatedLog` > `Template + Parameters` > `Content` > `Event`
+3. **向量轉換**：使用 `vectorizer.transform(texts)` 生成稀疏矩陣
+4. **儲存**：以 `scipy.sparse.save_npz()` 格式儲存
+
+### 機制說明
+Per-Log TF-IDF 用於 Stage IV 的**混合評分機制**：
+
+$$
+\text{Score}_{hybrid} = \alpha \times \text{Sim}_{embedding} + (1 - \alpha) \times \text{Sim}_{tfidf}
+$$
+
+預設 $\alpha = 0.7$（Embedding 權重 70%，TF-IDF 權重 30%）。TF-IDF 提供詞彙層級的精確匹配，補充 BERT 嵌入的語義模糊性。
+
+### API 呼叫
+
+```python
+from precompute_log_tfidf import run_log_tfidf_precompute
+
+result = run_log_tfidf_precompute(force_rebuild=False, verbose=True)
+# result: {"success": 10, "skipped": 5, "failed": 0, "total": 15, "enabled": True}
+```
+
+---
+
+## 階段四：Log Vector 生成 (LogChunker)
 
 ### 輸入
 - **嵌入向量資料集**：階段二輸出的資料（位於 `data/Embeddings/`）
@@ -138,5 +179,19 @@ Log Vector 的目的是將**一段時間內的日誌序列**壓縮為單一向�
 | `FUSION_ENABLE` | `False` | 是否啟用融合層 | 設為 `True` 時啟用融合層，降低維度並加入正則化 |
 | `FUSION_OUTPUT_DIM` | `256` | 融合層輸出維度 | 決定最終 Log Vector 的維度，影響下游任務的輸入大小 |
 
+### Per-Log TF-IDF 設定
+
+| 參數 | 預設值 | 說明 | 修改影響 |
+|------|--------|------|----------|
+| `MITRE_TFIDF_DIR` | `data/ExternalKnowledge/MITRE_TFIDF` | TF-IDF Vectorizer 目錄 | 需包含 `tfidf_vectorizer.pkl` |
+| `LABELING_EMBEDDING_WEIGHT` | `0.7` | 混合評分中 Embedding 權重 | **增大**：更依賴語義相似度；**減小**：更依賴詞彙匹配 |
+
 ---
 
+## 相關模組
+
+- [Embedding.md](./Embedding.md) - BERT 模型詳細說明
+- [Templatize.md](./Templatize.md) - 日誌解析器詳細說明
+- [Anomaly_Detection.md](./Anomaly_Detection.md) - Stage II：異常偵測
+- [External_Sources.md](./External_Sources.md) - Stage III：外部知識
+- [Concept_Extraction.md](./Concept_Extraction.md) - Stage IV-a：概念提取

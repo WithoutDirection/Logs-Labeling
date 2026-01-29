@@ -44,6 +44,25 @@ $$
 - **低異常分數**：表示該日誌較接近正常模式，即使與某攻擊技術相似度高，也應降低信心度
 - **加權 Centroid**：計算 Cluster Centroid 時，高異常分數的樣本會被賦予更高的權重
 
+### 混合評分機制（Embedding + TF-IDF）
+
+自動標註支援**雙軌評分**，結合語義嵌入與詞彙匹配：
+
+$$
+\text{Score}_{hybrid} = \alpha \times \text{Sim}_{embedding} + (1 - \alpha) \times \text{Sim}_{tfidf}
+$$
+
+其中：
+- $\alpha$：Embedding 權重（預設 0.7）
+- $\text{Sim}_{embedding}$：Cluster Centroid 與 MITRE 嵌入的餘弦相似度
+- $\text{Sim}_{tfidf}$：Cluster 平均 TF-IDF 向量與 MITRE TF-IDF 的餘弦相似度
+
+**啟用條件**：
+- Stage I 需啟用 `enable_tfidf=True`（生成 `tfidf.npz`）
+- `data/ExternalKnowledge/MITRE_TFIDF/` 需存在 `tfidf_matrix.npz`
+
+若 TF-IDF 資料不存在，系統自動回退至純 Embedding 評分。
+
 ## 配置參數
 
 | 參數 | 預設值 | 說明 |
@@ -52,9 +71,11 @@ $$
 | `LABELING_CONFIDENCE_THRESHOLD` | 0.2 | 最終分數閾值，低於此值標記為 Benign |
 | `LABELING_ANOMALY_WEIGHT` | 0.3 | 異常分數在信心度計算中的權重 |
 | `LABELING_SIMILARITY_WEIGHT` | 0.7 | 相似度在信心度計算中的權重 |
+| `LABELING_EMBEDDING_WEIGHT` | 0.7 | 混合評分中 Embedding 權重（$\alpha$） |
 | `LABELING_TOP_K` | 3 | 輸出的候選技術數量 |
 | `LABELING_RESULTS_DIR` | `result/Labeling_Results/` | 標註結果輸出目錄 |
 | `MITRE_EXTERNAL_KNOWLEDGE_DIR` | `data/ExternalKnowledge/MITRE_RAW_EMBEDDINGS` | MITRE 嵌入向量目錄 |
+| `MITRE_TFIDF_DIR` | `data/ExternalKnowledge/MITRE_TFIDF` | MITRE TF-IDF 向量目錄 |
 
 ## 使用方式
 
@@ -75,8 +96,9 @@ from auto_labeling import AutoLabeler
 # 建立標註器
 labeler = AutoLabeler()
 
-# 載入 MITRE 嵌入
+# 載入 MITRE 嵌入與 TF-IDF
 labeler.load_mitre_embeddings()
+labeler.load_mitre_tfidf()  # 用於混合評分
 
 # 標註單一資料集（需要事先準備好 concept_vectors 和 cluster_labels）
 result = labeler.process_single_dataset(

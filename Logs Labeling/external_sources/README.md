@@ -164,17 +164,12 @@ This module is primarily used in **Stage III** to build MITRE ATT&CK embeddings:
 
 ```python
 # In Pipeline.py STAGE_III
-from external_sources.build_mitre_raw_embeddings import build_mitre_raw_embeddings
+from external_sources import build_knowledge_base
 
 def STAGE_III():
     """Stage III: Build External Knowledge Embeddings"""
-    out_dir = build_mitre_raw_embeddings(
-        mitre_csv=config.MITRE_TECHNIQUES_CSV,
-        out_dir=config.MITRE_EXTERNAL_KNOWLEDGE_DIR,
-        bert_model=config.BERT_MODEL_NAME,
-        force_rebuild=False,
-    )
-    return {"output_dir": out_dir}
+    result = build_knowledge_base(force_rebuild=False, verbose=True)
+    return result
 ```
 
 ### Pipeline Stage IV: Per-Dataset Processing

@@ -127,17 +127,15 @@ out_dir = build_mitre_raw_embeddings(
 
 ```python
 # Pipeline.py STAGE_III
-from external_sources.build_mitre_raw_embeddings import build_mitre_raw_embeddings
+from external_sources import build_knowledge_base
 
 def STAGE_III():
     """建立外部知識嵌入"""
-    out_dir = build_mitre_raw_embeddings(
-        mitre_csv=config.MITRE_TECHNIQUES_CSV,
-        out_dir=config.MITRE_EXTERNAL_KNOWLEDGE_DIR,
-        bert_model=config.BERT_MODEL_NAME,
-        force_rebuild=False,
-    )
-    return {"output_dir": out_dir}
+    result = build_knowledge_base(force_rebuild=False, verbose=True)
+    
+    status = "使用快取" if result.get("cached") else "新建完成"
+    print(f"[Stage III 完成] {status} | 技術數量: {result['n_techniques']}")
+    return result
 ```
 
 ### 3.2 Stage IV：自動標註整合
