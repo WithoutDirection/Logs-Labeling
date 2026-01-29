@@ -142,6 +142,17 @@ def build_knowledge_base(
         force_rebuild=force_rebuild,
     )
     
+    # * 建立 TF-IDF 向量（用於混合評分）
+    try:
+        from .build_tfidf import build_mitre_tfidf
+        tfidf_dir = getattr(config, 'MITRE_TFIDF_DIR', os.path.join(config.EXTERNAL_KNOWLEDGE_DIR, "MITRE_TFIDF"))
+        build_mitre_tfidf(out_dir=tfidf_dir, mitre_csv=mitre_csv, force_rebuild=force_rebuild)
+        if verbose:
+            print(f"TF-IDF 向量已建立: {tfidf_dir}")
+    except Exception as e:
+        if verbose:
+            print(f"[Warning] TF-IDF 建立失敗: {e}")
+    
     # 讀取統計資訊
     try:
         from datasets import load_from_disk
