@@ -191,7 +191,7 @@ class LogLoader:
             解析後的 DataFrame 列表
         """
         if columns is None:
-            columns = ["Operation", "Path", "Result", "Command Line"]
+            columns = ["Operation", "Path", "Result"]
         
         num = kwargs.get("num")
         ratio = kwargs.get("ratio")
