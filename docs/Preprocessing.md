@@ -190,6 +190,7 @@ Log Vector 的目的是將**一段時間內的日誌序列**壓縮為單一向�
 
 ## 相關模組
 
+- [TF-IDF.md](./TF-IDF.md) - TF-IDF 雙層架構詳細說明
 - [Embedding.md](./Embedding.md) - BERT 模型詳細說明
 - [Templatize.md](./Templatize.md) - 日誌解析器詳細說明
 - [Anomaly_Detection.md](./Anomaly_Detection.md) - Stage II：異常偵測

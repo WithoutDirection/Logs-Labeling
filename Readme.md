@@ -103,7 +103,7 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 >  詳細文件：[Preprocessing.md](./docs/Preprocessing.md)、[Embedding.md](./docs/Embedding.md)、[Templatize.md](./docs/Templatize.md)
 
 #### 目的
-將非結構化的原始日誌轉換為**固定維度的語義向量**，使後續機器學習模型能夠處理。
+將非結構化的原始日誌轉換為**固定維度的語義向量**，並預計算 TF-IDF 稀疏向量供後續混合評分使用。
 
 #### 處理流程
 
@@ -111,17 +111,37 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 原始 CSV 日誌
      │
      ▼
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  日誌解析   │ ──► │  BERT 嵌入  │ ──► │  向量儲存   │
-│ (Drain)     │     │ (768 dim)   │     │ (Arrow)     │
-└─────────────┘     └─────────────┘     └─────────────┘
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  日誌解析   │ ──► │  BERT 嵌入  │ ──► │  TF-IDF     │ ──► │  向量儲存   │
+│ (Drain)     │     │ (384 dim)   │     │ (稀疏矩陣)  │     │ (Arrow)     │
+└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
 ```
 
 | 子步驟 | 說明 | 輸出 |
 |--------|------|------|
 | **日誌解析** | 使用 Drain 演算法將日誌拆解為「模板」+「參數」（可透過 `ENABLE_PARSER` 設定啟用/停用） | `Template`: `CreateFile <*> SUCCESS` |
-| **BERT 嵌入** | 將模板轉換為 768 維向量（支援 Sentence-BERT、SecBERT 等，透過 `BERT_MODEL_NAME` 設定） | `embedding`: `[0.23, -0.15, ...]` |
+| **BERT 嵌入** | 將模板轉換為語義向量（支援 Sentence-BERT、SecBERT 等，透過 `BERT_MODEL_NAME` 設定） | `embedding`: `[0.23, -0.15, ...]` |
+| **Per-Log TF-IDF** | 使用 MITRE 預訓練 Vectorizer 計算詞彙權重向量（用於 Stage IV 混合評分） | `tfidf.npz`: 稀疏矩陣 |
 | **向量儲存** | 以 Arrow 格式高效儲存 | `data/Embeddings/` |
+
+#### API 呼叫
+
+```python
+from Pipeline import STAGE_I
+
+# 執行 Stage I（含 TF-IDF 預計算）
+result = STAGE_I(N=10, enable_tfidf=True, enable_comparison=False)
+
+# result: {n_loaded, embedding_dim, tfidf_stats}
+```
+
+**內部 API**：
+
+| 模組 | 函數 | 說明 |
+|------|------|------|
+| `preprocess` | `run_preprocessing()` | BERT 嵌入計算 |
+| `precompute_log_tfidf` | `run_log_tfidf_precompute()` | Per-Log TF-IDF 預計算 |
+| `visualization.bert_comparison` | `BertEmbeddingComparator` | BERT 模型比較（可選） |
 
 #### 配置參數
 
@@ -131,11 +151,14 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 | `DEFAULT_PARSER` | `"drain"` | 預設解析器 |
 | `BERT_MODEL_NAME` | `"sentence-bert"` | BERT 模型名稱 |
 | `ZIPF_PERCENTILE` | `0.05` | Zipf 法則高頻詞過濾比例 |
+| `MITRE_TFIDF_DIR` | `data/ExternalKnowledge/MITRE_TFIDF` | TF-IDF Vectorizer 目錄 |
 
 #### 輸入輸出
 
 - **輸入**：`data/input_logs/*.csv`（原始日誌 CSV）
-- **輸出**：`data/Embeddings/{dataset_id}/`（嵌入向量資料集）
+- **輸出**：
+  - `data/Embeddings/{dataset_id}/data-*.arrow`（BERT 嵌入向量）
+  - `data/Embeddings/{dataset_id}/tfidf.npz`（TF-IDF 稀疏矩陣）
 
 ---
 
@@ -361,6 +384,7 @@ Logs-Labeling/
 │   ├── preprocess/          # Stage I：預處理與嵌入
 │   │   ├── preprocess.py    # LogLoader, LogEmbedder
 │   │   └── drain.py         # Drain 日誌解析器
+│   ├── precompute_log_tfidf.py  # Stage I：Per-Log TF-IDF 預計算
 │   ├── anomaly_dection/     # Stage II：異常偵測
 │   │   └── log_detector.py  # Ensemble 異常偵測
 │   ├── external_sources/    # Stage III：外部知識嵌入
@@ -433,7 +457,9 @@ main(n_datasets=100)
 ```python
 from Pipeline import STAGE_I, STAGE_II, STAGE_III, STAGE_IV
 
-STAGE_I(N=50)    # Stage I: 預處理前 50 個資料集並計算 BERT 嵌入
+# Stage I: 預處理前 50 個資料集並計算 BERT 嵌入 + TF-IDF
+STAGE_I(N=50, enable_tfidf=True)
+
 STAGE_II()       # Stage II: 異常偵測
 STAGE_III()      # Stage III: 建立 MITRE 外部知識嵌入
 STAGE_IV()       # Stage IV: Per-Dataset 處理 (NMF → HMM → 標註)

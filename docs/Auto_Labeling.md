@@ -235,8 +235,9 @@ python build_mitre_raw_embeddings.py --bert-model sentence-bert
 
 ## 相關模組
 
-- [Preprocessing](./Preprocessing.md) - Stage I：日誌預處理與嵌入
-- [Anomaly_Detection](./Anomaly_Detection.md) - Stage II：異常偵測
-- [External_Sources](./External_Sources.md) - Stage III：外部知識整合
-- [Concept_Extraction](./Concept_Extraction.md) - Stage IV-a：概念提取（NMF）
-- [Sequence_Clustering](./Sequence_Clustering.md) - Stage IV-b：序列分群（HMM）
+- [TF-IDF.md](./TF-IDF.md) - TF-IDF 雙層架構與混合評分機制
+- [Preprocessing.md](./Preprocessing.md) - Stage I：日誌預處理與嵌入
+- [Anomaly_Detection.md](./Anomaly_Detection.md) - Stage II：異常偵測
+- [External_Sources.md](./External_Sources.md) - Stage III：外部知識整合
+- [Concept_Extraction.md](./Concept_Extraction.md) - Stage IV-a：概念提取（NMF）
+- [Sequence_Clustering.md](./Sequence_Clustering.md) - Stage IV-b：序列分群（HMM）
