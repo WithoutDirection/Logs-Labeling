@@ -1,8 +1,26 @@
 # BERT 嵌入 (BERT Embedding)
 
+> **對應 Pipeline Stage I (Step 1)**：`STAGE_I(N, enable_tfidf=True)`
+
 ## 概述
 
 BERT 嵌入模組 (`models/bert.py`) 提供了一個統一的介面，用於載入和使用不同的 BERT 模型進行文本嵌入（text embedding）。該模組支援多種 BERT 變體，並特別整合了針對網路安全領域優化的模型（如 SecBERT），旨在將非結構化的日誌文本或威脅情報轉換為高維度的語義向量，以利後續的相似度計算與分類。
+
+## Pipeline 整合
+
+```python
+# Stage I 內部呼叫
+from preprocess import run_preprocessing
+
+results = run_preprocessing(
+    n_datasets=N,
+    enable_parser=False,          # 是否啟用日誌解析
+    model_name='sentence-bert',   # BERT 模型名稱
+    normalize=False,              # 是否正規化向量
+    enable_chunking=False,        # 是否啟用序列切分
+)
+# results: {n_loaded, embedding_dim}
+```
 
 ---
 
