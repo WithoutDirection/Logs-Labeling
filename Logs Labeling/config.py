@@ -153,18 +153,25 @@ CODE_EXTRACTOR_HEADERS = {
 }
 
 # ==================== 自動標註（Auto-Labeling） ====================
+# 
+# 評分公式：
+#   1. Similarity Score = (w_emb × Embedding_Sim) + (w_tfidf × TF-IDF_Sim) + DualBoost
+#   2. Threat Confidence = (α × Similarity_Score) + (β × Anomaly_Score)
+#
+# 其中：
+#   - Similarity_Score: Sequence 與 MITRE Technique 的語義/詞彙相似度
+#   - Anomaly_Score: Stage II 異常偵測結果 (0~1)，代表 raw event 的惡意可能性
+
 # 相似度閾值：低於此值的相似度將被視為不匹配
 LABELING_SIMILARITY_THRESHOLD = 0.3
 
-# 信心度閾值：similarity * confidence < threshold 則標記為 Benign
+# 信心度閾值：threat_confidence < threshold 則標記為 Benign
 LABELING_CONFIDENCE_THRESHOLD = 0.2
 
-# 異常分數權重（用於計算最終 confidence）
-# confidence = anomaly_weight * anomaly_score + similarity_weight * similarity
-LABELING_ANOMALY_WEIGHT = 0.3
-
-# 相似度權重
-LABELING_SIMILARITY_WEIGHT = 0.7
+# Threat Confidence 權重 (α + β 應等於 1.0)
+# confidence = α × similarity + β × anomaly
+LABELING_SIMILARITY_WEIGHT = 0.7  # α: 相似度權重
+LABELING_ANOMALY_WEIGHT = 0.3     # β: 異常分數權重
 
 # Top-K 候選技術（用於輸出多個可能的匹配結果）
 LABELING_TOP_K = 3
@@ -172,10 +179,19 @@ LABELING_TOP_K = 3
 # 是否使用原始嵌入向量進行比對（True: Raw Embeddings, False: Concept Vectors）
 LABELING_USE_RAW_EMBEDDINGS = False
 
-# 混合評分設定 (Hybrid Scoring)
+# Similarity Score 混合評分設定 (Hybrid Scoring)
+# similarity = w_emb × embedding_sim + w_tfidf × tfidf_sim + dual_boost
 LABELING_USE_TFIDF = True           # 是否啟用 TF-IDF 輔助評分
-LABELING_WEIGHT_EMBEDDING = 0.7     # 嵌入向量相似度權重
-LABELING_WEIGHT_TFIDF = 0.3         # TF-IDF 關鍵字相似度權重
+LABELING_WEIGHT_EMBEDDING = 0.6     # w_emb: 嵌入向量相似度權重
+LABELING_WEIGHT_TFIDF = 0.3         # w_tfidf: TF-IDF 關鍵字相似度權重
+
+# 雙高加分設定 (Dual-High Boost)
+# 當 Embedding_Sim 與 TF-IDF_Sim 同時高於閾值時，給予額外加分
+# boost = dual_boost_weight × min(embedding_sim, tfidf_sim)
+LABELING_ENABLE_DUAL_BOOST = True   # 是否啟用雙高加分
+LABELING_DUAL_BOOST_THRESHOLD = 0.5 # 雙高判定閾值
+LABELING_DUAL_BOOST_WEIGHT = 0.1    # 雙高加分權重
+
 MITRE_TFIDF_DIR = os.path.join(EXTERNAL_KNOWLEDGE_DIR, "MITRE_TFIDF")
 
 # 標註結果輸出目錄

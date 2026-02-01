@@ -8,11 +8,10 @@
 
 - [專案簡介](#專案簡介)
 - [核心流程概覽](#核心流程概覽)
-- [Pipeline 四階段詳解](#pipeline-四階段詳解)
-  - [Stage I：預處理與嵌入 (Preprocessing & Embedding)](#stage-i預處理與嵌入-preprocessing--embedding)
+- [Pipeline 三階段詳解](#pipeline-三階段詳解)
+  - [Stage I：輸入處理 (Input Processing)](#stage-i輸入處理-input-processing)
   - [Stage II：異常偵測 (Anomaly Detection)](#stage-ii異常偵測-anomaly-detection)
-  - [Stage III：外部知識嵌入 (External Knowledge)](#stage-iii外部知識嵌入-external-knowledge)
-  - [Stage IV：Per-Dataset 處理 (NMF → HMM → Auto Labeling)](#stage-ivper-dataset-處理-nmf--hmm--auto-labeling)
+  - [Stage III：Per-Dataset 處理 (NMF → HMM → Auto Labeling)](#stage-iiiper-dataset-處理-nmf--hmm--auto-labeling)
 - [專案目錄結構](#專案目錄結構)
 - [快速開始](#快速開始)
 - [更新日誌](#更新日誌)
@@ -46,20 +45,25 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 
 ![Structure](./docs/assests/LogsLabeling%20Structure.png)
 
-本專案採用 **Per-Dataset 策略**，將日誌標註拆解為 **四個獨立階段**，確保每個 Technique 的標註不會被其他 Technique 混淆：
+本專案採用 **Per-Dataset 策略**，將日誌標註拆解為 **三個獨立階段**：
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                        Logs Labeling Pipeline                           │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│   [原始日誌]                                                             │
+│   [原始日誌] + [MITRE ATT&CK]                                           │
 │       │                                                                 │
 │       ▼                                                                 │
-│   ┌──────────────┐                                                      │
-│   │  STAGE I     │  預處理與嵌入：日誌解析 → BERT 嵌入 → 向量化             │
-│   │ Preprocessing│  產出：768 維語義向量                                  │
-│   └──────┬───────┘                                                      │
+│   ┌──────────────────────────────────────────────────────────────┐      │
+│   │  STAGE I: 輸入處理 (Input Processing)                        │      │
+│   │                                                              │      │
+│   │  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐     │      │
+│   │  │ Log Datasets │   │  Reference   │   │   TF-IDF     │     │      │
+│   │  │ Parse→Embed  │   │  Embedding   │   │  Pipeline    │     │      │
+│   │  └──────────────┘   └──────────────┘   └──────────────┘     │      │
+│   │  產出：Log Vectors + Reference Vectors + TF-IDF 指紋        │      │
+│   └──────────────────────────────────────────────────────────────┘      │
 │          │                                                              │
 │          ▼                                                              │
 │   ┌──────────────┐                                                      │
@@ -67,23 +71,18 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 │   │   Anomaly    │  產出：每筆日誌的異常分數 (0~1)                         │
 │   └──────┬───────┘                                                      │
 │          │                                                              │
-│          │       ┌───────────────────────────────────────┐              │
-│          │       │  STAGE III: 外部知識嵌入               │              │
-│          │       │  將 MITRE ATT&CK 描述轉換為 BERT 向量  │              │
-│          │       └───────────────┬───────────────────────┘              │
-│          │                       │                                      │
-│          ▼                       ▼                                      │
+│          ▼                                                              │
 │   ┌──────────────────────────────────────────────────────────────┐      │
-│   │  STAGE IV: Per-Dataset 處理 (每個 Dataset 獨立執行)           │      │
+│   │  STAGE III: Per-Dataset 處理 (每個 Dataset 獨立執行)          │      │
 │   │                                                              │      │
-│   │  ┌────────────┐   ┌────────────┐   ┌────────────┐           │      │
-│   │  │ 概念提取   │ → │ 序列分群   │ → │ 自動標註   │           │      │
-│   │  │   (NMF)    │   │   (HMM)    │   │ (Labeling) │           │      │
-│   │  └────────────┘   └────────────┘   └────────────┘           │      │
+│   │  ┌────────────┐   ┌────────────┐   ┌─────────────────┐      │      │
+│   │  │ 概念提取   │ → │ 序列分群   │ → │  自動標註       │      │      │
+│   │  │   (NMF)    │   │   (HMM)    │   │(Threat Confid.) │      │      │
+│   │  └────────────┘   └────────────┘   └─────────────────┘      │      │
 │   │                                                              │      │
 │   │  • NMF: 與外部知識聯合訓練，降維至 k 維概念空間               │      │
 │   │  • HMM: 識別攻擊演變階段，產出群集標籤                        │      │
-│   │  • Labeling: 比對 MITRE 技術，分配攻擊技術標籤                │      │
+│   │  • Labeling: Similarity + Anomaly = Threat Confidence         │      │
 │   └──────────────────────────────────────────────────────────────┘      │
 │          │                                                              │
 │          ▼                                                              │
@@ -96,69 +95,81 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 
 ---
 
-## Pipeline 四階段詳解
+## Pipeline 三階段詳解
 
-### Stage I：預處理與嵌入 (Preprocessing & Embedding)
+### Stage I：輸入處理 (Input Processing)
 
->  詳細文件：[Preprocessing.md](./docs/Preprocessing.md)、[Embedding.md](./docs/Embedding.md)、[Templatize.md](./docs/Templatize.md)
+>  詳細文件：[Preprocessing.md](./docs/Preprocessing.md)、[Embedding.md](./docs/Embedding.md)、[TF-IDF.md](./docs/TF-IDF.md)
 
 #### 目的
-將非結構化的原始日誌轉換為**固定維度的語義向量**，並預計算 TF-IDF 稀疏向量供後續混合評分使用。
+統一處理所有輸入資料：將原始日誌轉換為語義向量，同時為 MITRE ATT&CK 技術建立嵌入與 TF-IDF 指紋。
 
 #### 處理流程
 
 ```
-原始 CSV 日誌
-     │
-     ▼
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  日誌解析   │ ──► │  BERT 嵌入  │ ──► │  TF-IDF     │ ──► │  向量儲存   │
-│ (Drain)     │     │ (384 dim)   │     │ (稀疏矩陣)  │     │ (Arrow)     │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Stage I: 輸入處理                               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  Log Datasets                        Reference Sources (MITRE)      │
+│  ┌─────────────────────────┐        ┌─────────────────────────┐     │
+│  │ Parse → Embed → Chunk   │        │ Embedding + TF-IDF 指紋 │     │
+│  └───────────┬─────────────┘        └───────────┬─────────────┘     │
+│              │                                  │                   │
+│              ▼                                  ▼                   │
+│  ┌─────────────────┐                ┌─────────────────┐             │
+│  │ Log Vectors     │                │ MITRE Embedding │             │
+│  │ + tfidf.npz     │                │ + TF-IDF Matrix │             │
+│  └─────────────────┘                └─────────────────┘             │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 | 子步驟 | 說明 | 輸出 |
 |--------|------|------|
-| **日誌解析** | 使用 Drain 演算法將日誌拆解為「模板」+「參數」（可透過 `ENABLE_PARSER` 設定啟用/停用） | `Template`: `CreateFile <*> SUCCESS` |
-| **BERT 嵌入** | 將模板轉換為語義向量（支援 Sentence-BERT、SecBERT 等，透過 `BERT_MODEL_NAME` 設定） | `embedding`: `[0.23, -0.15, ...]` |
-| **Per-Log TF-IDF** | 使用 MITRE 預訓練 Vectorizer 計算詞彙權重向量（用於 Stage IV 混合評分） | `tfidf.npz`: 稀疏矩陣 |
-| **向量儲存** | 以 Arrow 格式高效儲存 | `data/Embeddings/` |
+| **日誌解析** | 使用 Drain 演算法拆解為「模板」+「參數」 | `Template`: `CreateFile <*> SUCCESS` |
+| **BERT 嵌入** | 將日誌轉換為語義向量 | `embedding`: `[0.23, -0.15, ...]` |
+| **Reference Embedding** | 將 MITRE 技術描述轉換為 BERT 向量 | `data/ExternalKnowledge/MITRE_RAW_EMBEDDINGS/` |
+| **TF-IDF 指紋** | 建立 MITRE 技術的詞彙指紋 | `mitre_tfidf_matrix.pkl` |
+| **Log TF-IDF** | 使用共享 Vectorizer 轉換日誌 | `tfidf.npz`: 稀疏矩陣 |
 
 #### API 呼叫
 
 ```python
 from Pipeline import STAGE_I
 
-# 執行 Stage I（含 TF-IDF 預計算）
-result = STAGE_I(N=10, enable_tfidf=True, enable_comparison=False)
+# 執行 Stage I（統一處理 Logs + Reference）
+result = STAGE_I(N=10, enable_tfidf=True)
 
-# result: {n_loaded, embedding_dim, tfidf_stats}
+# result: {n_loaded, embedding_dim, reference_embedding_path, tfidf_enabled}
 ```
 
 **內部 API**：
 
 | 模組 | 函數 | 說明 |
 |------|------|------|
-| `preprocess` | `run_preprocessing()` | BERT 嵌入計算 |
-| `precompute_log_tfidf` | `run_log_tfidf_precompute()` | Per-Log TF-IDF 預計算 |
-| `visualization.bert_comparison` | `BertEmbeddingComparator` | BERT 模型比較（可選） |
+| `preprocess` | `process_all_inputs()` | 統一入口 API |
+| `preprocess` | `run_preprocessing()` | Log 預處理 |
+| `external_sources` | `build_mitre_raw_embeddings()` | Reference Embedding |
+| `precompute_log_tfidf` | `run_tfidf_pipeline()` | TF-IDF 處理 |
 
 #### 配置參數
 
 | 參數 | 預設值 | 說明 |
 |------|--------|------|
 | `ENABLE_PARSER` | `True` | 是否啟用日誌解析 |
-| `DEFAULT_PARSER` | `"drain"` | 預設解析器 |
 | `BERT_MODEL_NAME` | `"sentence-bert"` | BERT 模型名稱 |
-| `ZIPF_PERCENTILE` | `0.05` | Zipf 法則高頻詞過濾比例 |
-| `MITRE_TFIDF_DIR` | `data/ExternalKnowledge/MITRE_TFIDF` | TF-IDF Vectorizer 目錄 |
+| `MITRE_TFIDF_DIR` | `data/ExternalKnowledge/MITRE_TFIDF` | TF-IDF 輸出目錄 |
 
 #### 輸入輸出
 
-- **輸入**：`data/input_logs/*.csv`（原始日誌 CSV）
+- **輸入**：
+  - `data/input_logs/*.csv`（原始日誌）
+  - `data/reference_resources/MitreTechniquesTokens_V5.csv`（MITRE 技術）
 - **輸出**：
-  - `data/Embeddings/{dataset_id}/data-*.arrow`（BERT 嵌入向量）
-  - `data/Embeddings/{dataset_id}/tfidf.npz`（TF-IDF 稀疏矩陣）
+  - `data/Embeddings/{dataset_id}/`（Log Vectors + TF-IDF）
+  - `data/ExternalKnowledge/MITRE_RAW_EMBEDDINGS/`（Reference Embedding）
+  - `data/ExternalKnowledge/MITRE_TFIDF/`（TF-IDF 指紋）
 
 ---
 
@@ -204,51 +215,7 @@ result = STAGE_I(N=10, enable_tfidf=True, enable_comparison=False)
 
 ---
 
-### Stage III：外部知識嵌入 (External Knowledge)
-
->  詳細文件：[External_Sources.md](./docs/External_Sources.md)
-
-#### 目的
-將 MITRE ATT&CK 攻擊技術描述轉換為 **BERT 嵌入向量**，作為後續標註的比對基準。
-
-#### 處理流程
-
-```
-MITRE ATT&CK 技術描述 (CSV)
-        │
-        ▼
-   BERT 嵌入 (768 維)
-        │
-        ▼
-   儲存為外部知識向量
-        │
-        ▼
-   供 Stage IV NMF 聯合訓練使用
-```
-
-#### 支援的外部來源
-
-| 來源 | 用途 |
-|------|------|
-| **MITRE ATT&CK** | 攻擊技術標籤（主要） |
-| **CAPEC** | 攻擊模式補充 |
-| **NVD/CVE** | 漏洞關聯 |
-
-#### 配置參數
-
-| 參數 | 預設值 | 說明 |
-|------|--------|------|
-| `MITRE_TECHNIQUES_CSV` | `data/reference_resources/MitreTechniquesTokens_V5.csv` | MITRE 技術資料路徑 |
-| `MITRE_EXTERNAL_KNOWLEDGE_DIR` | `data/ExternalKnowledge/MITRE_RAW_EMBEDDINGS` | 輸出嵌入向量目錄 |
-
-#### 輸入輸出
-
-- **輸入**：`data/reference_resources/MitreTechniquesTokens_V5.csv`
-- **輸出**：`data/ExternalKnowledge/MITRE_RAW_EMBEDDINGS/`
-
----
-
-### Stage IV：Per-Dataset 處理 (NMF → HMM → Auto Labeling)
+### Stage III：Per-Dataset 處理 (NMF → HMM → Auto Labeling)
 
 >  詳細文件：[Concept_Extraction.md](./docs/Concept_Extraction.md)、[Sequence_Clustering.md](./docs/Sequence_Clustering.md)、[Auto_Labeling.md](./docs/Auto_Labeling.md)
 
@@ -324,34 +291,63 @@ MITRE ATT&CK 技術描述 (CSV)
 
 #### Step 4c：自動標註 (Auto Labeling)
 
-**標註流程**：
+**雙層評分架構**：
 
 ```
+Layer 1: Similarity Score (與 Technique 的相似程度)
+─────────────────────────────────────────────────────
        Cluster Centroid ─────┐
-      (異常加權平均)         │
-                             ├──► 餘弦相似度 ──► 閾值判斷 ──► 技術標籤
-       MITRE 概念向量 ───────┘                      │           或
-         (NMF 投影)                                │        "Benign"
-       異常分數 ─────────────────► 信心度計算 ──────┘
+                             ├──► Embedding Sim ──┐
+       MITRE Embedding ──────┘                    │
+                                                  ├──► Similarity Score
+       Sequence TF-IDF ──────┐                    │
+                             ├──► TF-IDF Sim ─────┤
+       MITRE TF-IDF 指紋 ────┘                    │
+                                                  │
+       Dual-High Boost ───────────────────────────┘
+
+Layer 2: Threat Confidence (最終威脅信心度)
+─────────────────────────────────────────────────────
+       Similarity Score ────┐
+       (α = 0.7)            │
+                            ├──► Threat Confidence ──► Top-K Label
+       Anomaly Score ───────┘
+       (β = 0.3, Stage II)
 ```
 
-**信心度計算**：
+**評分公式**：
 
-$$\text{confidence} = w_a \times \text{anomaly\_score} + w_s \times \text{similarity}$$
+1. **Similarity Score**（與 Technique 的相似程度）：
 
-$$\text{final\_score} = \text{similarity} \times \text{confidence}$$
+$$
+\text{Similarity} = w_{emb} \times \text{Sim}_{embedding} + w_{tfidf} \times \text{Sim}_{tfidf} + \text{Boost}
+$$
 
-- 若 $\text{similarity} < \text{threshold}$ 或 $\text{final\_score} < \text{threshold}$，標記為 `Benign`
-- 否則標記為最相似的 MITRE 技術名稱（如 "PowerShell"、"Video Capture"）
+2. **Threat Confidence**（最終威脅信心度）：
+
+$$
+\text{Threat Confidence} = \alpha \times \text{Similarity Score} + \beta \times \text{Anomaly Score}
+$$
+
+- **Similarity Score**：Sequence 與 Technique 的語義/詞彙相似度
+- **Anomaly Score**：Stage II 異常偵測結果 (0~1)，代表 raw event 的惡意可能性
+
+**預設權重**：
+- Similarity: $w_{emb} = 0.6$, $w_{tfidf} = 0.3$, $w_{boost} = 0.1$
+- Threat: $\alpha = 0.7$, $\beta = 0.3$
 
 **配置參數**：
 
 | 參數 | 預設值 | 說明 |
 |------|--------|------|
+| `LABELING_WEIGHT_EMBEDDING` | `0.6` | Embedding 權重 ($w_{emb}$) |
+| `LABELING_WEIGHT_TFIDF` | `0.3` | TF-IDF 權重 ($w_{tfidf}$) |
+| `LABELING_ENABLE_DUAL_BOOST` | `True` | 啟用雙高加分 |
+| `LABELING_DUAL_BOOST_THRESHOLD` | `0.5` | 雙高判定閾值 ($\theta$) |
+| `LABELING_DUAL_BOOST_WEIGHT` | `0.1` | 雙高加分權重 ($w_{boost}$) |
+| `LABELING_SIMILARITY_WEIGHT` | `0.7` | Similarity 權重 ($\alpha$) |
+| `LABELING_ANOMALY_WEIGHT` | `0.3` | Anomaly 權重 ($\beta$) |
 | `LABELING_SIMILARITY_THRESHOLD` | `0.3` | 相似度下界 |
-| `LABELING_CONFIDENCE_THRESHOLD` | `0.2` | 最終分數閾值 |
-| `LABELING_ANOMALY_WEIGHT` | `0.3` | 異常分數權重 |
-| `LABELING_SIMILARITY_WEIGHT` | `0.7` | 相似度權重 |
 | `LABELING_TOP_K` | `3` | 候選技術數量 |
 
 #### 輸入輸出
@@ -359,7 +355,7 @@ $$\text{final\_score} = \text{similarity} \times \text{confidence}$$
 - **輸入**：
   - `data/Embeddings/{dataset_id}/`（Stage I 產出）
   - `data/Detection_Results/`（Stage II 產出）
-  - `data/ExternalKnowledge/`（Stage III 產出）
+  - `data/ExternalKnowledge/`（Stage I 產出：MITRE Embedding + TF-IDF）
 - **輸出**：
   - `data/ConceptVectors/{dataset_id}/`（概念向量）
   - `data/SequenceClusters/{dataset_id}/`（群集標籤）
@@ -379,19 +375,21 @@ $$\text{final\_score} = \text{similarity} \times \text{confidence}$$
 ```
 Logs-Labeling/
 ├── Logs Labeling/           # 核心程式碼
-│   ├── Pipeline.py          # 主流程控制（四階段）
+│   ├── Pipeline.py          # 主流程控制（三階段）
 │   ├── config.py            # 參數配置
-│   ├── preprocess/          # Stage I：預處理與嵌入
-│   │   ├── preprocess.py    # LogLoader, LogEmbedder
+│   ├── preprocess/          # Stage I：輸入處理
+│   │   ├── __init__.py      # process_all_inputs(), run_preprocessing()
+│   │   ├── loader.py        # LogLoader
+│   │   ├── embedder.py      # LogEmbedder
 │   │   └── drain.py         # Drain 日誌解析器
-│   ├── precompute_log_tfidf.py  # Stage I：Per-Log TF-IDF 預計算
+│   ├── precompute_log_tfidf.py  # Stage I：TF-IDF Pipeline
 │   ├── anomaly_dection/     # Stage II：異常偵測
 │   │   └── log_detector.py  # Ensemble 異常偵測
-│   ├── external_sources/    # Stage III：外部知識嵌入
+│   ├── external_sources/    # Reference Embedding 工具
 │   │   └── build_mitre_raw_embeddings.py
-│   ├── conception_extraction.py  # Stage IV-a：概念提取 (NMF)
-│   ├── sequence_clustering.py    # Stage IV-b：序列分群 (HMM)
-│   ├── auto_labeling.py     # Stage IV-c：自動標註
+│   ├── conception_extraction.py  # Stage III-a：概念提取 (NMF)
+│   ├── sequence_clustering.py    # Stage III-b：序列分群 (HMM)
+│   ├── auto_labeling.py     # Stage III-c：自動標註（混合評分）
 │   ├── models/              # 模型相關
 │   │   └── bert.py          # BERT 嵌入 API
 │   └── visualization/       # 視覺化工具
@@ -399,22 +397,22 @@ Logs-Labeling/
 ├── data/                    # 資料目錄
 │   ├── input_logs/          # 原始日誌
 │   ├── reference_resources/ # 外部知識資源（MITRE CSV 等）
-│   ├── Embeddings/          # Stage I 輸出（BERT 嵌入向量）
+│   ├── Embeddings/          # Stage I 輸出（Log Vectors + TF-IDF）
 │   ├── Detection_Results/   # Stage II 輸出（異常分數）
-│   ├── ExternalKnowledge/   # Stage III 輸出（MITRE 嵌入向量）
-│   ├── ConceptVectors/      # Stage IV-a 輸出（概念向量）
-│   └── SequenceClusters/    # Stage IV-b 輸出（群集標籤）
+│   ├── ExternalKnowledge/   # Stage I 輸出（MITRE Embedding + TF-IDF 指紋）
+│   ├── ConceptVectors/      # Stage III-a 輸出（概念向量）
+│   └── SequenceClusters/    # Stage III-b 輸出（群集標籤）
 │
 ├── result/                  # 最終結果
 │   ├── Anomaly_Detection/   # Stage II 視覺化報告
-│   └── Labeling_Results/    # Stage IV-c 輸出（標註結果）
+│   └── Labeling_Results/    # Stage III-c 輸出（標註結果）
 │
 ├── docs/                    # 詳細文件
 │   ├── Preprocessing.md
 │   ├── Anomaly_Detection.md
 │   ├── Concept_Extraction.md
 │   ├── Sequence_Clustering.md
-│   ├── External_Sources.md
+│   ├── TF-IDF.md
 │   └── Auto_Labeling.md
 │
 └── requirements.txt         # 依賴套件
@@ -455,14 +453,13 @@ main(n_datasets=100)
 或逐階段執行：
 
 ```python
-from Pipeline import STAGE_I, STAGE_II, STAGE_III, STAGE_IV
+from Pipeline import STAGE_I, STAGE_II, STAGE_III
 
-# Stage I: 預處理前 50 個資料集並計算 BERT 嵌入 + TF-IDF
+# Stage I: 處理所有輸入（Log Datasets + Reference + TF-IDF）
 STAGE_I(N=50, enable_tfidf=True)
 
 STAGE_II()       # Stage II: 異常偵測
-STAGE_III()      # Stage III: 建立 MITRE 外部知識嵌入
-STAGE_IV()       # Stage IV: Per-Dataset 處理 (NMF → HMM → 標註)
+STAGE_III()      # Stage III: Per-Dataset 處理 (NMF → HMM → 標註)
 ```
 
 ### 查看結果
@@ -475,6 +472,7 @@ STAGE_IV()       # Stage IV: Per-Dataset 處理 (NMF → HMM → 標註)
 
 | 日期 | 更新內容 |
 |------|---------|
+| 2026-01-30 | **重構為三階段架構**：Stage I 統一處理 Log + Reference + TF-IDF；移除獨立的 Stage III (External Knowledge)；新增混合評分機制（Embedding + TF-IDF + 雙高加分） |
 | 2026-01-15 | 重構 Pipeline 為四階段架構，採用 Per-Dataset 策略整合 NMF → HMM → Auto Labeling |
 | 2025-12-05 | 新增 BERT 嵌入模組 (`models/bert.py`)、整合 BERT API |
 | 2025-11-25 | 更新外部知識爬蟲架構 |

@@ -156,49 +156,67 @@ Text preprocessing with Zipf's law and embedding utilities.
 | `NvdFetcher` | NVD/CVE | NVD API 2.0 |
 | `SigmaRulesFetcher` | Sigma | Local YAML |
 
-## Integration with Pipeline (Four-Stage Architecture)
+## Integration with Pipeline (Three-Stage Architecture)
 
-### Pipeline Stage III: External Knowledge Embedding
+> **注意：** 自 v2.0 起，Pipeline 已重構為三階段架構。
+> - Stage I: 統一輸入處理（Log + Reference + TF-IDF）
+> - Stage II: 異常偵測
+> - Stage III: Per-Dataset 處理（NMF → HMM → Auto Labeling）
+>
+> 原本獨立的 `build_knowledge_base()` 已被整合到 Stage I 的 `process_all_inputs()` 中。
 
-This module is primarily used in **Stage III** to build MITRE ATT&CK embeddings:
+### Pipeline Stage I: Reference Knowledge Preprocessing
+
+在 Stage I 中，MITRE 等 Reference 資料與 Log 資料一起進行前處理：
+
+```python
+# In Pipeline.py STAGE_I
+from preprocess import process_all_inputs
+from precompute_log_tfidf import run_tfidf_pipeline
+
+def STAGE_I():
+    """Stage I: 統一處理所有輸入"""
+    # 1. 處理 Log + Reference 資料
+    process_all_inputs()
+    
+    # 2. TF-IDF 特徵建立（Reference + Log）
+    run_tfidf_pipeline(force_rebuild=False)
+```
+
+### Pipeline Stage III: Per-Dataset Processing
+
+在 Stage III 中，使用 Reference 知識進行 NMF 聯合訓練與自動標註（含 Hybrid Scoring）：
 
 ```python
 # In Pipeline.py STAGE_III
-from external_sources import build_knowledge_base
-
-def STAGE_III():
-    """Stage III: Build External Knowledge Embeddings"""
-    result = build_knowledge_base(force_rebuild=False, verbose=True)
-    return result
-```
-
-### Pipeline Stage IV: Per-Dataset Processing
-
-In Stage IV, the external knowledge is used for NMF joint training and auto-labeling:
-
-```python
-# In Pipeline.py STAGE_IV
 from conception_extraction import ConceptExtractor
+from sequence_clustering import SequenceClusterer
 from auto_labeling import AutoLabeler
 
-# Step 4a: NMF Concept Extraction (loads external knowledge)
-extractor = ConceptExtractor(n_concepts=config.NMF_COMPONENTS)
-extractor.load_external_knowledge(config.EXTERNAL_KNOWLEDGE_DIR)
-
-# Step 4c: Auto Labeling (loads MITRE embeddings)
-labeler = AutoLabeler()
-labeler.load_mitre_embeddings()
-
-# For each dataset:
-for dataset_id in all_datasets:
-    concept_vectors = extractor.process_single_dataset(...)
-    cluster_labels = clusterer.process_single_dataset(...)
-    labeling_result = labeler.process_single_dataset(
-        dataset_id=dataset_id,
-        concept_vectors=concept_vectors,
-        cluster_labels=cluster_labels,
-        nmf_extractor=extractor,
-    )
+def STAGE_III():
+    """Stage III: Per-Dataset 處理"""
+    # Step a: NMF 概念提取（載入 Reference 知識）
+    extractor = ConceptExtractor(n_concepts=config.NMF_COMPONENTS)
+    
+    # Step b: HMM Sequence 分群
+    clusterer = SequenceClusterer()
+    
+    # Step c: 自動標註（載入 MITRE embeddings + Hybrid Scoring）
+    labeler = AutoLabeler()
+    labeler.load_mitre_embeddings()
+    
+    # 對每個 Dataset 進行處理
+    for dataset_id in all_datasets:
+        concept_vectors = extractor.process_single_dataset(...)
+        cluster_labels = clusterer.process_single_dataset(...)
+        
+        # 使用 Hybrid Scoring: Embedding × 0.6 + TF-IDF × 0.3 + DualBoost × 0.1
+        labeling_result = labeler.process_single_dataset(
+            dataset_id=dataset_id,
+            concept_vectors=concept_vectors,
+            cluster_labels=cluster_labels,
+            nmf_extractor=extractor,
+        )
 ```
 
 ### In `concept_extraction.py`:

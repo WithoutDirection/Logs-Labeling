@@ -6,8 +6,8 @@ Preprocess 子模組
 2. LogEmbedder - 計算 BERT 嵌入
 3. LogChunker - 生成 Log Vector
 
-主要 API:
-    run_preprocessing(...) - 執行完整預處理流程
+以及 Stage I 的統一入口：
+4. process_all_inputs - 處理 Log Dataset 與 Reference Sources
 """
 from .drain import DrainParser
 from .loader import LogLoader
@@ -19,7 +19,8 @@ __all__ = [
     'LogLoader',
     'LogEmbedder', 
     'LogChunker',
-    'run_preprocessing'
+    'run_preprocessing',
+    'process_all_inputs'
 ]
 
 
@@ -32,31 +33,7 @@ def run_preprocessing(
     verbose: bool = True,
 ) -> dict:
     """
-    執行完整預處理流程的便捷 API
-    
-    此函式整合 LogLoader、LogEmbedder、LogChunker，提供一站式預處理。
-    
-    Args:
-        n_datasets: 要處理的資料集數量（None 表示全部）
-        enable_parser: 是否啟用日誌解析器（Drain）
-        model_name: BERT 模型名稱
-        normalize: 是否正規化嵌入向量
-        enable_chunking: 是否執行 BiLSTM 區塊化
-        verbose: 是否顯示詳細資訊
-        
-    Returns:
-        包含處理結果摘要的字典
-        
-    Example:
-        >>> # 處理前 10 個資料集
-        >>> results = run_preprocessing(n_datasets=10)
-        
-        >>> # 啟用解析與區塊化
-        >>> results = run_preprocessing(
-        ...     n_datasets=50,
-        ...     enable_parser=True,
-        ...     enable_chunking=True
-        ... )
+    僅執行 Log Dataset 的預處理 (Parse -> Embed -> Chunk)
     """
     results = {
         "n_loaded": 0,
@@ -68,14 +45,14 @@ def run_preprocessing(
     
     # Step 1: 載入日誌
     if verbose:
-        print("[Step 1/3] 載入並解析日誌...")
+        print("[Log Process] 1. 載入並解析日誌...")
     loader = LogLoader(enable_parser=enable_parser)
     parsed_dfs = loader.load_logs(num=n_datasets)
     results["n_loaded"] = len(parsed_dfs) if parsed_dfs else 0
     
     # Step 2: 計算嵌入
     if verbose:
-        print("\n[Step 2/3] 計算 BERT 嵌入向量...")
+        print("[Log Process] 2. 計算 BERT 嵌入向量...")
     embedder = LogEmbedder(model_name=model_name, normalize=normalize)
     embedder.embed_logs(num=n_datasets)
     results["n_embedded"] = results["n_loaded"]
@@ -84,11 +61,64 @@ def run_preprocessing(
     # Step 3: 區塊化（可選）
     if enable_chunking:
         if verbose:
-            print("\n[Step 3/3] 生成 Log Vector...")
+            print("[Log Process] 3. 生成 Log Vector...")
         chunker = LogChunker()
         chunker.chunk_logs(num=n_datasets)
         results["n_chunked"] = results["n_loaded"]
-    elif verbose:
-        print("\n[Step 3/3] 跳過區塊化（enable_chunking=False）")
     
+    return results
+
+
+def process_all_inputs(
+    n_datasets: int = None,
+    enable_parser: bool = False,
+    model_name: str = "sentence-bert",
+    enable_chunking: bool = False,
+    enable_tfidf: bool = True,
+    verbose: bool = True
+) -> dict:
+    """
+    Stage I 統一入口：處理所有輸入資料 (Log Datasets & Reference Sources)
+    
+    流程：
+    1. Log Datasets 預處理 (Parse -> Embedding -> Chunkize)
+    2. Reference Sources 預處理 (Embedding)
+    3. TF-IDF Pipeline (Reference Fingerprints + Log Transformations)
+    """
+    results = {}
+    
+    if verbose:
+        print("\n=== [Stage I] Processing Log Datasets ===")
+    
+    # 1. Log Preprocessing
+    log_results = run_preprocessing(
+        n_datasets=n_datasets,
+        enable_parser=enable_parser,
+        model_name=model_name,
+        enable_chunking=enable_chunking,
+        verbose=verbose
+    )
+    results.update(log_results)
+    
+    if verbose:
+        print("\n=== [Stage I] Processing Reference Sources & TF-IDF ===")
+        
+    # 2. Reference Embedding (MITRE raw embeddings)
+    # 動態 import 避免 circular dependencies
+    from external_sources.build_mitre_raw_embeddings import build_mitre_raw_embeddings
+    
+    # 確保 Reference Embedding 與 Input 使用相同的 BERT 模型 (這裡假設 model_name 一致)
+    print(f"[Ref Process] 1. 生成 Reference Embeddings ({model_name})...")
+    ref_emb_path = build_mitre_raw_embeddings(bert_model=model_name, force_rebuild=False)
+    results["reference_embedding_path"] = ref_emb_path
+    
+    # 3. TF-IDF Pipeline
+    if enable_tfidf:
+        print(f"[Ref Process] 2. 建立 Reference TF-IDF 指紋並轉換 Logs...")
+        from precompute_log_tfidf import run_tfidf_pipeline
+        run_tfidf_pipeline(force_rebuild=False)
+        results["tfidf_enabled"] = True
+    else:
+        results["tfidf_enabled"] = False
+        
     return results

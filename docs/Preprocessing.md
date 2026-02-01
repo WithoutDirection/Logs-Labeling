@@ -1,8 +1,28 @@
 # 日誌預處理
 
-日誌預處理階段包含四個步驟：**日誌解析與模板化**、**BERT 嵌入**、**Per-Log TF-IDF 預計算**、以及 **Log Vector 生成**。
+日誌預處理階段包含三個主要步驟：**日誌解析與模板化**、**BERT 嵌入**、以及 **TF-IDF 處理**。
 
 > **對應 Pipeline Stage I**：`STAGE_I(N, enable_tfidf=True)`
+
+Stage I 統一處理所有輸入資料，包括 Log Datasets 與 Reference Sources (MITRE)。
+
+---
+
+## 統一入口 API
+
+```python
+from preprocess import process_all_inputs
+
+result = process_all_inputs(
+    n_datasets=10,
+    enable_parser=False,
+    model_name="sentence-bert",
+    enable_chunking=False,
+    enable_tfidf=True,
+    verbose=True
+)
+# result: {n_loaded, embedding_dim, reference_embedding_path, tfidf_enabled}
+```
 
 ---
 
@@ -70,41 +90,64 @@
 
 ---
 
-## 階段三：Per-Log TF-IDF 預計算（可選）
+## 階段三：TF-IDF 處理
 
 > 此步驟整合於 Stage I，透過 `enable_tfidf=True` 參數控制
+> 
+> 詳見 [TF-IDF.md](./TF-IDF.md)
 
-### 輸入
-- **中間資料 CSV**：位於 `data/Intermediate_data/` 的原始日誌文字
-- **MITRE TF-IDF Vectorizer**：預訓練於 MITRE ATT&CK 語料的詞彙表 (`data/ExternalKnowledge/MITRE_TFIDF/tfidf_vectorizer.pkl`)
+Stage I 的 TF-IDF 處理包含三個部分：
 
-### 輸出
-- **稀疏 TF-IDF 矩陣**：儲存於 `data/Embeddings/{dataset_id}_embeddings/tfidf.npz`
-- 矩陣維度：`(n_logs, vocab_size)`，其中 `vocab_size` 約 5000
+### 3.1 Reference TF-IDF（MITRE 指紋）
 
-### 處理流程
+**輸入**：`data/reference_resources/MitreTechniquesTokens_V5.csv`
 
-1. **載入 Vectorizer**：讀取預訓練的 TfidfVectorizer，確保詞彙表與 MITRE 一致
-2. **文字提取**：按優先順序讀取欄位：`ConcatenatedLog` > `Template + Parameters` > `Content` > `Event`
-3. **向量轉換**：使用 `vectorizer.transform(texts)` 生成稀疏矩陣
-4. **儲存**：以 `scipy.sparse.save_npz()` 格式儲存
+**輸出**：
+- `data/ExternalKnowledge/MITRE_TFIDF/tfidf_vectorizer.pkl`
+- `data/ExternalKnowledge/MITRE_TFIDF/mitre_tfidf_matrix.pkl`
+
+**處理**：
+1. 讀取 MITRE 技術描述
+2. 訓練 `TfidfVectorizer(stop_words='english', max_features=5000)`
+3. 生成 MITRE Technique 的 TF-IDF 指紋矩陣
+
+### 3.2 Log TF-IDF
+
+**輸入**：中間資料 CSV（`data/Intermediate_data/`）
+
+**輸出**：`data/Embeddings/{dataset_id}_embeddings/tfidf.npz`
+
+**處理**：
+1. 載入 Reference Vectorizer（確保向量空間一致）
+2. 提取日誌文本（優先順序：`ConcatenatedLog` > `Template` > `Content`）
+3. 使用 `vectorizer.transform()` 生成稀疏矩陣
+
+### 3.3 Reference Embedding（MITRE 嵌入）
+
+**輸入**：MITRE 技術描述
+
+**輸出**：`data/ExternalKnowledge/MITRE_RAW_EMBEDDINGS/`
+
+**處理**：使用與 Log 相同的 BERT 模型生成 MITRE 技術的嵌入向量
 
 ### 機制說明
-Per-Log TF-IDF 用於 Stage IV 的**混合評分機制**：
+
+TF-IDF 處理與 BERT 嵌入同時在 Stage I 完成，確保：
+1. **向量空間一致性**：Log 與 MITRE 使用相同的 Vectorizer
+2. **後續可用性**：Stage III 自動標註可直接使用混合評分機制
+
+混合評分公式：
 
 $$
-\text{Score}_{hybrid} = \alpha \times \text{Sim}_{embedding} + (1 - \alpha) \times \text{Sim}_{tfidf}
+\text{Score}_{hybrid} = 0.6 \times \text{Sim}_{embedding} + 0.3 \times \text{Sim}_{tfidf} + \text{Dual-High Boost}
 $$
-
-預設 $\alpha = 0.7$（Embedding 權重 70%，TF-IDF 權重 30%）。TF-IDF 提供詞彙層級的精確匹配，補充 BERT 嵌入的語義模糊性。
 
 ### API 呼叫
 
 ```python
-from precompute_log_tfidf import run_log_tfidf_precompute
+from precompute_log_tfidf import run_tfidf_pipeline
 
-result = run_log_tfidf_precompute(force_rebuild=False, verbose=True)
-# result: {"success": 10, "skipped": 5, "failed": 0, "total": 15, "enabled": True}
+run_tfidf_pipeline(force_rebuild=False)
 ```
 
 ---
@@ -194,5 +237,6 @@ Log Vector 的目的是將**一段時間內的日誌序列**壓縮為單一向�
 - [Embedding.md](./Embedding.md) - BERT 模型詳細說明
 - [Templatize.md](./Templatize.md) - 日誌解析器詳細說明
 - [Anomaly_Detection.md](./Anomaly_Detection.md) - Stage II：異常偵測
-- [External_Sources.md](./External_Sources.md) - Stage III：外部知識
-- [Concept_Extraction.md](./Concept_Extraction.md) - Stage IV-a：概念提取
+- [TF-IDF.md](./TF-IDF.md) - Stage I：TF-IDF 特徵處理
+- [Concept_Extraction.md](./Concept_Extraction.md) - Stage III-a：概念提取
+- [Auto_Labeling.md](./Auto_Labeling.md) - Stage III-c：自動標註 (含 Hybrid Scoring)

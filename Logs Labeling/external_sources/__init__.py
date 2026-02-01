@@ -1,16 +1,12 @@
-# External Sources Module for Log Labeling Pipeline
-# This module provides tools for loading, processing, and extracting concepts
-# from external threat intelligence sources (MITRE ATT&CK, CAPEC, CVE, etc.)
+# External Sources Module for Log Labeling Pipeline (Refactored)
+# 
+# 本模組提供 MITRE 等外部知識來源的處理工具。
 #
-# Implements ConceptUML methodology:
-# - Preprocessing with Zipf's law (filter top 5% high-frequency words)
-# - BERT + BoW concatenation with min-max normalization
-# - NMF topic modeling on embeddings
-# - HMM sequence clustering
-# - MITRE/CAPEC similarity mapping
+# Stage I 整合後，原本分開的 `build_knowledge_base()` 已被移除，
+# Reference 處理整合至 `preprocess.process_all_inputs()` 統一入口。
 #
 # 主要 API:
-#     build_knowledge_base() - 建立外部知識嵌入向量
+#     build_mitre_raw_embeddings() - 建立 MITRE 嵌入 (被 preprocess 呼叫)
 
 from .source_manager import ExternalSourceManager
 from .text_processor import (
@@ -23,7 +19,7 @@ from .text_processor import (
 )
 from .build_mitre_raw_embeddings import build_mitre_raw_embeddings
 
-# Optional modules (may not exist on this branch)
+# Optional modules
 MitreFetcher = CapecFetcher = NvdFetcher = None
 HMMClusterer = None
 compute_cluster_similarity = None
@@ -65,7 +61,6 @@ __all__ = [
     
     # Pipeline API
     'build_mitre_raw_embeddings',
-    'build_knowledge_base',
 ]
 
 if MitreFetcher is not None:
@@ -83,31 +78,25 @@ if ConceptUMLPipeline is not None:
     __all__ += ['ConceptUMLPipeline']
 
 
+# =============================================================================
+# Legacy Compatibility Wrapper (Deprecated)
+# =============================================================================
+
 def build_knowledge_base(
     force_rebuild: bool = False,
     verbose: bool = True
 ) -> dict:
     """
-    建立外部知識嵌入向量
+    [DEPRECATED] 此函式已整合至 preprocess.process_all_inputs()
     
-    將 MITRE ATT&CK 技術描述轉換為 BERT 嵌入向量，
-    供後續概念提取與自動標註使用。
-    
-    Args:
-        force_rebuild: 是否強制重建（即使已存在）
-        verbose: 是否顯示詳細資訊
-        
-    Returns:
-        包含處理結果的字典：
-        - output_dir: 輸出目錄路徑
-        - n_techniques: 技術數量
-        - embedding_dim: 嵌入維度
-        
-    Example:
-        >>> from external_sources import build_knowledge_base
-        >>> result = build_knowledge_base()
-        >>> print(f"已建立 {result['n_techniques']} 個技術嵌入")
+    保留此 API 以維持向下相容，內部轉發至新函式。
     """
+    import warnings
+    warnings.warn(
+        "build_knowledge_base() is deprecated. Use preprocess.process_all_inputs() instead.",
+        DeprecationWarning
+    )
+    
     import os
     import config
     
@@ -115,13 +104,12 @@ def build_knowledge_base(
     out_dir = getattr(config, "MITRE_EXTERNAL_KNOWLEDGE_DIR", None)
     bert_model = getattr(config, "BERT_MODEL_NAME", "sentence-bert")
     
-    # 檢查是否已存在
+    # 檢查快取
     if not force_rebuild and out_dir and os.path.exists(out_dir):
         state_file = os.path.join(out_dir, "state.json")
         if os.path.exists(state_file):
             if verbose:
-                print(f"外部知識已存在，跳過建立: {out_dir}")
-            # 讀取統計資訊
+                print(f"[Deprecated API] 使用快取: {out_dir}")
             try:
                 from datasets import load_from_disk
                 ds = load_from_disk(out_dir)
@@ -142,18 +130,6 @@ def build_knowledge_base(
         force_rebuild=force_rebuild,
     )
     
-    # * 建立 TF-IDF 向量（用於混合評分）
-    try:
-        from .build_tfidf import build_mitre_tfidf
-        tfidf_dir = getattr(config, 'MITRE_TFIDF_DIR', os.path.join(config.EXTERNAL_KNOWLEDGE_DIR, "MITRE_TFIDF"))
-        build_mitre_tfidf(out_dir=tfidf_dir, mitre_csv=mitre_csv, force_rebuild=force_rebuild)
-        if verbose:
-            print(f"TF-IDF 向量已建立: {tfidf_dir}")
-    except Exception as e:
-        if verbose:
-            print(f"[Warning] TF-IDF 建立失敗: {e}")
-    
-    # 讀取統計資訊
     try:
         from datasets import load_from_disk
         ds = load_from_disk(output_dir)
