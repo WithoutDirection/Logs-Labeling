@@ -91,6 +91,30 @@ class AutoLabeler:
         self._nmf_scaler = None
         self.labeling_results: Dict[str, pd.DataFrame] = {}
 
+        # * Ground Truth Data
+        self.ground_truth: Dict[str, Dict[str, str]] = {}
+        self._load_ground_truth()
+
+    def _load_ground_truth(self) -> None:
+        gt_path = os.path.join(PROJECT_ROOT, "data", "groundtruth", "abilities.csv")
+        if os.path.exists(gt_path):
+            try:
+                df = pd.read_csv(gt_path)
+                # filename, tid, t_name
+                if 'filename' in df.columns:
+                    df['filename'] = df['filename'].astype(str)
+                    for _, row in df.iterrows():
+                        key = row['filename'].strip()
+                        self.ground_truth[key] = {
+                            "tid": str(row['tid']),
+                            "t_name": str(row['t_name'])
+                        }
+                    print(f"[Info] 已載入 Ground Truth: {len(self.ground_truth)} 筆")
+            except Exception as e:
+                print(f"[Warning] 載入 Ground Truth 失敗: {e}")
+        else:
+            print(f"[Warning] 找不到 Ground Truth 檔案: {gt_path}")
+
     def load_log_vectors(self, input_path: str) -> Optional[np.ndarray]:
         # * 載入原始 BERT 嵌入向量（用於計算 cluster centroids）
         # * 支援 Arrow、npy、HuggingFace Dataset 格式
@@ -501,6 +525,11 @@ class AutoLabeler:
             log_anomaly_scores = anomaly_scores if anomaly_scores is not None else np.zeros(len(cluster_labels))
             
             # * 建立結果 DataFrame（包含原始資料 + Top-K 預測）
+            
+            # Get Ground Truth
+            clean_id = dataset_id.replace("_raw_events", "").replace("_detection", "")
+            gt = self.ground_truth.get(clean_id, {"tid": "Unknown", "t_name": "Unknown"})
+            
             result_data = []
             for log_idx in range(len(cluster_labels)):
                 cluster_id = cluster_labels[log_idx]
@@ -510,6 +539,10 @@ class AutoLabeler:
                     "original_idx": log_idx,
                     "anomaly_score": float(log_anomaly_scores[log_idx]),
                 }
+                
+                # Attach Ground Truth
+                row["groundtruth_tid"] = gt["tid"]
+                row["groundtruth_t_name"] = gt["t_name"]
                 
                 # 加入原始資料欄位
                 if original_df is not None and log_idx < len(original_df):
@@ -634,9 +667,18 @@ class AutoLabeler:
         top_k: int = 3,
     ) -> Dict[str, Any]:
         # * 生成佔位符標註結果（維度不符時使用）
+        
+        # Get Ground Truth
+        clean_id = dataset_id.replace("_raw_events", "").replace("_detection", "")
+        gt = self.ground_truth.get(clean_id, {"tid": "Unknown", "t_name": "Unknown"})
+        
         result_data = []
         for i in range(len(cluster_labels)):
             row = {"original_idx": i}
+            
+            # Attach Ground Truth
+            row["groundtruth_tid"] = gt["tid"]
+            row["groundtruth_t_name"] = gt["t_name"]
             
             if original_df is not None and i < len(original_df):
                 for col in original_df.columns:
