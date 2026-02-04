@@ -195,8 +195,56 @@ class ConceptExtractor:
             return None
         
         self._external_vectors = np.vstack(all_vectors)
+
+        # TF-IDF weighting disabled to preserve embedding geometry
+        
         print(f"    外部知識總計: {self._external_vectors.shape}")
         return self._external_vectors
+
+    def _apply_external_tfidf_weighting(self, vectors: np.ndarray, base_dir: str) -> np.ndarray:
+        """Apply TF-IDF weighting to external knowledge embeddings."""
+        try:
+            import scipy.sparse
+            # Try to find MITRE_TFIDF matrix
+            candidates = [
+                join_path(base_dir, "MITRE_TFIDF", "mitre_tfidf_matrix.pkl"),
+                join_path(str(Path(base_dir).parent), "MITRE_TFIDF", "mitre_tfidf_matrix.pkl"),
+                join_path(str(Path(base_dir).parent), "data", "ExternalKnowledge", "MITRE_TFIDF", "mitre_tfidf_matrix.pkl")
+            ]
+            
+            tfidf_path = None
+            for p in candidates:
+                if exists(p):
+                    tfidf_path = p
+                    break
+            
+            if tfidf_path:
+                with open(tfidf_path, "rb") as f:
+                    tfidf_matrix = pickle.load(f)
+                
+                if tfidf_matrix.shape[0] != vectors.shape[0]:
+                    print(f"    [Info] 外部 TF-IDF shape {tfidf_matrix.shape} != Embedding shape {vectors.shape} (可能包含非 MITRE 來源)，略過加權")
+                    return vectors
+                
+                if scipy.sparse.issparse(tfidf_matrix):
+                    norms = scipy.sparse.linalg.norm(tfidf_matrix, axis=1)
+                else:
+                    norms = np.linalg.norm(tfidf_matrix, axis=1)
+                
+                if norms.max() > 0:
+                    norms = norms / norms.max()
+                
+                # Use same weighting factor as logs: 1.0 + 0.5 * norm
+                scaling_factors = 1.0 + (0.5 * norms)
+                weighted_vectors = vectors * scaling_factors[:, np.newaxis]
+                
+                print(f"    [Ext-TF-IDF] 已應用外部知識 TF-IDF 加權。Avg factor: {scaling_factors.mean():.4f}")
+                return weighted_vectors
+                
+        except Exception as e:
+            print(f"    [Warning] 外部 TF-IDF 加權失敗: {e}")
+            
+        return vectors
     
     def load_dataset_vectors(self, dataset_path: str) -> np.ndarray:
         """
@@ -440,7 +488,7 @@ class ConceptExtractor:
         output_dir: str = CONCEPT_VECTORS_DIR,
         external_knowledge_dir: str = EXTERNAL_KNOWLEDGE_DIR,
         copy_metadata: bool = True,
-        use_tfidf_weighting: bool = True,
+        use_tfidf_weighting: bool = False,
     ) -> np.ndarray:
         """
         處理單一 Dataset 的完整流程：載入 → (選用 TF-IDF 加權) → 訓練 → 轉換 → 存檔。

@@ -473,15 +473,16 @@ class AutoLabeler:
             
             # * 計算 Sequence TF-IDF 並混合評分 → Similarity Score
             similarity_scores = embedding_similarities
+            tfidf_similarities = None
             log_texts = self._load_log_texts(dataset_id)
             
             if self.config.use_tfidf and log_texts is not None:
                 cluster_tfidf, tfidf_similarities, _ = self._compute_sequence_tfidf(log_texts, cluster_labels)
                 if tfidf_similarities is not None:
                     boost_status = "On" if self.config.enable_dual_boost else "Off"
-                    print(f"    [Similarity] Embedding={self.config.weight_embedding:.1f}, TF-IDF={self.config.weight_tfidf:.1f}, Boost={boost_status}")
-                    similarity_scores = embedding_similarities * (1.0 + self.config.weight_tfidf * tfidf_similarities)
-        
+                    print(f"    [Similarity] Emb={self.config.weight_embedding:.1f}, TF-IDF={self.config.weight_tfidf:.1f}, Boost={boost_status}")
+                    similarity_scores = self._compute_hybrid_score(embedding_similarities, tfidf_similarities)
+            
             # * 計算 Threat Confidence：結合 Similarity Score 與 Anomaly Score
             if anomaly_scores is not None:
                 alpha = self.config.similarity_weight
@@ -523,6 +524,64 @@ class AutoLabeler:
             
             # * 計算每筆 log 的 anomaly_score（用於輸出）
             log_anomaly_scores = anomaly_scores if anomaly_scores is not None else np.zeros(len(cluster_labels))
+
+            # * 生成 Top-5 技術摘要（Embedding-only / TF-IDF-only / Hybrid）
+            def _technique_name_by_index(idx: int) -> str:
+                if self.mitre_technique_names and idx < len(self.mitre_technique_names):
+                    return self.mitre_technique_names[idx]
+                if self.mitre_technique_ids and idx < len(self.mitre_technique_ids):
+                    return self.mitre_technique_ids[idx]
+                return f"T{idx}"
+
+            def _summarize_top5(scores: np.ndarray, mode: str) -> List[Dict[str, Any]]:
+                top1_indices = np.argmax(scores, axis=1)
+                cluster_top1 = {
+                    cluster_id: _technique_name_by_index(top1_indices[i])
+                    for i, cluster_id in enumerate(unique_clusters)
+                }
+                counts: Dict[str, int] = {}
+                for log_idx in range(len(cluster_labels)):
+                    tech = cluster_top1[cluster_labels[log_idx]]
+                    counts[tech] = counts.get(tech, 0) + 1
+                total = len(cluster_labels)
+                rows = []
+                for tech, count in sorted(counts.items(), key=lambda x: x[1], reverse=True)[:5]:
+                    rows.append({
+                        "dataset_id": dataset_id,
+                        "mode": mode,
+                        "technique": tech,
+                        "count": int(count),
+                        "percent": round((count / total) * 100.0, 2),
+                    })
+                return rows
+
+            summary_rows: List[Dict[str, Any]] = []
+            embedding_summary = _summarize_top5(embedding_similarities, "embedding_only") if embedding_similarities is not None else []
+            tfidf_summary = _summarize_top5(tfidf_similarities, "tfidf_only") if tfidf_similarities is not None else []
+            hybrid_summary = _summarize_top5(similarity_scores, "hybrid_similarity") if similarity_scores is not None else []
+
+            def _format_summary(rows: List[Dict[str, Any]]) -> str:
+                return ", ".join([f"{r['technique']}: {r['count']} ({r['percent']}%)" for r in rows])
+
+            def _expand_top5(rows: List[Dict[str, Any]], prefix: str) -> Dict[str, str]:
+                expanded: Dict[str, str] = {}
+                for i in range(5):
+                    key = f"{prefix}_top{i+1}"
+                    if i < len(rows):
+                        r = rows[i]
+                        expanded[key] = f"{r['technique']}: {r['count']} ({r['percent']}%)"
+                    else:
+                        expanded[key] = ""
+                return expanded
+
+            summary_row = {
+                "dataset_id": dataset_id,
+                "groundtruth": f"{gt['tid']} | {gt['t_name']}",
+            }
+            summary_row.update(_expand_top5(embedding_summary, "embedding"))
+            summary_row.update(_expand_top5(tfidf_summary, "tfidf"))
+            summary_row.update(_expand_top5(hybrid_summary, "hybrid"))
+            summary_rows.append(summary_row)
             
             # * 建立結果 DataFrame（包含原始資料 + Top-K 預測）
             
@@ -564,6 +623,22 @@ class AutoLabeler:
             output_path = os.path.join(output_dir, f"{dataset_id}_Labeled.csv")
             result_df.to_csv(output_path, index=False)
             print(f"    標註結果已存至 {output_path}")
+
+            # * 儲存摘要（Top-5 技術分布）
+            if summary_rows:
+                summary_df = pd.DataFrame(summary_rows)
+                summary_path = os.path.join(output_dir, f"{dataset_id}_Summary.csv")
+                summary_df.to_csv(summary_path, index=False)
+                print(f"    摘要已存至 {summary_path}")
+                print(f"    [embedding] {summary_df.iloc[0].get('embedding_top1', '')}")
+                if summary_df.iloc[0].get('tfidf_top1', ''):
+                    print(f"    [tfidf] {summary_df.iloc[0].get('tfidf_top1', '')}")
+                print(f"    [hybrid] {summary_df.iloc[0].get('hybrid_top1', '')}")
+
+                # Append to aggregate summary CSV (one row per dataset)
+                aggregate_path = os.path.join(output_dir, "Summary_All.csv")
+                write_header = not os.path.exists(aggregate_path)
+                summary_df.to_csv(aggregate_path, mode="a", index=False, header=write_header)
             
             # * 統計 Top-1 標註分布
             technique_counts = result_df["predicted_technique_1_name"].value_counts()
