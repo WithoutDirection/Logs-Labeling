@@ -479,9 +479,9 @@ class AutoLabeler:
                 cluster_tfidf, tfidf_similarities, _ = self._compute_sequence_tfidf(log_texts, cluster_labels)
                 if tfidf_similarities is not None:
                     boost_status = "On" if self.config.enable_dual_boost else "Off"
-                    print(f"    [Similarity] Emb={self.config.weight_embedding:.1f}, TF-IDF={self.config.weight_tfidf:.1f}, Boost={boost_status}")
-                    similarity_scores = self._compute_hybrid_score(embedding_similarities, tfidf_similarities)
-            
+                    print(f"    [Similarity] Embedding={self.config.weight_embedding:.1f}, TF-IDF={self.config.weight_tfidf:.1f}, Boost={boost_status}")
+                    similarity_scores = embedding_similarities * (1.0 + self.config.weight_tfidf * tfidf_similarities)
+        
             # * 計算 Threat Confidence：結合 Similarity Score 與 Anomaly Score
             if anomaly_scores is not None:
                 alpha = self.config.similarity_weight
