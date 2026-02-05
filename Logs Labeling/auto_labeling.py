@@ -525,6 +525,10 @@ class AutoLabeler:
             # * 計算每筆 log 的 anomaly_score（用於輸出）
             log_anomaly_scores = anomaly_scores if anomaly_scores is not None else np.zeros(len(cluster_labels))
 
+            # Get Ground Truth
+            clean_id = dataset_id.replace("_raw_events", "").replace("_detection", "")
+            gt = self.ground_truth.get(clean_id, {"tid": "Unknown", "t_name": "Unknown"})
+
             # * 生成 Top-5 技術摘要（Embedding-only / TF-IDF-only / Hybrid）
             def _technique_name_by_index(idx: int) -> str:
                 if self.mitre_technique_names and idx < len(self.mitre_technique_names):
@@ -584,10 +588,6 @@ class AutoLabeler:
             summary_rows.append(summary_row)
             
             # * 建立結果 DataFrame（包含原始資料 + Top-K 預測）
-            
-            # Get Ground Truth
-            clean_id = dataset_id.replace("_raw_events", "").replace("_detection", "")
-            gt = self.ground_truth.get(clean_id, {"tid": "Unknown", "t_name": "Unknown"})
             
             result_data = []
             for log_idx in range(len(cluster_labels)):
