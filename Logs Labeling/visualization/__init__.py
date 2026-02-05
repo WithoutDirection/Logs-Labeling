@@ -23,10 +23,24 @@ from visualization.tfidf_coverage import (
     plot_top_overlapping_terms,
 )
 
-from visualization.stage3_presentation_viz import (
-    generate_stage3_presentation_assets,
-    list_available_datasets as list_stage3_available_datasets,
-)
+# Optional helpers (may be missing in some branches / environments)
+try:
+    from visualization.stage3_presentation_viz import (
+        generate_stage3_presentation_assets,
+        list_available_datasets as list_stage3_available_datasets,
+    )
+except Exception:
+    generate_stage3_presentation_assets = None
+    list_stage3_available_datasets = None
+
+try:
+    from visualization.hmm_mitre_similarity_viz import (
+        generate_hmm_mitre_similarity_assets,
+        list_available_datasets as list_hmm_mitre_available_datasets,
+    )
+except Exception:
+    generate_hmm_mitre_similarity_assets = None
+    list_hmm_mitre_available_datasets = None
 
 __all__ = [
     # anomaly_comparison
@@ -40,7 +54,10 @@ __all__ = [
     "plot_coverage_bar",
     "plot_venn_diagram",
     "plot_top_overlapping_terms",
-    # stage3_presentation_viz
+    # stage3_presentation_viz (optional)
     "generate_stage3_presentation_assets",
     "list_stage3_available_datasets",
+    # hmm_mitre_similarity_viz (optional)
+    "generate_hmm_mitre_similarity_assets",
+    "list_hmm_mitre_available_datasets",
 ]

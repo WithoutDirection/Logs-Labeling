@@ -1,0 +1,6 @@
+dataset_id=26aeaba8-6e4d-41ac-810d-dbee9c45839f
+n_logs=532
+n_clusters=14
+embedding_dim=384
+n_mitre=623
+top_k=5
