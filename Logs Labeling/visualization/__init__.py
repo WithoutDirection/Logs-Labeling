@@ -23,6 +23,11 @@ from visualization.tfidf_coverage import (
     plot_top_overlapping_terms,
 )
 
+from visualization.stage3_presentation_viz import (
+    generate_stage3_presentation_assets,
+    list_available_datasets as list_stage3_available_datasets,
+)
+
 __all__ = [
     # anomaly_comparison
     "ResultAggregator",
@@ -35,4 +40,7 @@ __all__ = [
     "plot_coverage_bar",
     "plot_venn_diagram",
     "plot_top_overlapping_terms",
+    # stage3_presentation_viz
+    "generate_stage3_presentation_assets",
+    "list_stage3_available_datasets",
 ]
