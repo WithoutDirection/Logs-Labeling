@@ -7,8 +7,8 @@ BERT 嵌入模型比較視覺化工具
 參數說明：
     -n, --num-datasets      要比較的資料集數量 (預設: 5)
     --models                要比較的模型列表，以空格分隔
-                            可選: codebert, securebert, secbert, sentence-bert, 
-                                  sentence-bert-large, bert-base, cti-bert
+                            可選: securebert2, securebert2-ner, codebert, securebert,
+                                  secbert, sentence-bert, sentence-bert-large, bert-base
     --max-samples           每個資料集最大取樣數 (預設: 200)
     --list-models           列出所有可用模型
 
@@ -66,7 +66,7 @@ INTERMEDIATE_DATA_DIR = config.INTERMEDIATE_DATA_DIR
 OUTPUT_DIR = join_path("result", "bert_comparison")
 
 # 預設比較模型
-DEFAULT_MODELS = ['sentence-bert', 'sentence-bert-large', 'secbert']
+DEFAULT_MODELS = ['securebert2', 'sentence-bert', 'bert-base']
 
 
 class BertEmbeddingComparator:

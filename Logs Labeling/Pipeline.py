@@ -81,7 +81,7 @@ def STAGE_I(N: int, enable_tfidf: bool = True):
     from preprocess import process_all_inputs
     
     enable_parser = getattr(config, 'PREPROCESS_ENABLE_PARSER', False)
-    model_name = getattr(config, 'BERT_MODEL_NAME', 'sentence-bert')
+    model_name = getattr(config, 'BERT_MODEL_NAME', 'securebert2')
     
     print("=" * 60)
     print("STAGE I: 輸入資料處理 (Logs & References)")
