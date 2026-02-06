@@ -11,6 +11,7 @@ import pandas as pd
 import glob
 from tqdm import tqdm
 import warnings
+import shutil
 
 # Configuration
 GROUND_TRUTH_PATH = "/tmp2/b11902050/Logs-Labeling/data/groundtruth/ability2events.json"
@@ -65,8 +66,10 @@ def normalize_cmd(cmd):
     return " ".join(cmd.split()).lower().strip()
 
 def process_datasets():
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
+    if os.path.exists(OUTPUT_DIR):
+        print(f"Cleaning output directory: {OUTPUT_DIR}")
+        shutil.rmtree(OUTPUT_DIR)
+    os.makedirs(OUTPUT_DIR)
         
     ground_truth = load_ground_truth()
     
@@ -114,6 +117,7 @@ def process_datasets():
         # Keep track of last matched index for sequential search
         last_idx = 0
         malicious_indices = set()
+        skip_file = False
         
         for event in events:
             # Event structure: [src_id, src_obj, tgt_id, tgt_obj, action, timestamp]
@@ -127,18 +131,19 @@ def process_datasets():
             # Only search after the previous match
             subset = df.iloc[last_idx:]
             if subset.empty:
-                print(f"Error: dataset {dataset_id[:8]} - End of log reached before event {action}.")
-                break # Stop processing events for this dataset if we ran out of logs
+                print(f"Error: dataset {dataset_id[:8]} - End of log reached before event {action}. Skipping file.")
+                skip_file = True
+                break
             
             # --- Filter 1: Action (Operation) ---
             possible_ops = OP_MAP.get(action, [action])
             candidates = subset[subset['norm_op'].isin(possible_ops)]
             
             if candidates.empty:
-                # If Strict Sequential fails (maybe out of order?), you could try searching entire DF
-                # But prioritizing false positive reduction: skip this event.
-                # print(f"Warning: dataset {dataset_id[:8]} - Event {action} matched 0 records (Action).")
-                continue
+                # If Strict Sequential fails, we skip the file
+                print(f"Warning: dataset {dataset_id[:8]} - Event {action} matched 0 records (Action). Skipping file.")
+                skip_file = True
+                break
                 
             # --- Filter 2: PIDs (Context Sensitive) ---
             if action == "Process Create":
@@ -205,8 +210,9 @@ def process_datasets():
                                 if not matches.empty: candidates = matches
             
             if candidates.empty:
-                # print(f"Warning: dataset {dataset_id[:8]} - Event {action} matched 0 records (Final).")
-                continue
+                print(f"Warning: dataset {dataset_id[:8]} - Event {action} matched 0 records (Final). Skipping file.")
+                skip_file = True
+                break
             
             # --- Selection ---
             # Prioritize:
@@ -217,18 +223,21 @@ def process_datasets():
             best_idx = best_match.name
             
             # If multiple candidates, check if they are identical
-            # (Just for warning/debugging)
-            # check_cols = [c for c in candidates.columns if c not in ['Label', 'norm_op', 'norm_pid', 'norm_parent_pid', 'parsed_time']]
-            # unique_rows = candidates.drop_duplicates(subset=check_cols)
-            # if len(unique_rows) > 1:
-            #     # If we are picking index 0 out of non-identical rows, we are making a choice based on time order.
-            #     pass
+            check_cols = [c for c in candidates.columns if c not in ['Label', 'norm_op', 'norm_pid', 'norm_parent_pid', 'parsed_time']]
+            unique_rows = candidates.drop_duplicates(subset=check_cols)
+            if len(unique_rows) > 1:
+                print(f"Warning: dataset {dataset_id[:8]} - Event {action} matched {len(unique_rows)} non-identical records. Skipping file.")
+                skip_file = True
+                break
             
             # Mark ONLY the best match
             malicious_indices.add(best_idx)
             
             # Update last_idx to start AFTER this match
             last_idx = best_idx + 1
+
+        if skip_file:
+            continue
 
         # Apply labels
         if malicious_indices:

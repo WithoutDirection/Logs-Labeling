@@ -47,7 +47,7 @@ def run_preprocessing(
     if verbose:
         print("[Log Process] 1. 載入並解析日誌...")
     loader = LogLoader(enable_parser=enable_parser)
-    parsed_dfs = loader.load_logs(num=n_datasets)
+    parsed_dfs = loader.load_logs(num=n_datasets, max_rows=15000)
     results["n_loaded"] = len(parsed_dfs) if parsed_dfs else 0
     
     # Step 2: 計算嵌入
