@@ -247,6 +247,13 @@ class TransformerBERTModel(BaseBERTModel):
         self.pooling = pooling
         self.tokenizer = None
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
+        # 禁用 torch.compile / dynamo，避免在 CUDA Capability < 7.0 的 GPU 上
+        # (例如 GTX 1080 Ti) 因 Triton 不支援而報錯
+        try:
+            torch._dynamo.config.suppress_errors = True
+        except (AttributeError, Exception):
+            pass
     
     def load(self) -> 'TransformerBERTModel':
         """載入 transformer 模型和分詞器。"""
@@ -448,6 +455,18 @@ MODEL_REGISTRY = {
         'class': TransformerBERTModel,
         'model_name': 'snunlp/KR-BERT-char16424',
         'description': 'VulBERT - 漏洞檢測 BERT (768 維)'
+    },
+
+    # SecureBERT 2.0 系列 (Cisco AI, 基於 ModernBERT 架構)
+    'securebert2': {
+        'class': TransformerBERTModel,
+        'model_name': 'cisco-ai/SecureBERT2.0-base',
+        'description': 'SecureBERT 2.0 Base - 基於 ModernBERT 的資安語言模型，支援文本與程式碼理解 (768 維)'
+    },
+    'securebert2-ner': {
+        'class': TransformerBERTModel,
+        'model_name': 'cisco-ai/SecureBERT2.0-NER',
+        'description': 'SecureBERT 2.0 NER - 資安命名實體辨識模型，可提取 IOC/惡意軟體/漏洞等實體 (768 維)'
     },
 }
 

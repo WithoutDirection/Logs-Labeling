@@ -27,8 +27,8 @@ USE_LOG_HIGH_FREQ = True  # 是否保留常見日誌詞彙（如 Authority、Sys
 
 # ==================== 嵌入與語言模型設定 ====================
 # 可選：'sentence-bert', 'sentence-bert-multilingual', 'sentence-bert-large',
-#      'bert-base-nli', 'bert-base', 'distilbert', 'roberta'，或自訂 HuggingFace 模型名稱
-BERT_MODEL_NAME = "sentence-bert"
+#      'bert-base-nli', 'bert-base', 'securebert2', 'securebert2-ner'，或自訂 HuggingFace 模型名稱
+BERT_MODEL_NAME = "securebert2"
 BERT_CACHE_DIR = os.path.join(BERT_MODEL_DIR, "cache")  # 模型快取路徑
 BERT_AUTO_LOAD = True  # 是否在初始化時自動載入模型
 CHUNK_MODEL_PATH = os.path.join(BERT_MODEL_DIR, "chunk_model.pt")

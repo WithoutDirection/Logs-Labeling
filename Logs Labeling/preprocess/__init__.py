@@ -109,7 +109,7 @@ def process_all_inputs(
     
     # 確保 Reference Embedding 與 Input 使用相同的 BERT 模型 (這裡假設 model_name 一致)
     print(f"[Ref Process] 1. 生成 Reference Embeddings ({model_name})...")
-    ref_emb_path = build_mitre_raw_embeddings(bert_model=model_name, force_rebuild=False)
+    ref_emb_path = build_mitre_raw_embeddings(bert_model=model_name, force_rebuild=True)
     results["reference_embedding_path"] = ref_emb_path
     
     # 3. TF-IDF Pipeline
