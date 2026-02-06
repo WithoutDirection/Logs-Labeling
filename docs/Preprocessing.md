@@ -16,7 +16,7 @@ from preprocess import process_all_inputs
 result = process_all_inputs(
     n_datasets=10,
     enable_parser=False,
-    model_name="sentence-bert",
+    model_name="securebert2",
     enable_chunking=False,
     enable_tfidf=True,
     verbose=True
@@ -199,14 +199,15 @@ Log Vector 的目的是將**一段時間內的日誌序列**壓縮為單一向�
 
 | 參數 | 預設值 | 說明 | 修改影響 |
 |------|--------|------|----------|
-| `ENABLE_PARSER` | `True` | 是否啟用日誌解析 | 設為 `False` 時保留原始日誌，不進行模板化 |
+| `PREPROCESS_ENABLE_PARSER` | `False` | Pipeline 中是否啟用日誌解析 | 設為 `True` 時啟用模板化解析 |
+| `ENABLE_PARSER` | `True` | LogLoader 預設是否啟用解析 | 設為 `False` 時保留原始日誌，不進行模板化 |
 | `DEFAULT_PARSER` | `"drain"` | 預設使用的解析器 | 可選 `drain`、`spell`、`lenma`，不同解析器的解析策略與效果不同 |
 
 ### BERT 模型設定
 
 | 參數 | 預設值 | 說明 | 修改影響 |
 |------|--------|------|----------|
-| `BERT_MODEL_NAME` | `"sentence-bert"` | BERT 模型名稱 | 可選其他預訓練模型，影響嵌入品質與計算速度 |
+| `BERT_MODEL_NAME` | `"securebert2"` | BERT 模型名稱 | 可選 `sentence-bert`、`securebert2` 等預訓練模型，影響嵌入品質與計算速度 |
 | `BERT_AUTO_LOAD` | `True` | 是否自動載入模型 | 設為 `False` 時需手動觸發載入 |
 | `batch_size` | 32 | 批次處理大小 | |
 | `normalize` | True | 是否正規化向量 | |

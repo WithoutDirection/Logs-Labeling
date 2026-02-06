@@ -182,42 +182,41 @@ MAD = median(|score - median(score)|)
 
 ### 基本使用
 ```python
+from anomaly_dection import run_detection
+
+# 對所有資料集執行偵測（推薦）
+result = run_detection(
+    input_dir="data/Embeddings",
+    output_dir="data/Detection_Results",
+    generate_viz=True,
+    verbose=True
+)
+print(f"處理了 {result['n_datasets']} 個資料集")
+```
+
+### 使用底層 Pipeline API
+```python
 from anomaly_dection.log_detector import run_detection_pipeline
 
-# 對所有資料集執行偵測
+# 僅執行偵測（不含視覺化）
 results = run_detection_pipeline(
     input_dir="data/Embeddings",
     output_dir="data/Detection_Results",
+    models=["isolation_forest", "copod"],  # 自訂模型
     verbose=True
 )
 ```
 
-### 自訂參數
-```python
-from anomaly_dection.log_detector import detect_anomalies
-
-# 單一資料集偵測
-dataset = detect_anomalies(
-    dataset_path="data/Embeddings/my_logs_embeddings",
-    models=["isolation_forest", "copod"],  # 自訂模型
-    threshold_method="percentile",
-    threshold_params={"percentile": 95},
-    save_results=True
-)
-
-# 查看結果
-print(f"異常數量: {sum(dataset['ensemble_label'])}")
-```
-
 ### 生成摘要與視覺化
 ```python
-from anomaly_dection.log_detector import generate_detection_summary
+from visualization.anomaly_comparison import generate_detection_summary
 
 # 在執行偵測後生成摘要
 generate_detection_summary(
     results,
-    output_dir="data/Detection_Results",
-    generate_visualizations=True  # 生成相關性熱圖
+    output_dir="result/Anomaly_Detection",
+    generate_visualizations=True,
+    enable_advanced_plots=True
 )
 ```
 

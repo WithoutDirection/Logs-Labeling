@@ -77,19 +77,34 @@ $$
 
 ### Sequence TF-IDF 計算
 
+**Step 1: 載入原始日誌文本**
+```python
+# 從原始 CSV 載入文本（優先使用 ConcatenatedLog, Template, Content 欄位）
+log_texts = labeler._load_log_texts(dataset_id)
+# 搜尋路徑：
+#   1. data/Intermediate_data/{dataset_id}.csv
+#   2. data/input_logs/{dataset_id}.csv
+```
+
+**Step 2: 聚合 Cluster 文本**
 ```python
 # 聚合 Cluster 內所有日誌文本
 for cluster_id in unique_clusters:
     mask = cluster_labels == cluster_id
     cluster_text = " ".join([log_texts[i] for i in range(len(log_texts)) if mask[i]])
     cluster_texts.append(cluster_text)
+```
 
+**Step 3: TF-IDF 轉換與相似度計算**
+```python
 # 使用 Reference Vectorizer 轉換（與 MITRE 相同向量空間）
 sequence_tfidf = vectorizer.transform(cluster_texts)
 
 # 計算與 MITRE 指紋的相似度
 tfidf_similarities = cosine_similarity(sequence_tfidf, mitre_tfidf_matrix)
 ```
+
+> **關鍵**：Sequence TF-IDF 使用與 MITRE TF-IDF 相同的 Vectorizer（Stage I 產出），確保向量空間一致性。
 
 ---
 
@@ -164,6 +179,8 @@ result = labeler.process_single_dataset(
 |------|------|------|
 | `original_idx` | int | 日誌在原始資料集中的索引 |
 | `anomaly_score` | float | Stage II 異常分數 (0~1) |
+| `groundtruth_tid` | str | Ground Truth 技術 ID（若有載入） |
+| `groundtruth_t_name` | str | Ground Truth 技術名稱（若有載入） |
 | `{original_columns}` | various | 原始日誌的所有欄位 |
 | `predicted_technique_1_name` | str | Top-1 預測的 MITRE 技術名稱 |
 | `predicted_technique_1_threat_confidence` | float | Top-1 的威脅信心度 |
@@ -172,11 +189,24 @@ result = labeler.process_single_dataset(
 
 ### 輸出範例
 
+**主要標註結果** (`{dataset_id}_Labeled.csv`):
 ```csv
-original_idx,anomaly_score,timestamp,event_type,predicted_technique_1_name,predicted_technique_1_threat_confidence,predicted_technique_1_similarity
-0,0.85,2025-01-08 10:30:00,Process Create,PowerShell,0.78,0.82
-1,0.12,2025-01-08 10:30:02,Network Connect,Application Layer Protocol,0.35,0.45
+original_idx,anomaly_score,groundtruth_tid,groundtruth_t_name,timestamp,event_type,predicted_technique_1_name,predicted_technique_1_threat_confidence,predicted_technique_1_similarity
+0,0.85,T1059,Command and Scripting Interpreter,2025-01-08 10:30:00,Process Create,PowerShell,0.78,0.82
+1,0.12,T1059,Command and Scripting Interpreter,2025-01-08 10:30:02,Network Connect,Application Layer Protocol,0.35,0.45
 ```
+
+**摘要檔案** (`{dataset_id}_Summary.csv`, `Summary_All.csv`):
+
+| 欄位 | 說明 |
+|------|------|
+| `dataset_id` | 資料集 ID |
+| `groundtruth` | Ground Truth 技術 (tid \| t_name) |
+| `embedding_top1~5` | Embedding-only 模式的 Top-5 技術分布 |
+| `tfidf_top1~5` | TF-IDF-only 模式的 Top-5 技術分布 |
+| `hybrid_top1~5` | Hybrid 混合模式的 Top-5 技術分布 |
+| `*_gt_avg_rank` | Ground Truth 在各模式的平均排名 |
+| `*_gt_best_rank` | Ground Truth 在各模式的最佳排名 |
 
 ---
 

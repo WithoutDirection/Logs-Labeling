@@ -133,33 +133,7 @@ BERT Embedding → NMF 降維 → HMM 分群 → 餘弦相似度 → MITRE ATT&C
 | **TF-IDF 指紋** | 建立 MITRE 技術的詞彙指紋 | `mitre_tfidf_matrix.pkl` |
 | **Log TF-IDF** | 使用共享 Vectorizer 轉換日誌 | `tfidf.npz`: 稀疏矩陣 |
 
-#### API 呼叫
-
-```python
-from Pipeline import STAGE_I
-
-# 執行 Stage I（統一處理 Logs + Reference）
-result = STAGE_I(N=10, enable_tfidf=True)
-
-# result: {n_loaded, embedding_dim, reference_embedding_path, tfidf_enabled}
-```
-
-**內部 API**：
-
-| 模組 | 函數 | 說明 |
-|------|------|------|
-| `preprocess` | `process_all_inputs()` | 統一入口 API |
-| `preprocess` | `run_preprocessing()` | Log 預處理 |
-| `external_sources` | `build_mitre_raw_embeddings()` | Reference Embedding |
-| `precompute_log_tfidf` | `run_tfidf_pipeline()` | TF-IDF 處理 |
-
-#### 配置參數
-
-| 參數 | 預設值 | 說明 |
-|------|--------|------|
-| `ENABLE_PARSER` | `True` | 是否啟用日誌解析 |
-| `BERT_MODEL_NAME` | `"sentence-bert"` | BERT 模型名稱 |
-| `MITRE_TFIDF_DIR` | `data/ExternalKnowledge/MITRE_TFIDF` | TF-IDF 輸出目錄 |
+> 詳細配置參數請參考：[Preprocessing.md](./docs/Preprocessing.md)、[TF-IDF.md](./docs/TF-IDF.md)
 
 #### 輸入輸出
 
@@ -199,14 +173,7 @@ result = STAGE_I(N=10, enable_tfidf=True)
 | **AutoEncoder** | 重建誤差檢測 | 捕捉非線性異常 |
 | **PCA + GMM** | 降維後高斯混合 | 識別分布外樣本 |
 
-#### 配置參數
-
-| 參數 | 預設值 | 說明 |
-|------|--------|------|
-| `DETECTION_MODELS` | `["isolation_forest", "copod", "autoencoder", "pca_gmm"]` | 啟用的偵測模型 |
-| `IF_CONTAMINATION` | `0.05` | Isolation Forest 預期異常比例 |
-| `MAD_THRESHOLD_MULTIPLIER` | `3.0` | MAD 自適應閾值乘數 |
-| `ENSEMBLE_WEIGHTS` | 各模型 0.25 | 模型加權平均權重 |
+> 詳細配置參數與各模型說明請參考：[Anomaly_Detection.md](./docs/Anomaly_Detection.md)、[docs/unsupervised model/](./docs/unsupervised%20model/)
 
 #### 輸入輸出
 
@@ -231,8 +198,9 @@ result = STAGE_I(N=10, enable_tfidf=True)
 │  Step 4a: 概念提取 (NMF)                                        │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │  X (768 維嵌入) ≈ H (概念權重) × W (概念基矩陣)          │    │
-│  │  • 與外部知識聯合訓練統一的概念基矩陣 W                  │    │
-│  │  • 產出：k 維概念向量 (k=30)                             │    │
+│  │  • Per-Dataset 策略：每個 Dataset 獨立訓練 NMF 模型        │    │
+│  │  • 與外部知識聯合訓練，外部知識作為「語義錨點」        │    │
+│  │  • 產出：k 維概念向量                                     │    │
 │  └─────────────────────────────────────────────────────────┘    │
 │                            │                                    │
 │                            ▼                                    │
@@ -248,8 +216,8 @@ result = STAGE_I(N=10, enable_tfidf=True)
 │  Step 4c: 自動標註 (Auto Labeling)                              │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │  • Cluster Centroid 與 MITRE 向量餘弦相似度比對           │    │
-│  │  • 異常分數加權計算信心度                                 │    │
-│  │  • 閾值判斷：低於閾值標記為 Benign                        │    │
+│  │  • 混合評分：Embedding + TF-IDF + 雙高加分                 │    │
+│  │  • 結合異常分數計算威脅信心度                             │    │
 │  │  • 產出：帶標籤的 CSV 檔案                                │    │
 │  └─────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
@@ -259,17 +227,12 @@ result = STAGE_I(N=10, enable_tfidf=True)
 
 | 策略 | 說明 |
 |------|------|
-| **全域聯合訓練** | 聚合多資料集 + 外部知識訓練統一的概念基矩陣 W |
+| **Per-Dataset 局部訓練** | 每個 Dataset 獨立訓練 NMF 模型，與外部知識聯合訓練 |
+| **語義錨點機制** | 外部知識作為「語義錨點」引導 NMF 學習與已知攻擊模式相關的概念 |
 | **L1 稀疏約束** | 強制每筆日誌只屬於少數概念，提升可解釋性 |
 | **GPU 加速** | 支援 CUDA GPU 加速大規模矩陣運算 |
 
-**配置參數**：
-
-| 參數 | 預設值 | 說明 |
-|------|--------|------|
-| `NMF_COMPONENTS` | `30` | 概念數量（潛在空間維度） |
-| `NMF_L1_REG` | `0.01` | L1 正則化強度 |
-| `NMF_USE_GPU` | `True` | 是否使用 GPU 加速 |
+> 詳細配置請參考：[Concept_Extraction.md](./docs/Concept_Extraction.md)
 
 #### Step 4b：序列分群 (HMM)
 
@@ -280,14 +243,7 @@ result = STAGE_I(N=10, enable_tfidf=True)
 | **一階差分** | 額外計算變化率特徵，識別攻擊階段的轉換點 |
 | **BIC 選擇 K** | 使用貝葉斯資訊量準則自動選擇最佳狀態數 |
 
-**配置參數**：
-
-| 參數 | 預設值 | 說明 |
-|------|--------|------|
-| `HMM_K_MIN` | `1` | 隱藏狀態下界 |
-| `HMM_K_MAX` | `15` | 隱藏狀態上界 |
-| `HMM_COVARIANCE_TYPE` | `"diag"` | 共變異數型式 |
-| `HMM_N_ITER` | `100` | Baum-Welch 最大迭代次數 |
+> 詳細配置請參考：[Sequence_Clustering.md](./docs/Sequence_Clustering.md)
 
 #### Step 4c：自動標註 (Auto Labeling)
 
@@ -336,19 +292,7 @@ $$
 - Similarity: $w_{emb} = 0.6$, $w_{tfidf} = 0.3$, $w_{boost} = 0.1$
 - Threat: $\alpha = 0.7$, $\beta = 0.3$
 
-**配置參數**：
-
-| 參數 | 預設值 | 說明 |
-|------|--------|------|
-| `LABELING_WEIGHT_EMBEDDING` | `0.6` | Embedding 權重 ($w_{emb}$) |
-| `LABELING_WEIGHT_TFIDF` | `0.3` | TF-IDF 權重 ($w_{tfidf}$) |
-| `LABELING_ENABLE_DUAL_BOOST` | `True` | 啟用雙高加分 |
-| `LABELING_DUAL_BOOST_THRESHOLD` | `0.5` | 雙高判定閾值 ($\theta$) |
-| `LABELING_DUAL_BOOST_WEIGHT` | `0.1` | 雙高加分權重 ($w_{boost}$) |
-| `LABELING_SIMILARITY_WEIGHT` | `0.7` | Similarity 權重 ($\alpha$) |
-| `LABELING_ANOMALY_WEIGHT` | `0.3` | Anomaly 權重 ($\beta$) |
-| `LABELING_SIMILARITY_THRESHOLD` | `0.3` | 相似度下界 |
-| `LABELING_TOP_K` | `3` | 候選技術數量 |
+> 詳細配置請參考：[Auto_Labeling.md](./docs/Auto_Labeling.md)
 
 #### 輸入輸出
 
@@ -363,10 +307,10 @@ $$
 
 #### 輸出範例
 
-| original_idx | timestamp | anomaly_score | predicted_technique_1_label | predicted_technique_1_similarity | predicted_technique_1_confidence |
-|--------------|-----------|---------------|-----------------------------|---------------------------------|----------------------------------|
-| 0 | 2025-01-08 10:30:00 | 0.85 | PowerShell | 0.78 | 0.80 |
-| 1 | 2025-01-08 10:30:02 | 0.12 | Benign | 0.45 | 0.35 |
+| original_idx | anomaly_score | groundtruth_tid | predicted_technique_1_name | predicted_technique_1_similarity | predicted_technique_1_threat_confidence |
+|--------------|---------------|-----------------|----------------------------|---------------------------------|-----------------------------------------|
+| 0 | 0.85 | T1059 | PowerShell | 0.82 | 0.78 |
+| 1 | 0.12 | T1059 | Application Layer Protocol | 0.45 | 0.35 |
 
 ---
 

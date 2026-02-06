@@ -43,7 +43,6 @@ def init():
     if os.path.exists(config.DATA_DIR):
         PRESERVED_ITEMS = {
             os.path.basename(config.INPUT_LOGS_DIR),
-            "ExternalKnowledge", 
             "reference_resources",
             "groundtruth"
         }

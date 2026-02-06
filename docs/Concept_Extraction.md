@@ -8,12 +8,14 @@
 
 ### 核心概念
 
-為了確保不同 Dataset 資料夾（對應不同 Technique）產出的概念向量具有可比性，我們採用以下策略：
+本模組採用 **Per-Dataset 策略** — 每個 Dataset 各自訓練一個獨立的 NMF 模型，並結合外部知識作為「語義錨點」來凸顯該 Dataset 的特異性：
 
-1.  **全域聯合訓練 (Joint Global Training)**：不針對單一 Dataset 訓練模型，而是聚合「外部知識庫」與「多個 Log Dataset 的採樣」來訓練一個共用的 NMF 模型。這確保了基矩陣 $W$（概念定義）在所有資料中是一致的。
-2.  **L1 稀疏性約束 (L1 Sparsity Constraint)**：在 NMF 更新規則中加入 L1 正則化項，強制概念權重矩陣 $H$ 更加稀疏，使每個日誌傾向於只屬於少數幾個明確的概念，提升解釋性。
-3.  **獨立批次轉換 (Independent Batch Transformation)**：利用訓練好的共用 $W$，對每一個原始資料夾進行獨立的轉換，生成對應的概念權重矩陣 $H$，並維持原始的檔案目錄結構。
-4.  **代表性樣本提取 (Representative Sample Extraction)**：提供方法提取每個概念權重最高的 Top-N 樣本索引，用於人工標註概念語義或自動生成概念標籤。
+1.  **Per-Dataset 局部訓練 (Per-Dataset Local Training)**：針對每個 Dataset 單獨訓練一個 NMF 模型。訓練時將該 Dataset 的 Log Vectors 與外部知識庫（MITRE ATT&CK）的 Technique Vectors 垂直堆疊，聯合進行矩陣分解。
+2.  **語義錨點機制 (Semantic Anchor Mechanism)**：外部知識向量作為「語義錨點」，引導 NMF 學習出與已知攻擊模式相關的概念。萃取出的概念會同時反映：
+    * 該 Dataset 與已知攻擊模式的相似性
+    * 該 Dataset 的獨特行為模式
+3.  **L1 稀疏性約束 (L1 Sparsity Constraint)**：在 NMF 更新規則中加入 L1 正則化項，強制概念權重矩陣 $H$ 更加稀疏，使每個日誌傾向於只屬於少數幾個明確的概念，提升解釋性。
+4.  **僅轉換 Dataset 部分 (Dataset-Only Transform)**：訓練時使用 Dataset + External Knowledge，但轉換時僅對 Dataset 部分進行投影，排除外部知識的干擾。
 5.  **GPU 併發控制 (GPU Concurrency Control)**：當使用 GPU 加速時，自動強制單執行緒處理（`n_jobs=1`），避免多 Process 競爭 VRAM 導致 OOM。
 
 ## 2. 輸入與輸出 (I/O Specification)
@@ -32,12 +34,12 @@
 ### 輸出 (Output)
 本模組將產生以下兩類輸出:
 1.  **概念分佈資料集 (Concept Distribution Datasets)**：
-    * 路徑結構：`data/ConceptVectors/{LogID}/data.arrow`（與輸入結構對應）。
+    * 路徑結構：`data/ConceptVectors/{DatasetID}_concepts/data-00000-of-00001.arrow`（與輸入結構對應）。
     * 內容：轉換後的概念權重矩陣 $H_{local}$，維度為 $N \times k$（$N$=樣本數, $k$=概念數）。
-    * Metadata：需同步複製原始的 `state.json` 或 `dataset.info` 以保留標籤資訊。
-2.  **概念模型 (Concept Model)**：
-    * 路徑：`models/nmf_concept_model.pkl`
-    * 內容：包含訓練好的基矩陣 $W$ 與模型參數。
+    * Metadata：需同步複製原始的 `state.json` 或 `dataset_info.json` 以保留標籤資訊。
+2.  **Per-Dataset 概念模型 (Per-Dataset Concept Model)**：
+    * 路徑：`data/ConceptVectors/{DatasetID}_concepts/nmf_model.pkl`
+    * 內容：每個 Dataset 獨立訓練的模型，包含基矩陣 $W$、Scaler、模型參數等。
 
 ---
 
@@ -73,38 +75,46 @@ NMF 因其出色的降維能力與直觀的「基於組件（Part-based）」表
 
 ## 4. 處理流程詳解 (Workflow)
 
-流程分為兩個獨立階段：**模型訓練 (A)** 與 **資料轉換 (B)**。
+採用 **Per-Dataset 策略**，每個 Dataset 執行獨立的完整流程：**載入 → 訓練 → 轉換 → 存檔**。
 
-### 階段 A：訓練全域概念模型 (Train Global Model)
-此階段目標是學習出 $X \approx HW$ 中的 $W$。
+### 主入口：`process_single_dataset()`
+此方法是 Per-Dataset 策略的核心入口點，封裝了完整的處理流程。
 
-1.  **資料採樣與聚合 (Sampling & Aggregation)**：
-    * 讀取所有外部知識向量 ($X_M$)。
-    * 遍歷 `data/LogVectors/` 下的所有子資料夾，從每個 Dataset 中隨機採樣一定比例（例如 10%）的 Log Vector。
-    * 將上述所有向量垂直堆疊（Stacking），構建出一個具代表性的全域訓練矩陣 $X_{train}$。
-2.  **前處理 (Preprocessing)**：
-    * 檢查 $X_{train}$ 數值。若使用 NMF，需執行平移（Shifting）或 Min-Max Scaling 確保非負性（Non-negative）。
-3.  **模型擬合 (Model Fitting)**：
-    * 初始化 NMF 模型，設定概念數 $k$（超參數）。
-    * 配置 **NNDSVD** 初始化與 **座標下降 (Coordinate Descent)** 求解器以優化收斂。
-    * 執行分解，獲得並凍結基矩陣 $W$。
-4.  **模型持久化 (Save)**：
-    * 將訓練好的模型物件儲存至硬碟。
+### 步驟 1：載入外部知識 (Load External Knowledge)
+* 呼叫 `load_external_knowledge()` 載入 MITRE ATT&CK Technique Vectors
+* 外部知識向量快取於 `_external_vectors`，避免重複載入
+* 作用：作為「語義錨點」引導 NMF 學習與已知攻擊模式相關的概念
 
-### 階段 B：批次轉換與映射 (Batch Transform & Map)
-此階段利用固定的 $W$ 將各別資料集映射至概念空間。
+### 步驟 2：載入 Dataset 向量 (Load Dataset Vectors)
+* 讀取該 Dataset 的 `data-00000-of-00001.arrow`
+* 取出 Log Embedding Vectors ($X_{dataset}$)
 
-1.  **載入模型**：讀取 `models/nmf_concept_model.pkl`。
-2.  **資料夾迭代 (Directory Iteration)**：
-    * 掃描 `data/LogVectors/` 下的所有 Log ID 資料夾。
-3.  **單一資料集轉換 (Per-Dataset Transform)**：
-    * 讀取：載入該資料夾的 `data.arrow` ($X_{local}$)。
-    * 投影：呼叫模型的 `transform()` 方法。數學上即固定 $W$，求解 $H_{local}$ 使得 $X_{local} \approx H_{local}W$。
-    * **注意**：此步驟**不**更新 $W$。
-4.  **結構化寫入 (Structured Write)**：
-    * 建立對應的輸出目錄 `data/ConceptVectors/{LogID}/`。
-    * 將 $H_{local}$ 存為 `data.arrow`。
-    * 複製原始資料夾中的 Metadata 檔案。
+### 步驟 3：Per-Dataset NMF 訓練 (Fit Local Model)
+由 `fit_local_model()` 執行：
+1.  **資料聯合 (Data Union)**：
+    * 將 Dataset Vectors ($X_{dataset}$) 與 External Vectors ($X_{external}$) 垂直堆疊
+    * $X_{train} = [X_{dataset}; X_{external}]$
+2.  **動態調整概念數**：
+    * 確保 $k < \min(n_{samples}, n_{features})$
+    * 若樣本過少則自動降低概念數
+3.  **前處理 (Preprocessing)**：
+    * Min-Max Scaling 確保非負性
+    * `np.clip(X, 0, None)` 額外保護
+4.  **模型擬合 (Model Fitting)**：
+    * 初始化 NMF 模型（或 `NMFGpu` 若啟用 GPU）
+    * 配置 NNDSVD 初始化與座標下降求解器
+    * 執行分解，獲得基矩陣 $W$ 與係數矩陣 $H$
+
+### 步驟 4：轉換至概念空間 (Transform to Concept Space)
+由 `transform_dataset_only()` 執行：
+* 僅對 Dataset 部分進行投影（排除 External Knowledge）
+* 產生 Dataset 的概念向量 $H_{dataset}$
+
+### 步驟 5：結構化輸出 (Structured Output)
+1.  建立輸出目錄：`{output_dir}/{DatasetID}_concepts/`
+2.  儲存概念向量：`data-00000-of-00001.arrow`
+3.  儲存模型：`nmf_model.pkl`（每個 Dataset 獨立一份）
+4.  複製 Metadata：`state.json`, `dataset_info.json`
 
 ---
 
@@ -136,21 +146,44 @@ NMF 因其出色的降維能力與直觀的「基於組件（Part-based）」表
     * 避免多個 Python Process 同時嘗試使用 GPU，導致 VRAM 競爭和 OOM
 
 ### API 設計(`ConceptExtractor`)
-下列方法為主要API call，方便其他模組直接引用：
+下列方法為主要 API call，方便其他模組直接引用：
 
-* `prepare_training_data(log_vectors_dir, external_knowledge_dir, sample_ratio)`: 依據設定的日誌向量目錄與外部知識目錄載入向量，逐資料集採樣後垂直堆疊成訓練矩陣。
-* `fit_global_model(X_train)`: 以 Min-Max 縮放後的 `X_train` 擬合 NMF/LDA 模型並凍結基矩陣；概念數、收斂條件、L1 正則化強度等超參數來自初始化。當 `use_gpu=True` 且 CUDA 可用時，使用 `NMFGpu` 加速訓練，並自動強制 `n_jobs=1` 以避免 VRAM 競爭。
-* `extract_representative_samples(X, top_n=10)`: **[新增]** 提取每個概念權重最高的 Top-N 樣本索引，回傳字典 `{concept_idx: [sample_indices]}`。用於：
-    * 人工標註概念語義（透過查閱代表性日誌的原始文字）
-    * 自動生成概念標籤（例如：Concept 1 = PowerShell 下載）
-    * 概念品質評估與驗證
-* `transform_dataset(input_path, output_path, copy_metadata=True)`: 讀取單一資料集向量、投影至概念空間並輸出 Feather，必要時一併複製 `state.json`/`dataset_info.json`。
-* `batch_transform(log_vectors_dir, concept_vectors_dir, n_jobs=None)`: 對 `log_vectors_dir` 下所有子資料夾批次轉換，維持 `{LogID}_logvectors -> {LogID}_concepts` 目錄對應。支援多 CPU 並行處理（GPU 模式下自動設為 1）。
-* `get_concept_basis()`: 回傳已訓練的 $W$ 基矩陣（或 LDA 主題-詞彙分佈），供分析或視覺化使用。
+**外部知識載入**：
+* `load_external_knowledge(external_dir)`: 載入外部知識庫（MITRE ATT&CK）的 Embedding Vectors 作為語義錨點。向量快取於 `_external_vectors`，僅需載入一次。
 
-**便捷函式**：
-* `train_concept_extractor(...)`: 執行資料準備、模型訓練與儲存的完整流程。
-* `transform_all_datasets(...)`: 讀取既有模型後批次轉換所有資料集。
+**Per-Dataset 訓練**：
+* `fit_local_model(dataset_vectors, external_vectors=None, dataset_id="unknown")`: 針對單一 Dataset 訓練局部 NMF 模型。將 Dataset + External Knowledge 聯合訓練，External 作為語義錨點凸顯 Dataset 特異性。當 `use_gpu=True` 且 CUDA 可用時，使用 `NMFGpu` 加速訓練。
+
+**資料轉換**：
+* `transform_local(X)`: 使用局部模型將向量投影至概念空間。
+* `transform_dataset_only(dataset_vectors)`: **[核心]** 僅轉換 Dataset 部分（排除 External Knowledge）。這是 Per-Dataset 策略的核心 — 訓練時使用聯合資料，轉換時僅對 Dataset 進行投影。
+
+**模型存取**：
+* `save_local_model(output_dir, dataset_id)`: 儲存 Per-Dataset 模型至 `{output_dir}/{dataset_id}_concepts/nmf_model.pkl`。
+* `load_local_model(model_path)`: 載入已儲存的 Per-Dataset 模型。
+
+**完整流程封裝**：
+* `process_single_dataset(dataset_id, input_path, output_dir, ...)`: **[主入口]** 處理單一 Dataset 的完整流程：載入 → 訓練 → 轉換 → 存檔。支援選用 TF-IDF 加權 (`use_tfidf_weighting=True`)。
+
+**資料載入**：
+* `load_dataset_vectors(dataset_path)`: 載入單一 Dataset 的 Log Vectors（Arrow 格式）。
+
+**Pipeline 整合**：
+在 `Pipeline.py` 中的典型呼叫模式：
+```python
+extractor = ConceptExtractor(n_concepts=config.NMF_COMPONENTS)
+extractor.load_external_knowledge(config.EXTERNAL_KNOWLEDGE_DIR)
+
+for dataset_id, input_path in datasets:
+    # 每個 Dataset 重置模型，執行獨立訓練
+    extractor.model = None
+    extractor._is_fitted = False
+    concept_vectors = extractor.process_single_dataset(
+        dataset_id=dataset_id,
+        input_path=input_path,
+        output_dir=config.CONCEPT_VECTORS_DIR,
+    )
+```
 
 ---
 
@@ -161,15 +194,14 @@ NMF 因其出色的降維能力與直觀的「基於組件（Part-based）」表
 | 參數角色                    | Config Key / 名稱              | 型別   | 說明                                                             | 建議預設值              |
 |-----------------------------|--------------------------------|--------|------------------------------------------------------------------|-------------------------|
 | 概念數量                    | `NMF_COMPONENTS`               | int    | 潛在概念空間的維度 $k$，即 NMF 的組件數。                       | `75`                    |
-| L1 正則化強度               | `NMF_L1_REG`                   | float  | **[新增]** L1 正則化強度，控制概念稀疏度。值越大越稀疏，0 表示無正則化。 | `0.01`                  |
-| 日誌向量根目錄              | `LOG_VECTORS_DIR`              | str    | 載入 `data/LogVectors/{LogID}/data.arrow` 的根路徑              | `data/LogVectors`       |
-| 訓練隨機種子                | `SEED`                         | int    | 控制採樣與模型初始化的隨機性，方便重現結果。                     | `42`                    |
-| 訓練資料採樣比例            | `CONCEPT_SAMPLE_RATIO`         | float  | 從各資料集抽樣的比例，用於建構 $X_{train}$。                     | `1.0`                   |
+| L1 正則化強度               | `NMF_L1_REG`                   | float  | L1 正則化強度，控制概念稀疏度。值越大越稀疏，0 表示無正則化。 | `0.01`                  |
+| Embedding 根目錄            | `EMBEDDINGS_DIR`               | str    | 載入 `data/Embeddings/{DatasetID}_embeddings/` 的根路徑         | `data/Embeddings`       |
+| 概念向量輸出目錄            | `CONCEPT_VECTORS_DIR`          | str    | 輸出 `data/ConceptVectors/{DatasetID}_concepts/` 的根路徑       | `data/ConceptVectors`   |
+| 外部知識目錄                | `EXTERNAL_KNOWLEDGE_DIR`       | str    | MITRE ATT&CK Embedding 所在目錄                                  | `data/ExternalKnowledge`|
+| 訓練隨機種子                | `SEED`                         | int    | 控制模型初始化的隨機性，方便重現結果。                           | `42`                    |
 | 最大訓練迭代次數            | `NMF_MAX_ITER`                 | int    | NMF 的最大迭代次數，避免訓練時間過長。                           | `500`                   |
 | 收斂容忍度                  | `NMF_TOL`                      | float  | NMF 收斂條件，控制訓練精度與時間的權衡。                         | `1e-3`                  |
 | 初始化方法                  | `NMF_INIT`                     | str    | NMF 初始化策略，例如 `nndsvd`。                                  | `"nndsvd"`              |
-| 概念模型輸出路徑            | `NMF_MODEL_PATH`               | str    | 儲存 `nmf_concept_model.pkl` 的完整路徑。                        | `models/nmf_concept_model.pkl` |
-| 批次轉換並行數              | `CONCEPT_BATCH_N_JOBS`         | int    | 批次轉換時的並行工作數（-1=所有 CPU，GPU 模式下自動設為 1）     | `-1`                    |
 
 ### GPU 加速設定
 
