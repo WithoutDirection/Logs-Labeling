@@ -1,0 +1,168 @@
+filename,tid,t_name
+6efbccc1869e8cd618c0d3ecda407d5f,T1059.001,Command and Scripting Interpreter: PowerShell
+a14392d713dffba6a397682ff83259a0,T1049,System Network Connections Discovery
+ee454be9197890de62705ce6255933fd,T1053.005,Scheduled Task/Job: Scheduled Task
+e6dfc7e89359ac6fa6de84b0e1d5762e,T1074.001,Data Staged: Local Data Staging
+b0255b5120cbabc062d8d4510a142c3b,T1047,Windows Management Instrumentation
+ac2764f7a67a9ce92b54e8e59b361838,T1047,Windows Management Instrumentation
+8d0a4585e7c4646185a912b14cd9cb46,T1562.004,Impair Defenses: Disable or Modify System Firewall
+ccdb8caf-c69e-424b-b930-551969450c57,T1059.001,Command and Scripting Interpreter: PowerShell
+a1ee301b0508747b468d578a14e5c1a5,T1560,Archive Collected Data
+f5ef8466e5ebcd2ae03f338d9416069c,T1036.003,Masquerading: Rename System Utilities
+deeac480-5c2a-42b5-90bb-41675ee53c7e,T1135,Network Share Discovery
+ba6f6214dbd17c54001e0a163b60f151,T1112,Modify Registry
+7fa4ea18694f2552547b65e23952cabb,T1003.002,OS Credential Dumping: Security Account Manager
+6935e41353aa781bb723462d26114c44,T1047,Windows Management Instrumentation
+5db2884b6ca3ab932848f295a3896dc0,T1053.005,Scheduled Task/Job: Scheduled Task
+29451844-9b76-4e16-a9ee-d6feab4b24db,T1082,System Information Discovery
+feaced8f-f43f-452a-9500-a5219488abb8,T1087.001,Account Discovery: Local Account
+777043894e42d2aae3881e63f6c76d33,T1547.001,Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder
+0856714c9810ac55b53e9964d02958a0,T1547.004,Boot or Logon Autostart Execution: Winlogon Helper DLL
+bd527b63-9f9e-46e0-9816-b8434d2b8989,T1033,System Owner/User Discovery
+6334877e8e3ba48f7835d4856d90a282,T1087.001,Account Discovery: Local Account
+ba343199a4f15ed6b57eb52412f62e4e,T1090.001,Proxy: Internal Proxy
+da86001b5081fcf773d8e62f22cf2b00,T1125,Video Capture
+7a6ba833-de40-466a-8969-5c37b13603e0,T1497.001,Virtualization/Sandbox Evasion: System Checks
+14a21534-350f-4d83-9dd7-3c56b93a0c17,T1016,System Network Configuration Discovery
+6881a4589710d53f0c146e91db513f01,T1040,Network Sniffing
+c76968acda4aa1673dadcd67f3ab7664,T1105,Ingress Tool Transfer
+316251ed-6a28-4013-812b-ddf5b5b007f8,T1113,Screen Capture
+7b9c7afaefa59aab759b49af0d699ac1,T1120,Peripheral Device Discovery
+5a4cb2be-2684-4801-9355-3a90c91e0004,T1046,Network Service Scanning
+9a2edad4053a2b59fb9167a9bc29e7dc,T1564.003,Hide Artifacts: Hidden Window
+1258b063-27d6-489b-a677-4807faacf868,T1497.001,Virtualization/Sandbox Evasion: System Checks
+8ddfaf982ab359cda13626b870ccb339,T1518,Software Discovery
+63bbedafba2f541552ac3579e9e3737b,T1574.001,Hijack Execution Flow: DLL Search Order Hijacking
+c0da588f-79f0-4263-8998-7496b1a40596,T1033,System Owner/User Discovery
+720a3356-eee1-4015-9135-0fc08f7eb2d5,T1005,Data from Local System
+46da2385-cf37-49cb-ba4b-a739c7a19de4,T1496,Resource Hijacking
+55678719-e76e-4df9-92aa-10655bbd1cf4,T1059.001,Command and Scripting Interpreter: PowerShell
+b2a1e430ca6d36eb5af2fe666e769847,T1057,Process Discovery
+e5f9de8f-3df1-4e78-ad92-a784e3f6770d,T1059.001,PowerShell
+e90756bb6dcd21462dc4cc452661df91,T1490,Inhibit System Recovery
+9d03c91bdae5a80f17f89c987942b5a8,T1007,System Service Discovery
+52177cc1-b9ab-4411-ac21-2eadc4b5d3b8,T1083,File and Directory Discovery
+bfff9006-d1fb-46ce-b173-92cb04e9a031,T1059.001,Command and Scripting Interpreter: PowerShell
+dce51e632abdfe5392c7c1f942ac9273,T1564.001,Hide Artifacts: Hidden Files and Directories
+2dece965-37a0-4f70-a391-0f30e3331aba,T1518.001,Software Discovery: Security Software Discovery
+8467c994685ccf178db166964bd80fab,T1490,Inhibit System Recovery
+ac122553ab4426ea3362bb4a97d31bfd,T1047,Windows Management Instrumentation
+372e6f46fca18e4f1b43209c20ffafa2,T1123,Audio Capture
+5c4dd985-89e3-4590-9b57-71fed66ff4e2,T1069.001,Permission Groups Discovery: Local Groups
+d3ef4145e4144fd694514b1c5cc17350,T1547.001,Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder
+eb814e03-811a-467a-bc6d-dcd453750fa2,T1105,Ingress Tool Transfer
+aa147165f6c116cb0b0f944abe1db8ce,T1547.004,Boot or Logon Autostart Execution: Winlogon Helper DLL
+7d8ee68f0e9731db82964f558f614608,T1016,System Network Configuration Discovery
+70795de7cbb842edb029b3378c27c008,T1115,Clipboard Data
+ed736a123da6fb2aab22cfd4f437e8b5,T1047,Windows Management Instrumentation
+cd8be0e6b873919da25530a2c7ea6750,T1112,Modify Registry
+12ad9edefc86af07700fbf49bfdac6ba,T1137,Office Application Startup
+fa4ba6a06b4a5cd955ea5a60fae24281,T1112,Modify Registry
+c521e0a70b243a0cf9217907ca3c6d27,T1105,Ingress Tool Transfer
+0856c235a1d26113d4f2d92e39c9a9f8,T1105,Ingress Tool Transfer
+35c0360d226cf38104f300d9d57ce60e,T1112,Modify Registry
+c156ac5c9fa67080365268d95f29053d,T1490,Inhibit System Recovery
+9e5e4c0655fd1b5be88bd40b8251175f,T1490,Inhibit System Recovery
+6469befa-748a-4b9c-a96d-f191fde47d89,T1074.001,Data Staged: Local Data Staging
+34041639e6e501856ecaf5969ee29c76,T1112,Modify Registry
+e7a987cbef27263e666e5b096488dc55,T1112,Modify Registry
+e2af3c3ab1b0f659c874b8af58c49759,T1137.002,Office Application Startup: Office Test
+e74d2fb4ef5fa6c766a4151554033697,T1112,Modify Registry
+ac20e592bc912bddff4d6b88289095f0,T1018,Remote System Discovery
+cfb61005899996469ae3023796792ca5,T1482,Domain Trust Discovery
+76b6066fe170d38215251102e42be973,T1564.004,Hide Artifacts: NTFS File Attributes
+04e8d83e7badf098d50800d6aa1dd487,T1036.003,Masquerading: Rename System Utilities
+7fe6a66d03f4dbfc022609ba311c2b11,T1112,Modify Registry
+4e97e699-93d7-4040-b5a3-2e906a58199e,T1074.001,Data Staged: Local Data Staging
+dedfa0a54c9c13ce5714a0dc2e1f5d1a,T1564,Hide Artifacts
+a1f48fa3ddee658b29b414523c9a295b,T1069.001,Permission Groups Discovery: Local Groups
+522f3f35cd013e63830fa555495a0081,T1204.002,User Execution: Malicious File
+5a39d7ed-45c9-4a79-b581-e5fb99e24f65,T1057,Process Discovery
+68235976-2404-42a8-9105-68230cfef562,T1491,Defacement
+f9a968af61d36983448c74cca5464e17,T1546.013,Event Triggered Execution: PowerShell Profile
+33a24ff44719e6ac0614b58f8c9a7c72,T1518.001,Software Discovery: Security Software Discovery
+a44bb43474728496276d5d73aa14588f,T1018,Remote System Discovery
+94f51bf01a7036fe02d07b4c18967669,T1562.002,Impair Defenses: Disable Windows Event Logging
+c6607391-d02c-44b5-9b13-d3492ca58599,T1007,System Service Discovery
+b25ae80dad74142fafb510e9c1949ace,T1531,Account Access Removal
+c9be8043-a445-4cbf-b77b-ed7bb007fc7c,T1518,Software Discovery
+26c8b8b5-7b5b-4de1-a128-7d37fb14f517,T1018,Remote System Discovery
+702bfdd2-9947-4eda-b551-c3a1ea9a59a2,T1059.001,Command and Scripting Interpreter: PowerShell
+5a484b65c247675e3b7ada4ba648d376,T1003.002,OS Credential Dumping: Security Account Manager
+1f15ab22c39a9b6bb2bb0d77276dfcb3,T1547.001,Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder
+43e3334362b140924f001b256b229ee5,T1562.001,Impair Defenses: Disable or Modify Tools
+aa6b15485a5f50ced34d87fda177b758,T1531,Account Access Removal
+f1b3fca18d7465cd10e5a7477a3bf97d,T1219,Remote Access Software
+3e5b04b8ee0a1a4950da8f35d95e65fc,T1552.002,Unsecured Credentials: Credentials in Registry
+dd67068b052fa553ad4a0ac7d6a5ea89,T1021.001,Remote Services: Remote Desktop Protocol
+6a8d25d65a7d481dc479f89c62af1e6a,T1562.002,Impair Defenses: Disable Windows Event Logging
+41627f71f968225b9f162cb76d16bd9d,T1562.004,Impair Defenses: Disable or Modify System Firewall
+5b93df032e230056c21a3e57334f77d1,T1562.004,Impair Defenses: Disable or Modify System Firewall
+b6e5c895c6709fe289352ee23f062229,T1547.009,Boot or Logon Autostart Execution: Shortcut Modification
+665432a4-42e7-4ee1-af19-a9a8c9455d0c,T1548.002,Abuse Elevation Control Mechanism: Bypass User Access Control
+72249c1e9ffe7d8f30243d838e0791ca,T1574.011,Hijack Execution Flow: Services Registry Permissions Weakness
+5dc841fd-28ad-40e2-b10e-fb007fe09e81,T1497.001,Virtualization/Sandbox Evasion: System Checks
+9f73269695e54311dd61dc68940fb3e1,T1003.003,OS Credential Dumping: NTDS
+af8cb2bf9b436aae5c106a0a9c207e14,T1219,Remote Access Software
+163b023f43aba758d36f524d146cb8ea,T1547.001,Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder
+e5bcefee-262d-4568-a261-e8a20855ec81,T1055.002,Process Injection: Portable Executable Injection
+e8017c46-acb8-400c-a4b5-b3362b5b5baa,T1016,System Network Configuration Discovery
+60f63260-39bb-4136-87a0-b6c2dca799fc,T1105,Ingress Tool Transfer
+4b71ebb2f6f6a01235ba240fa40ce978,T1547.001,Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder
+a74bc239-a196-4f7e-8d5c-fe8c0266071c,T1055.001,Process Injection: Dynamic-link Library Injection
+344e7eaf650763e0d3e9f02e62c1cf4b,T1119,Automated Collection
+f7a0f7d704aa52a764d9d1bee81e65d6,T1217,Browser Bookmark Discovery
+2fe2d5e6-7b06-4fc0-bf71-6966a1226731,T1499,Endpoint Denial of Service
+280003641a5cddf916c4f2bf605a71d3,T1562.004,Impair Defenses: Disable or Modify System Firewall
+0ef4cc7b-611c-4237-b20b-db36b6906554,T1003.001,OS Credential Dumping: LSASS Memory
+0dbdf1a2a87e718a6ac8a8e3415a7fac,T1547.001,Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder
+1095434782a00c8a4772a11e625bcf5d,T1105,Ingress Tool Transfer
+d82ceb9939d3d920ee550187ad8235c8,T1486,Data Encrypted for Impact
+fd992e8ecfdac9b56dd6868904044827,T1112,Modify Registry
+35d92515122effdd73801c6ac3021da7,T1003.001,OS Credential Dumping: LSASS Memory
+6e1a53c0-7352-4899-be35-fa7f364d5722,T1083,File and Directory Discovery
+1f91076e2be2014cc7b4f1296de02fd6,T1070.005,Indicator Removal on Host: Network Share Connection Removal
+d6bb2a19da7246731ed9c44831b135f8,T1007,System Service Discovery
+6103e503cb444bc7b4187704f2035708,T1069.002,Permission Groups Discovery: Domain Groups
+257313a3c93e3bb7dfb60d6753b09e34,T1112,Modify Registry
+d0ca00832890baa1d42322cf70fcab1a,T1078.001,Valid Accounts: Default Accounts
+c8f329d2847ede593b6cb4a1ec6120fb,T1490,Inhibit System Recovery
+62cfa90fb03a6bc1a6ebcce8a3ea81b7,T1037.001,Boot or Logon Initialization Scripts: Logon Script (Windows)
+4f683658f161ccdc51337c470d32bab9,T1105,Ingress Tool Transfer
+f38e58deb7ad20b5538ca40db7b7b4f8,T1059.003,Command and Scripting Interpreter: Windows Command Shell
+47d08617-5ce1-424a-8cc5-c9c978ce6bf9,T1491,Defacement
+6c318ef0339d74d909ad556681b6493e,T1059.003,Command and Scripting Interpreter: Windows Command Shell
+530e47c6-8592-42bf-91df-c59ffbd8541b,T1135,Network Share Discovery
+fe9eeee9a7b339089e5fa634b08522c1,T1547,Boot or Logon Autostart Execution
+1afaec09315ab71fdfb167175e8a019a,T1566.001,Phishing: Spearphishing Attachment
+f8de05d1741dcc468f772ab0ff4dac72,T1057,Process Discovery
+cab7b85611a290c0769546bfa9d6f962,T1112,Modify Registry
+57296a2ddbeb7423c05feef2fe972111,T1201,Password Policy Discovery
+4bfb5f265a5ce07af6bf10da113af7db,T1112,Modify Registry
+7de3d7b4922a7b996d8df36fb22bb118,T1036.004,Masquerading: Masquerade Task or Service
+b8453a5fe06b24aea12b27592d5c3d3a,T1518.001,Software Discovery: Security Software Discovery
+09e0f9cf2eb803a1c35deeecf3665fad,T1047,Windows Management Instrumentation
+71b3d2945679566b9d94d8cb11df4b70,T1016,System Network Configuration Discovery
+fa6e8607-e0b1-425d-8924-9b894da5a002,T1124,System Time Discovery
+38f6f0e50a6b196140ec40d3dc9cc9e6,T1201,Password Policy Discovery
+24c3b7b004401d839a5c337201da3484,T1071.001,Application Layer Protocol: Web Protocols
+2d53d6fabd39bf9c70b0dfcdfbbc926d,T1490,Inhibit System Recovery
+8fe59e288f10a486dc8b44bc872019ff,T1562.004,Impair Defenses: Disable or Modify System Firewall
+501af516bd8b24fee0c7c650ae5cc861,T1547.009,Boot or Logon Autostart Execution: Shortcut Modification
+1f0614ea5c4af6faf1b44570f5f22f8a,T1036.004,Masquerading: Masquerade Task or Service
+b007fe0c-c6b0-4fda-915c-255bbc070de2,T1115,Clipboard Data
+69bbe2183fa09c00ccaac62d48e214f8,T1217,Browser Bookmark Discovery
+4593d72a5145e3f494421ac772d37464,T1547.010,Boot or Logon Autostart Execution: Port Monitors
+638fb6bb-ba39-4285-93d1-7e4775b033a8,T1049,System Network Connections Discovery
+f049b89533298c2d6cd37a940248b219,T1003.003,OS Credential Dumping: NTDS
+8adf02e8-6e71-4244-886c-98c402857404,T1057,Process Discovery
+e6715e61f5df646692c624b3499384c4,T1105,Ingress Tool Transfer
+7dabcbecab0334b115feefab1630f84a,T1219,Remote Access Software
+18f31c311ac208802e88ab8d5af8603e,T1003,OS Credential Dumping
+921055f4-5970-4707-909e-62f594234d91,T1016,System Network Configuration Discovery
+6131397e-7765-424e-a594-3d7fb2d93a6a,T1482,Domain Trust Discovery
+f4b0b4129560ea66f9751275e82f6bab,T1047,Windows Management Instrumentation
+28862487a99f5f89bc0d68c87396c7e9,T1564.004,Hide Artifacts: NTFS File Attributes
+66a5fd5f244819181f074dd082a28905,T1564.001,Hide Artifacts: Hidden Files and Directories
+a0676fe1-cd52-482e-8dde-349b73f9aa69,T1016,System Network Configuration Discovery
+7121cdf93b951311be9d7078c602efdc,T1119,Automated Collection
