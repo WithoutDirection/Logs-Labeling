@@ -95,6 +95,10 @@ class AutoLabeler:
         self.ground_truth: Dict[str, Dict[str, str]] = {}
         self._load_ground_truth()
 
+        # * External ID mapping (MITRE Txxxx)
+        self._mitre_name_by_external_id: Dict[str, str] = {}
+        self._mitre_external_ids_loaded = False
+
     def _load_ground_truth(self) -> None:
         gt_path = os.path.join(PROJECT_ROOT, "data", "groundtruth", "abilities.csv")
         if os.path.exists(gt_path):
@@ -114,6 +118,39 @@ class AutoLabeler:
                 print(f"[Warning] 載入 Ground Truth 失敗: {e}")
         else:
             print(f"[Warning] 找不到 Ground Truth 檔案: {gt_path}")
+
+    def _load_mitre_external_id_map(self) -> None:
+        if self._mitre_external_ids_loaded:
+            return
+        self._mitre_external_ids_loaded = True
+
+        ref_dir = getattr(config, "REFERENCE_RESOURCES_DIR", os.path.join(PROJECT_ROOT, "data", "reference_resources"))
+        candidates = [
+            os.path.join(ref_dir, "MitreTechniquesTokens_V6.csv"),
+            os.path.join(ref_dir, "MitreTechniquesTokens_V5.csv"),
+        ]
+        for path in candidates:
+            if not os.path.exists(path):
+                continue
+            try:
+                df = pd.read_csv(path)
+                if "technique" not in df.columns:
+                    continue
+                if "external_id" not in df.columns:
+                    continue
+                mapping = {}
+                for _, row in df.iterrows():
+                    name = str(row.get("technique", "")).strip()
+                    ext_id = str(row.get("external_id", "")).strip()
+                    if name and ext_id:
+                        mapping[ext_id] = name
+                if mapping:
+                    self._mitre_name_by_external_id = mapping
+                    print(f"[Info] 已載入 MITRE External IDs: {len(mapping)} 筆")
+                    return
+            except Exception:
+                continue
+        print("[Warning] 未找到可用的 external_id 對應表 (MitreTechniquesTokens_V6.csv)")
 
     def load_log_vectors(self, input_path: str) -> Optional[np.ndarray]:
         # * 載入原始 BERT 嵌入向量（用於計算 cluster centroids）
@@ -529,6 +566,25 @@ class AutoLabeler:
             clean_id = dataset_id.replace("_raw_events", "").replace("_detection", "")
             gt = self.ground_truth.get(clean_id, {"tid": "Unknown", "t_name": "Unknown"})
 
+            # Resolve ground truth external ID to MITRE index
+            self._load_mitre_external_id_map()
+            name_to_index: Dict[str, int] = {}
+            if self.mitre_technique_names:
+                for i, name in enumerate(self.mitre_technique_names):
+                    key = str(name).strip().lower()
+                    if key:
+                        name_to_index[key] = i
+
+            gt_index = None
+            gt_tid = str(gt.get("tid", "")).strip()
+            if gt_tid:
+                if self.mitre_technique_ids and gt_tid in self.mitre_technique_ids:
+                    gt_index = self.mitre_technique_ids.index(gt_tid)
+                else:
+                    gt_name = self._mitre_name_by_external_id.get(gt_tid)
+                    if gt_name:
+                        gt_index = name_to_index.get(str(gt_name).strip().lower())
+
             # * 生成 Top-5 技術摘要（Embedding-only / TF-IDF-only / Hybrid）
             def _technique_name_by_index(idx: int) -> str:
                 if self.mitre_technique_names and idx < len(self.mitre_technique_names):
@@ -538,24 +594,36 @@ class AutoLabeler:
                 return f"T{idx}"
 
             def _summarize_top5(scores: np.ndarray, mode: str) -> List[Dict[str, Any]]:
-                top1_indices = np.argmax(scores, axis=1)
-                cluster_top1 = {
-                    cluster_id: _technique_name_by_index(top1_indices[i])
-                    for i, cluster_id in enumerate(unique_clusters)
-                }
-                counts: Dict[str, int] = {}
-                for log_idx in range(len(cluster_labels)):
-                    tech = cluster_top1[cluster_labels[log_idx]]
-                    counts[tech] = counts.get(tech, 0) + 1
-                total = len(cluster_labels)
+                # Rank by "Top-1 Count" (Frequency) - The winner is the technique that wins the most logs
+                # This restores the 100% behavior if a technique wins all clusters.
+                
+                cluster_sizes = [(cluster_labels == cid).sum() for cid in unique_clusters]
+                total_logs = float(sum(cluster_sizes))
+                
+                # Count how many logs belong to the Top-1 technique of each cluster
+                tech_counts = defaultdict(float)
+                
+                for i in range(len(scores)):
+                    # scores[i] is scores for cluster i
+                    best_idx = np.argmax(scores[i])
+                    tech_counts[best_idx] += cluster_sizes[i]
+                
+                # Sort by Count (Descending)
+                sorted_indices = sorted(tech_counts.keys(), key=lambda k: tech_counts[k], reverse=True)
+                top_indices = sorted_indices[:5]
+                
                 rows = []
-                for tech, count in sorted(counts.items(), key=lambda x: x[1], reverse=True)[:5]:
+                for idx in top_indices:
+                    tech = _technique_name_by_index(idx)
+                    count_val = tech_counts[idx]
+                    percent = round((count_val / total_logs) * 100.0, 2) if total_logs > 0 else 0.0
+                    
                     rows.append({
                         "dataset_id": dataset_id,
                         "mode": mode,
                         "technique": tech,
-                        "count": int(count),
-                        "percent": round((count / total) * 100.0, 2),
+                        "count": int(count_val),  # Log count
+                        "percent": percent,
                     })
                 return rows
 
@@ -578,6 +646,29 @@ class AutoLabeler:
                         expanded[key] = ""
                 return expanded
 
+            def _rank_stats(scores: Optional[np.ndarray]) -> Dict[str, Optional[float]]:
+                if scores is None or gt_index is None:
+                    return {"avg": None, "best": None, "best_count": None}
+                cluster_to_row = {cid: i for i, cid in enumerate(unique_clusters)}
+                ranks_per_cluster = []
+                for i in range(scores.shape[0]):
+                    order = np.argsort(scores[i])[::-1]
+                    rank = int(np.where(order == gt_index)[0][0]) + 1
+                    ranks_per_cluster.append(rank)
+                ranks_per_log = []
+                for log_idx in range(len(cluster_labels)):
+                    row_idx = cluster_to_row[cluster_labels[log_idx]]
+                    ranks_per_log.append(ranks_per_cluster[row_idx])
+                if not ranks_per_log:
+                    return {"avg": None, "best": None, "best_count": None}
+                best_rank = min(ranks_per_log)
+                best_count = sum(1 for r in ranks_per_log if r == best_rank)
+                return {
+                    "avg": float(np.mean(ranks_per_log)),
+                    "best": float(best_rank),
+                    "best_count": int(best_count),
+                }
+
             summary_row = {
                 "dataset_id": dataset_id,
                 "groundtruth": f"{gt['tid']} | {gt['t_name']}",
@@ -585,6 +676,20 @@ class AutoLabeler:
             summary_row.update(_expand_top5(embedding_summary, "embedding"))
             summary_row.update(_expand_top5(tfidf_summary, "tfidf"))
             summary_row.update(_expand_top5(hybrid_summary, "hybrid"))
+            emb_stats = _rank_stats(embedding_similarities)
+            tfidf_stats = _rank_stats(tfidf_similarities)
+            hybrid_stats = _rank_stats(similarity_scores)
+            summary_row.update({
+                "embedding_gt_avg_rank": emb_stats["avg"],
+                "embedding_gt_best_rank": emb_stats["best"],
+                "embedding_gt_best_count": emb_stats["best_count"],
+                "tfidf_gt_avg_rank": tfidf_stats["avg"],
+                "tfidf_gt_best_rank": tfidf_stats["best"],
+                "tfidf_gt_best_count": tfidf_stats["best_count"],
+                "hybrid_gt_avg_rank": hybrid_stats["avg"],
+                "hybrid_gt_best_rank": hybrid_stats["best"],
+                "hybrid_gt_best_count": hybrid_stats["best_count"],
+            })
             summary_rows.append(summary_row)
             
             # * 建立結果 DataFrame（包含原始資料 + Top-K 預測）

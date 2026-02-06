@@ -195,7 +195,24 @@ class LogLoader:
         
         num = kwargs.get("num")
         ratio = kwargs.get("ratio")
+        max_rows = kwargs.get("max_rows", 40000)
         files = get_filtered_files(self.input_dir, ".csv", num=num, ratio=ratio)
+
+        # Skip oversized datasets if max_rows is set
+        if max_rows is not None:
+            filtered_files = []
+            for file in files:
+                file_path = join_path(self.input_dir, file)
+                try:
+                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        row_count = sum(1 for _ in f) - 1  # exclude header
+                    if row_count > max_rows:
+                        print(f"[Skip] {file} rows={row_count} > {max_rows}")
+                        continue
+                except Exception as e:
+                    print(f"[Warning] 無法計算行數 {file}: {e}")
+                filtered_files.append(file)
+            files = filtered_files
         
         # 顯示載入資訊
         if num:
