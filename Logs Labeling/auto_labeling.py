@@ -14,6 +14,7 @@ import sys
 import pickle
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+from collections import defaultdict
 from dataclasses import dataclass
 
 import numpy as np
@@ -55,6 +56,9 @@ class LabelingConfig:
     dual_boost_threshold: float = getattr(config, 'LABELING_DUAL_BOOST_THRESHOLD', 0.5)
     dual_boost_weight: float = getattr(config, 'LABELING_DUAL_BOOST_WEIGHT', 0.1)
     
+    # * 是否直接用原始 BERT 嵌入比對（True）或走 NMF 概念空間（False）
+    use_raw_embeddings: bool = getattr(config, 'LABELING_USE_RAW_EMBEDDINGS', False)
+
     mitre_tfidf_dir: str = getattr(config, 'MITRE_TFIDF_DIR', os.path.join(config.EXTERNAL_KNOWLEDGE_DIR, "MITRE_TFIDF"))
     
     mitre_embeddings_dir: str = getattr(config, 'MITRE_EXTERNAL_KNOWLEDGE_DIR', os.path.join(config.EXTERNAL_KNOWLEDGE_DIR, "MITRE_ATTACK"))
@@ -470,8 +474,9 @@ class AutoLabeler:
             mitre_dim = self.mitre_embeddings.shape[1]
             
             # * 決定使用哪種向量計算 cluster centroids
-            # * 優先使用 log_vectors (768維)，確保與 MITRE embeddings 維度匹配
-            if log_vectors is not None and log_vectors.shape[1] == mitre_dim:
+            # * use_raw_embeddings=True  → 直接用 log_vectors (768維) 與 MITRE embedding 比對
+            # * use_raw_embeddings=False → 走 NMF 概念空間投影（預設，避免 raw syslog 雜訊主導相似度）
+            if self.config.use_raw_embeddings and log_vectors is not None and log_vectors.shape[1] == mitre_dim:
                 print(f"    [使用原始嵌入] log_vectors {log_vectors.shape} 與 MITRE {self.mitre_embeddings.shape}")
                 vectors_for_centroid = log_vectors
             elif nmf_extractor is not None and hasattr(nmf_extractor, '_is_fitted') and nmf_extractor._is_fitted:
@@ -594,35 +599,37 @@ class AutoLabeler:
                 return f"T{idx}"
 
             def _summarize_top5(scores: np.ndarray, mode: str) -> List[Dict[str, Any]]:
-                # Rank by "Top-1 Count" (Frequency) - The winner is the technique that wins the most logs
-                # This restores the 100% behavior if a technique wins all clusters.
-                
+                # Borda Count ranking:
+                # For each cluster, award 5 pts to the #1 technique, 4 pts to #2, ... 1 pt to #5.
+                # Points are weighted by cluster size (each log in the cluster casts the same votes).
+                # The top-5 techniques with the highest total Borda points are returned.
+
                 cluster_sizes = [(cluster_labels == cid).sum() for cid in unique_clusters]
                 total_logs = float(sum(cluster_sizes))
-                
-                # Count how many logs belong to the Top-1 technique of each cluster
-                tech_counts = defaultdict(float)
-                
+                borda_points = defaultdict(float)
+                borda_weights = [5, 4, 3, 2, 1]  # Points for rank 1 through 5
+
                 for i in range(len(scores)):
-                    # scores[i] is scores for cluster i
-                    best_idx = np.argmax(scores[i])
-                    tech_counts[best_idx] += cluster_sizes[i]
-                
-                # Sort by Count (Descending)
-                sorted_indices = sorted(tech_counts.keys(), key=lambda k: tech_counts[k], reverse=True)
+                    # Get indices of top-5 techniques for this cluster (sorted best → worst)
+                    top5_idx = np.argsort(scores[i])[::-1][:5]
+                    for rank_pos, tech_idx in enumerate(top5_idx):
+                        borda_points[tech_idx] += borda_weights[rank_pos] * cluster_sizes[i]
+
+                # Rank by total Borda points (descending)
+                sorted_indices = sorted(borda_points.keys(), key=lambda k: borda_points[k], reverse=True)
                 top_indices = sorted_indices[:5]
-                
+
+                total_points = float(sum(borda_points.values()))
                 rows = []
                 for idx in top_indices:
                     tech = _technique_name_by_index(idx)
-                    count_val = tech_counts[idx]
-                    percent = round((count_val / total_logs) * 100.0, 2) if total_logs > 0 else 0.0
-                    
+                    pts = borda_points[idx]
+                    percent = round((pts / total_points) * 100.0, 2) if total_points > 0 else 0.0
                     rows.append({
                         "dataset_id": dataset_id,
                         "mode": mode,
                         "technique": tech,
-                        "count": int(count_val),  # Log count
+                        "count": round(pts, 2),   # Total Borda points (weighted by log count)
                         "percent": percent,
                     })
                 return rows
@@ -740,10 +747,15 @@ class AutoLabeler:
                     print(f"    [tfidf] {summary_df.iloc[0].get('tfidf_top1', '')}")
                 print(f"    [hybrid] {summary_df.iloc[0].get('hybrid_top1', '')}")
 
-                # Append to aggregate summary CSV (one row per dataset)
+                # Upsert into aggregate summary CSV (one row per dataset, deduped by dataset_id)
                 aggregate_path = os.path.join(output_dir, "Summary_All.csv")
-                write_header = not os.path.exists(aggregate_path)
-                summary_df.to_csv(aggregate_path, mode="a", index=False, header=write_header)
+                if os.path.exists(aggregate_path):
+                    existing_df = pd.read_csv(aggregate_path)
+                    existing_df = existing_df[existing_df["dataset_id"] != dataset_id]
+                    combined_df = pd.concat([existing_df, summary_df], ignore_index=True)
+                else:
+                    combined_df = summary_df
+                combined_df.to_csv(aggregate_path, index=False)
             
             # * 統計 Top-1 標註分布
             technique_counts = result_df["predicted_technique_1_name"].value_counts()

@@ -44,7 +44,12 @@ def build_mitre_raw_embeddings(
     from datasets import Dataset
     from models.bert import get_bert_model
 
-    mitre_csv = mitre_csv or os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V5.csv")
+    mitre_csv = mitre_csv or (
+        # Prefer the multi-source combined CSV if it exists, fall back to legacy single file
+        os.path.join(config.REFERENCE_RESOURCES_DIR, "combined.csv")
+        if os.path.exists(os.path.join(config.REFERENCE_RESOURCES_DIR, "combined.csv"))
+        else os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V5.csv")
+    )
     out_dir = out_dir or os.path.join(config.EXTERNAL_KNOWLEDGE_DIR, "MITRE_RAW_EMBEDDINGS")
     bert_model = bert_model or config.BERT_MODEL_NAME
 

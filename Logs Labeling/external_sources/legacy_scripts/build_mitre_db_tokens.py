@@ -46,26 +46,73 @@ def build_db_text_mapping(domain: str = "enterprise-attack") -> Dict[str, str]:
 
     # Choose object-type columns that are likely descriptive text, excluding
     # obvious ID fields.
-    text_cols: List[str] = [
-        c for c in df.columns
-        if c not in {"ID", "id", "stix_id"} and df[c].dtype == object
-    ]
+    print(f"[Debug] Columns in STIX data: {df.columns.tolist()}")
 
-    # We keep `name` first if present for better readability.
-    if "name" in text_cols:
-        text_cols.remove("name")
-        text_cols.insert(0, "name")
+    # Priority columns that contain the rich context we want. We match
+    # both STIX-style (x_mitre_*) and attackToExcel-style names.
+    preferred_names = {
+        "name",
+        "description",
+        "detection",
+        "platforms",
+        "data sources",
+        "data_sources",
+        "tactics",
+        "sub-technique of",
+        "contributors",
+        "supports remote",
+        "impact type",
+        "relationship citations",
+        "x_mitre_detection",
+        "x_mitre_platforms",
+        "x_mitre_data_sources",
+        "x_mitre_permissions_required",
+        "x_mitre_system_requirements",
+        "x_mitre_remote_support",
+        "x_mitre_network_requirements",
+        "permissions required",
+        "system requirements",
+        "network requirements",
+    }
+
+    def _norm_col(col_name: str) -> str:
+        return col_name.strip().lower().replace("_", " ")
+
+    # Filter for columns that actually exist in the dataframe (by normalized name)
+    text_cols = []
+    for c in df.columns:
+        if _norm_col(c) in preferred_names:
+            text_cols.append(c)
+
+    # Add any other object columns that are not IDs and not already included
+    for c in df.columns:
+        if c in text_cols:
+            continue
+        if c in {"ID", "id", "stix_id", "type"}:
+            continue
+        if c.endswith("_id") or c.endswith("_ref"):
+            continue
+        if df[c].dtype == object:
+            text_cols.append(c)
+
+    print(f"[Debug] Selected text columns: {text_cols}")
 
     def row_to_text(row: pd.Series) -> str:
         parts: List[str] = []
         for col in text_cols:
             val = row.get(col, None)
-            if isinstance(val, str) and val.strip():
+            if val is None or (isinstance(val, float) and pd.isna(val)):
+                continue
+            if isinstance(val, str):
+                text = val.strip()
+            else:
+                text = str(val).strip()
+            if text:
                 # Prefix with column name to give some structure
                 if col == "name":
-                    parts.append(val.strip())
+                    parts.append(text)
                 else:
-                    parts.append(f"{col}: {val.strip()}")
+                    parts.append(f"{col}: {text}")
         return "\n\n".join(parts)
 
     db_text_series = df.apply(row_to_text, axis=1)

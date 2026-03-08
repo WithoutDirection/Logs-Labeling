@@ -135,6 +135,14 @@ HMM_MODEL_DIR_PER_DATASET = True  # 每資料集獨立儲存模型
 CLUSTER_RESULTS_DIR = os.path.join(DATA_DIR, "SequenceClusters")
 
 # ==================== 外部威脅情報與代碼抽取 ====================
+# --- Reference Source Management (new multi-source API) ---
+# Drop any number of CSV files into REFERENCE_SOURCES_DIR; the pipeline will
+# automatically scan, normalise, deduplicate (concat), and produce
+# REFERENCE_COMBINED_CSV which is used by all downstream build steps.
+REFERENCE_SOURCES_DIR   = os.path.join(REFERENCE_RESOURCES_DIR, "sources")
+REFERENCE_COMBINED_CSV  = os.path.join(REFERENCE_RESOURCES_DIR, "combined.csv")
+
+# --- Legacy single-file paths (kept for backwards compatibility) ---
 MITRE_TECHNIQUES_CSV = os.path.join(REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V5.csv")
 MITRE_CODE_TOKENS_CSV = os.path.join(REFERENCE_RESOURCES_DIR, "MitreCodeTokens_V1.csv")
 MITRE_EXTERNAL_KNOWLEDGE_DIR = os.path.join(EXTERNAL_KNOWLEDGE_DIR, "MITRE_RAW_EMBEDDINGS")

@@ -44,14 +44,17 @@ def build_reference_tfidf(
         with open(vectorizer_path, "rb") as f:
             return pickle.load(f)
 
-    # 讀取 Reference CSV
-    mitre_csv = getattr(config, 'MITRE_TECHNIQUES_CSV', None)
-    if not mitre_csv or not os.path.exists(mitre_csv):
-        # Fallback handling if config doesn't have it explicitly or file missing
-        mitre_csv = os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V6_Sanitized.csv")
-        if not os.path.exists(mitre_csv):
-             # Try V5
-            mitre_csv = os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V5.csv")
+    # Prefer the multi-source combined CSV if it exists, fall back to legacy files
+    combined_csv = getattr(config, 'REFERENCE_COMBINED_CSV',
+                           os.path.join(config.REFERENCE_RESOURCES_DIR, "combined.csv"))
+    if os.path.exists(combined_csv):
+        mitre_csv = combined_csv
+    else:
+        mitre_csv = getattr(config, 'MITRE_TECHNIQUES_CSV', None)
+        if not mitre_csv or not os.path.exists(mitre_csv):
+            mitre_csv = os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V6_Sanitized.csv")
+            if not os.path.exists(mitre_csv):
+                mitre_csv = os.path.join(config.REFERENCE_RESOURCES_DIR, "MitreTechniquesTokens_V5.csv")
     
     if not os.path.exists(mitre_csv):
         print(f"[Error] 找不到 MITRE CSV: {mitre_csv}")

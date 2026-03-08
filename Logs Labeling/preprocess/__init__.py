@@ -27,7 +27,7 @@ __all__ = [
 def run_preprocessing(
     n_datasets: int = None,
     enable_parser: bool = False,
-    model_name: str = "sentence-bert",
+    model_name: str = None,  # None → resolved from config.BERT_MODEL_NAME at call time
     normalize: bool = False,
     enable_chunking: bool = False,
     verbose: bool = True,
@@ -35,6 +35,8 @@ def run_preprocessing(
     """
     僅執行 Log Dataset 的預處理 (Parse -> Embed -> Chunk)
     """
+    import config as _config
+    model_name = model_name or _config.BERT_MODEL_NAME
     results = {
         "n_loaded": 0,
         "n_embedded": 0,
@@ -47,7 +49,7 @@ def run_preprocessing(
     if verbose:
         print("[Log Process] 1. 載入並解析日誌...")
     loader = LogLoader(enable_parser=enable_parser)
-    parsed_dfs = loader.load_logs(num=n_datasets, max_rows=15000)
+    parsed_dfs = loader.load_logs(num=n_datasets, max_rows=30000)
     results["n_loaded"] = len(parsed_dfs) if parsed_dfs else 0
     
     # Step 2: 計算嵌入
@@ -72,7 +74,7 @@ def run_preprocessing(
 def process_all_inputs(
     n_datasets: int = None,
     enable_parser: bool = False,
-    model_name: str = "sentence-bert",
+    model_name: str = None,  # None → resolved from config.BERT_MODEL_NAME at call time
     enable_chunking: bool = False,
     enable_tfidf: bool = True,
     verbose: bool = True
@@ -85,6 +87,8 @@ def process_all_inputs(
     2. Reference Sources 預處理 (Embedding)
     3. TF-IDF Pipeline (Reference Fingerprints + Log Transformations)
     """
+    import config as _config
+    model_name = model_name or _config.BERT_MODEL_NAME
     results = {}
     
     if verbose:
@@ -102,11 +106,22 @@ def process_all_inputs(
     
     if verbose:
         print("\n=== [Stage I] Processing Reference Sources & TF-IDF ===")
-        
-    # 2. Reference Embedding (MITRE raw embeddings)
+
+    # 2. Build / refresh combined reference CSV from sources dir
+    from external_sources.reference_builder import ReferenceBuilder
+    rb = ReferenceBuilder()
+    # Auto-skip if sources dir doesn't exist yet (legacy single-file mode)
+    import os as _os
+    if _os.path.isdir(rb.sources_dir):
+        print(f"[Ref Process] 0. 建立合併參考資料 (sources dir: {rb.sources_dir})...")
+        rb.build()
+    else:
+        print(f"[Ref Process] 0. 未找到 sources dir ({rb.sources_dir})，跳過 ReferenceBuilder，使用舊單一 CSV")
+
+    # 3. Reference Embedding (MITRE raw embeddings)
     # 動態 import 避免 circular dependencies
     from external_sources.build_mitre_raw_embeddings import build_mitre_raw_embeddings
-    
+
     # 確保 Reference Embedding 與 Input 使用相同的 BERT 模型 (這裡假設 model_name 一致)
     print(f"[Ref Process] 1. 生成 Reference Embeddings ({model_name})...")
     ref_emb_path = build_mitre_raw_embeddings(bert_model=model_name, force_rebuild=True)

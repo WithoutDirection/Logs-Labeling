@@ -20,10 +20,13 @@ from utils.path import ensure_dir
 
 def build_mitre_tfidf(
     out_dir: str,
-    mitre_csv: str = config.MITRE_TECHNIQUES_CSV,
-    max_features: int = 5000, # Increased from 1000 to capture more specific terms
-    force_rebuild: bool = True # Default to True for first run
+    mitre_csv: str = None,   # None → auto-select combined.csv or legacy fallback
+    max_features: int = 5000,
+    force_rebuild: bool = True
 ):
+    if mitre_csv is None:
+        combined = os.path.join(config.REFERENCE_RESOURCES_DIR, "combined.csv")
+        mitre_csv = combined if os.path.exists(combined) else config.MITRE_TECHNIQUES_CSV
     ensure_dir(out_dir)
     
     vectorizer_path = os.path.join(out_dir, "tfidf_vectorizer.pkl")
