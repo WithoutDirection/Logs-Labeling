@@ -59,7 +59,7 @@
 
 ### 目的
 
-為 MITRE ATT&CK 技術描述建立 TF-IDF 指紋，作為後續匹配的基準。
+為 MITRE ATT&CK 技術描述建立 TF-IDF 指紋，作為後續匹配的基準。輸入來源由 **ReferenceBuilder** 統一管理（`data/reference_resources/combined.csv`），可整合多個外部知識來源（MITRE 原始描述、程式碼 tokens、資料庫文字等）。
 
 ### API
 
@@ -74,7 +74,7 @@ vectorizer = build_reference_tfidf(
 
 ### 處理流程
 
-1. **讀取 MITRE CSV**：載入 `description` 或 `cleaned_tokens` 欄位
+1. **讀取 MITRE CSV**：優先使用 `combined.csv`（ReferenceBuilder 輸出），fallback 順序為 `MitreTechniquesTokens_V6_Sanitized.csv` → `MitreTechniquesTokens_V5.csv`；載入 `description_raw` / `description` / `cleaned_tokens` 欄位
 2. **訓練 Vectorizer**：`TfidfVectorizer(stop_words='english', max_features=5000)`
 3. **生成指紋矩陣**：`fit_transform()` 生成 `(n_techniques, 5000)` 稀疏矩陣
 4. **儲存成品**：

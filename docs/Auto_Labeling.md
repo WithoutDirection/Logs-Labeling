@@ -128,6 +128,7 @@ tfidf_similarities = cosine_similarity(sequence_tfidf, mitre_tfidf_matrix)
 | `LABELING_ANOMALY_WEIGHT` | 0.3 | Anomaly Score 權重 ($\beta$) |
 | `LABELING_SIMILARITY_THRESHOLD` | 0.3 | 相似度下界，低於此值標記為 Benign |
 | `LABELING_TOP_K` | 3 | 輸出的候選技術數量 |
+| `LABELING_USE_RAW_EMBEDDINGS` | `False` | 使用 NMF 概念空間向量（False）或原始 768 維 BERT 向量（True）進行 Embedding 比對 |
 | `LABELING_RESULTS_DIR` | `result/Labeling_Results/` | 標註結果輸出目錄 |
 
 ---
@@ -202,11 +203,14 @@ original_idx,anomaly_score,groundtruth_tid,groundtruth_t_name,timestamp,event_ty
 |------|------|
 | `dataset_id` | 資料集 ID |
 | `groundtruth` | Ground Truth 技術 (tid \| t_name) |
-| `embedding_top1~5` | Embedding-only 模式的 Top-5 技術分布 |
-| `tfidf_top1~5` | TF-IDF-only 模式的 Top-5 技術分布 |
-| `hybrid_top1~5` | Hybrid 混合模式的 Top-5 技術分布 |
+| `embedding_top1~5` | Embedding-only 模式的 Top-5 技術（Borda Count 排名） |
+| `tfidf_top1~5` | TF-IDF-only 模式的 Top-5 技術（Borda Count 排名） |
+| `hybrid_top1~5` | Hybrid 混合模式的 Top-5 技術（Borda Count 排名） |
 | `*_gt_avg_rank` | Ground Truth 在各模式的平均排名 |
 | `*_gt_best_rank` | Ground Truth 在各模式的最佳排名 |
+| `*_gt_best_count` | Ground Truth 出現在 Top-1 的 Cluster 數量 |
+
+> **Borda Count Top-5**：跨所有 Cluster 加總 Borda 分數（第 1 名得 5 分、第 2 名 4 分…第 5 名 1 分），每個 Cluster 的分數依 Cluster 大小加權，取總分最高的 5 個技術。
 
 ---
 

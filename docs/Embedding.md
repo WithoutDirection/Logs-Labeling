@@ -15,7 +15,7 @@ from preprocess import run_preprocessing
 results = run_preprocessing(
     n_datasets=N,
     enable_parser=False,          # 是否啟用日誌解析
-    model_name='sentence-bert',   # BERT 模型名稱
+    model_name='securebert2',     # BERT 模型名稱（None → 自動使用 config.BERT_MODEL_NAME）
     normalize=False,              # 是否正規化向量
     enable_chunking=False,        # 是否啟用序列切分
 )
@@ -128,7 +128,7 @@ MODEL_REGISTRY = {
 
 ## 5. 外部介面說明 (External Interface)
 
-本模組主要提供給 `ExternalSourceManager` 或其他分析模組使用。
+本模組主要提供給 `TextProcessor`（`external_sources/text_processor.py`）或其他分析模組使用。`ExternalSourceManager` 已由 `ReferenceBuilder` 取代，不再直接呼叫 BERT 模型。
 
 ### 主要函數
 
@@ -181,15 +181,18 @@ embeddings = bert.embed(logs)
 print(f"維度: {embeddings.shape}")
 ```
 
-### 範例 2: 在 SourceManager 中使用
+### 範例 2: 透過 TextProcessor 嵌入外部來源
 ```python
-from external_sources.source_manager import ExternalSourceManager
+from external_sources.text_processor import TextProcessor
+import pandas as pd
 
-# 指定使用 SecBERT 初始化管理器
-manager = ExternalSourceManager(bert_model='secbert')
+# 使用 config 預設模型（securebert2）
+tp = TextProcessor()
 
-# 計算外部來源的嵌入
-manager.compute_embeddings('MITRE_ATTACK')
+df = pd.read_csv('data/reference_resources/combined.csv')
+texts = df['description_raw'].fillna('').tolist()
+embeddings = tp.generate_embeddings(texts)
+# embeddings.shape → (n_techniques, 768)
 ```
 
 ### 範例 3: 新增並使用自訂模型

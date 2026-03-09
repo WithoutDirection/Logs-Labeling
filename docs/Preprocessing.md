@@ -6,6 +6,8 @@
 
 Stage I 統一處理所有輸入資料，包括 Log Datasets 與 Reference Sources (MITRE)。
 
+Stage I 的第一步是由 **ReferenceBuilder** 自動掃描 `data/reference_resources/sources/` 目錄，將多個來源 CSV 合併成統一的 `combined.csv`，供後續 Embedding 與 TF-IDF 使用。
+
 ---
 
 ## 統一入口 API
@@ -98,9 +100,22 @@ result = process_all_inputs(
 
 Stage I 的 TF-IDF 處理包含三個部分：
 
+### 3.0 Reference 合併（ReferenceBuilder）
+
+**輸入**：`data/reference_resources/sources/*.csv`（可放入多個來源 CSV）
+
+**輸出**：`data/reference_resources/combined.csv`（正規化、去重、tokenised）
+
+**處理**：
+1. 掃描 `sources/` 目錄下所有 CSV
+2. 正規化欄位名稱（technique_id / technique / description）
+3. 相同 technique_id 的描述跨來源合併（concat）
+4. 透過 TextProcessor 清理並 tokenise 文字
+5. 若 `combined.csv` 比所有來源檔案都新，自動跳過重建
+
 ### 3.1 Reference TF-IDF（MITRE 指紋）
 
-**輸入**：`data/reference_resources/MitreTechniquesTokens_V5.csv`
+**輸入**：`data/reference_resources/combined.csv`（ReferenceBuilder 輸出；若不存在則 fallback 至 `MitreTechniquesTokens_V5.csv`）
 
 **輸出**：
 - `data/ExternalKnowledge/MITRE_TFIDF/tfidf_vectorizer.pkl`
