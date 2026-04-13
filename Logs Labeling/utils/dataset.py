@@ -76,7 +76,7 @@ def load_embeddings(
 def _infer_vector_dim(dataset: Dataset) -> Tuple[Optional[str], Optional[int]]:
     """嘗試推斷向量欄位名稱與維度（僅取第一列，避免全量載入）。"""
 
-    candidate_keys = ("embedding", "vector", "log_vector")
+    candidate_keys = ("embedding", "vector", "log_vector", "template_embedding", "param_embedding")
     for key in candidate_keys:
         if key not in dataset.column_names:
             continue

@@ -10,6 +10,8 @@ import pandas as pd
 import importlib
 from tqdm import tqdm
 from typing import List, Tuple, Optional
+import tempfile
+from pathlib import Path
 
 from ._config import (
     LOG_INPUT_PATH, LOG_INTERMEDIATE_PATH, LOG_OUTPUT_PATH,
@@ -55,12 +57,105 @@ class LogLoader:
         self.enable_parser = enable_parser
         self.parser_name = parser_name.lower() if parser_name else 'drain'
         self.use_registry_parser = use_registry_parser
+        self.logpai_parser_name: Optional[str] = None
         
         self.standard_parser = None
         self.registry_parser = None
         
         if self.enable_parser:
-            self._init_parsers(parser_config)
+            # LogPai parsers work on a full file and are handled in parse_file.
+            if self.parser_name in {"spell", "logmine", "lke"}:
+                self.logpai_parser_name = self.parser_name
+            else:
+                self._init_parsers(parser_config)
+
+    def _build_log_messages(self, df: pd.DataFrame, columns: List[str]) -> List[str]:
+        """Combine selected columns into one message per row."""
+        messages: List[str] = []
+        for _, row in df.iterrows():
+            parts = []
+            for col in columns:
+                if col in row.index:
+                    val = row[col]
+                    if pd.notna(val) and str(val).strip() and str(val).lower() != 'nan':
+                        parts.append(str(val).strip())
+            messages.append(" ".join(parts))
+        return messages
+
+    def _parse_file_with_logpai(
+        self,
+        df: pd.DataFrame,
+        file_name: str,
+        columns: List[str],
+    ) -> pd.DataFrame:
+        """Parse one file with a LogPai parser (spell/logmine/lke)."""
+        parser_name = self.logpai_parser_name
+        if parser_name is None:
+            raise RuntimeError("_parse_file_with_logpai called without LogPai parser configured")
+
+        log_messages = self._build_log_messages(df, columns)
+
+        with tempfile.TemporaryDirectory(prefix=f"logpai_{parser_name}_") as td:
+            tmp_dir = Path(td)
+            log_name = "tmp.log"
+            log_path = tmp_dir / log_name
+
+            with log_path.open("w", encoding="utf-8") as f:
+                for msg in log_messages:
+                    f.write(str(msg).replace("\n", " ") + "\n")
+
+            if parser_name == "spell":
+                from preprocess.Spell import LogParser as SpellParser
+                parser = SpellParser(
+                    indir=str(tmp_dir),
+                    outdir=str(tmp_dir),
+                    log_format="<Content>",
+                    tau=0.5,
+                    rex=[],
+                )
+            elif parser_name == "logmine":
+                from preprocess.LogMine import LogParser as LogMineParser
+                parser = LogMineParser(
+                    indir=str(tmp_dir),
+                    outdir=str(tmp_dir),
+                    log_format="<Content>",
+                    rex=[],
+                )
+            elif parser_name == "lke":
+                from preprocess.LKE import LogParser as LKEParser
+                parser = LKEParser(
+                    log_format="<Content>",
+                    indir=str(tmp_dir),
+                    outdir=str(tmp_dir),
+                    rex=[],
+                )
+            else:
+                raise ValueError(f"Unsupported LogPai parser: {parser_name}")
+
+            parser.parse(log_name)
+
+            structured_path = tmp_dir / f"{log_name}_structured.csv"
+            if not structured_path.exists():
+                raise FileNotFoundError(f"Structured output not found: {structured_path}")
+
+            parsed_df = pd.read_csv(structured_path)
+            if "EventTemplate" not in parsed_df.columns:
+                raise ValueError(f"EventTemplate missing in {structured_path}")
+            if len(parsed_df) != len(log_messages):
+                raise ValueError(
+                    f"Parsed row count mismatch for {file_name}: "
+                    f"parsed={len(parsed_df)} original={len(log_messages)}"
+                )
+
+            templates = parsed_df["EventTemplate"].fillna("").astype(str).tolist()
+
+        log_ids = [f"{file_name}_{idx}" for idx in range(len(log_messages))]
+        return pd.DataFrame({
+            'LogID': log_ids,
+            'Template': templates,
+            'Parameters': [""] * len(log_messages),
+            'OriginalLog': log_messages,
+        })
     
     def _init_parsers(self, parser_config: dict = None):
         """初始化解析器。"""
@@ -121,6 +216,9 @@ class LogLoader:
                     if pd.notna(val) and str(val).strip() and str(val).lower() != 'nan':
                         log_parts.append(str(val).strip())
             return "", [], " ".join(log_parts)
+
+        if self.logpai_parser_name is not None:
+            raise RuntimeError("LogPai parser mode should parse at file level, not row level")
         
         operation = row.get('Operation', '')
         
@@ -140,6 +238,13 @@ class LogLoader:
             return None
         
         file_name = get_stem(file_path)
+
+        if self.enable_parser and self.logpai_parser_name is not None:
+            try:
+                return self._parse_file_with_logpai(df, file_name, columns)
+            except Exception as e:
+                print(f"[Error] LogPai 解析失敗 {file_path}: {e}")
+                return None
         
         if not self.enable_parser:
             # 無解析：合併欄位
@@ -244,9 +349,12 @@ class LogLoader:
         
         if self.enable_parser:
             print(f"  解析器: {self.parser_name}")
-            print(f"  標準模板數量: {len(self.standard_parser.get_clusters())}")
-            if self.registry_parser:
-                print(f"  註冊表模板數量: {len(self.registry_parser.get_clusters())}")
+            if self.logpai_parser_name is not None:
+                print(f"  模式: LogPai ({self.logpai_parser_name})")
+            else:
+                print(f"  標準模板數量: {len(self.standard_parser.get_clusters())}")
+                if self.registry_parser:
+                    print(f"  註冊表模板數量: {len(self.registry_parser.get_clusters())}")
         else:
             print(f"  解析器: 已停用 (保留原始日誌)")
         

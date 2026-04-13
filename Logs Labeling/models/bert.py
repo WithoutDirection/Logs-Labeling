@@ -40,6 +40,43 @@ except ImportError:
     warnings.warn("未安裝 transformers。部分模型將無法使用。")
 
 
+def _materialize_cached_repo_dir(model_name: str, cache_dir: Optional[str]) -> str:
+    """Resolve a Hugging Face repo id to a local merged snapshot dir when cached."""
+    if not model_name or os.path.exists(model_name) or not cache_dir:
+        return model_name
+
+    repo_dir = os.path.join(cache_dir, f"models--{model_name.replace('/', '--')}")
+    snapshots_dir = os.path.join(repo_dir, "snapshots")
+    if not os.path.isdir(snapshots_dir):
+        return model_name
+
+    snapshot_paths = [
+        os.path.join(snapshots_dir, name)
+        for name in sorted(os.listdir(snapshots_dir))
+        if os.path.isdir(os.path.join(snapshots_dir, name))
+    ]
+    if not snapshot_paths:
+        return model_name
+
+    merged_dir = os.path.join(repo_dir, "_merged_local")
+    os.makedirs(merged_dir, exist_ok=True)
+
+    for snapshot_path in snapshot_paths:
+        for root, _, files in os.walk(snapshot_path):
+            rel_root = os.path.relpath(root, snapshot_path)
+            target_root = merged_dir if rel_root == "." else os.path.join(merged_dir, rel_root)
+            os.makedirs(target_root, exist_ok=True)
+
+            for file_name in files:
+                src = os.path.join(root, file_name)
+                dst = os.path.join(target_root, file_name)
+                if os.path.exists(dst):
+                    continue
+                os.symlink(src, dst)
+
+    return merged_dir
+
+
 class BaseBERTModel(ABC):
     """
     BERT 模型的抽象基底類別。
@@ -74,7 +111,8 @@ class BaseBERTModel(ABC):
         texts: Union[str, List[str]], 
         batch_size: int = 32,
         show_progress: bool = False,
-        normalize: bool = True
+        normalize: bool = True,
+        **kwargs
     ) -> np.ndarray:
         """
         從文本生成嵌入向量。
@@ -141,9 +179,15 @@ class SentenceBERTModel(BaseBERTModel):
     
     def load(self) -> 'SentenceBERTModel':
         """載入 SentenceBERT 模型。"""
-        print(f"正在載入 SentenceBERT 模型：{self.model_name}...")
+        resolved_model_name = _materialize_cached_repo_dir(self.model_name, self.cache_dir)
+        print(f"正在載入 SentenceBERT 模型：{resolved_model_name}...")
         try:
-            self.model = SentenceTransformer(self.model_name, cache_folder=self.cache_dir)
+            # Prefer fully offline/cache-only loading for reproducible pipeline runs.
+            self.model = SentenceTransformer(
+                resolved_model_name,
+                cache_folder=self.cache_dir,
+                local_files_only=True,
+            )
             self.is_loaded = True
             print(f"  模型載入成功")
             print(f"  嵌入維度：{self.get_embedding_dim()}")
@@ -157,7 +201,8 @@ class SentenceBERTModel(BaseBERTModel):
         texts: Union[str, List[str]],
         batch_size: int = 32,
         show_progress: bool = False,
-        normalize: bool = True
+        normalize: bool = True,
+        **kwargs
     ) -> np.ndarray:
         """使用 SentenceBERT 生成嵌入向量。"""
         if not self.is_loaded:
@@ -257,25 +302,29 @@ class TransformerBERTModel(BaseBERTModel):
     
     def load(self) -> 'TransformerBERTModel':
         """載入 transformer 模型和分詞器。"""
-        print(f"正在載入 Transformer BERT 模型：{self.model_name}...")
+        resolved_model_name = _materialize_cached_repo_dir(self.model_name, self.cache_dir)
+        print(f"正在載入 Transformer BERT 模型：{resolved_model_name}...")
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(
-                self.model_name,
-                cache_dir=self.cache_dir
+                resolved_model_name,
+                cache_dir=self.cache_dir,
+                local_files_only=True,
             )
             # 優先使用 safetensors 格式以避免 PyTorch 安全警告
             try:
                 self.model = AutoModel.from_pretrained(
-                    self.model_name,
+                    resolved_model_name,
                     cache_dir=self.cache_dir,
-                    use_safetensors=True
+                    use_safetensors=True,
+                    local_files_only=True,
                 )
             except Exception:
                 # 如果 safetensors 不可用，回退到標準載入
                 self.model = AutoModel.from_pretrained(
-                    self.model_name,
+                    resolved_model_name,
                     cache_dir=self.cache_dir,
-                    use_safetensors=False
+                    use_safetensors=False,
+                    local_files_only=True,
                 )
             self.model.to(self.device)
             self.model.eval()
@@ -292,7 +341,8 @@ class TransformerBERTModel(BaseBERTModel):
         texts: Union[str, List[str]],
         batch_size: int = 32,
         show_progress: bool = False,
-        normalize: bool = True
+        normalize: bool = True,
+        **kwargs
     ) -> np.ndarray:
         """使用 transformer 模型生成嵌入向量。"""
         if not self.is_loaded:
@@ -428,6 +478,11 @@ MODEL_REGISTRY = {
         'model_name': 'EhsanAghaei/SecureBERT',
         'description': 'SecureBERT - 針對 CTI 優化的 RoBERTa 模型 (768 維)'
     },
+    'cti-bert': {
+        'class': TransformerBERTModel,
+        'model_name': 'ibm-research/CTI-BERT',
+        'description': 'CTI-BERT - IBM 資安語料預訓練模型 (768 維)'
+    },
 
     'codebert': {
         'class': TransformerBERTModel,
@@ -438,7 +493,7 @@ MODEL_REGISTRY = {
     
     'cysecbert': {
         'class': TransformerBERTModel,
-        'model_name': 'Mikey/CySecBERT',
+        'model_name': 'markusbayer/CySecBERT',
         'description': 'CySecBERT - 基於大量資安論文訓練 (768 維)'
     },
     'cybert': {
@@ -467,6 +522,16 @@ MODEL_REGISTRY = {
         'class': TransformerBERTModel,
         'model_name': 'cisco-ai/SecureBERT2.0-NER',
         'description': 'SecureBERT 2.0 NER - 資安命名實體辨識模型，可提取 IOC/惡意軟體/漏洞等實體 (768 維)'
+    },
+    'ants-model': {
+        'class': None,
+        'model_name': 'internal/ants',
+        'description': 'In-house ANTS model with custom standardizer'
+    },
+    'ants-model-raw': {
+        'class': None,
+        'model_name': 'internal/ants',
+        'description': 'In-house ANTS model without standardizer (ablation baseline)'
     },
 }
 
@@ -505,6 +570,14 @@ def get_bert_model(
         config = MODEL_REGISTRY[model_key]
         model_class = config['class']
         model_name = config['model_name']
+
+        if model_key in ('ants-model', 'ants-model-raw'):
+            from models.ants_bert import ANTSBERTModel
+            model_class = ANTSBERTModel
+            if model_key == 'ants-model':
+                kwargs.setdefault('use_standardizer', True)
+            else:
+                kwargs.setdefault('use_standardizer', False)
         
         # 建立實例
         model = model_class(model_name=model_name, cache_dir=cache_dir, **kwargs)

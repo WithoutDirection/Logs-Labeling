@@ -26,7 +26,7 @@ def _parse_dataset_meta(dataset_name: str) -> tuple[str, str]:
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    csv_path = repo_root / "result" / "embedding_model_benchmark" / "summary.csv"
+    csv_path = repo_root / "result" / "embedding_model_benchmark_quick" / "summary.csv"
 
     if not csv_path.exists():
         print(f"File not found: {csv_path}")
@@ -43,64 +43,61 @@ def main() -> None:
 
     df["model_variant"] = df["model"].astype(str) + " [" + df["preprocess"].astype(str) + "]"
 
-    preferred_categories = ["File", "Registry", "Network"]
-    categories = [c for c in preferred_categories if c in set(df["category"])]
-    categories += [c for c in sorted(df["category"].unique()) if c not in categories]
-
-    strategy_order = sorted(df["strategy"].unique(), key=lambda s: (len(s), s))
-
-    model_order = (
-        df.groupby("model_variant", as_index=False)["accuracy"]
-        .mean()
-        .sort_values("accuracy", ascending=False)["model_variant"]
-        .tolist()
+    # Rank each method*preprocess variant inside each dataset, then draw top-10 bars
+    ranked = (
+        df.groupby(["dataset", "category", "strategy", "model_variant"], as_index=False)
+        .agg(accuracy=("accuracy", "mean"), n_rows=("n_rows", "sum"))
+        .sort_values(["dataset", "accuracy"], ascending=[True, False])
     )
 
-    display_df = (
-        df[["model_variant", "category", "strategy", "accuracy", "n_rows"]]
-        .sort_values(["category", "strategy", "accuracy"], ascending=[True, True, False])
+    print("Top-10 model*preprocess per dataset:")
+    print(
+        ranked.groupby("dataset", group_keys=False)
+        .head(10)
+        [["dataset", "model_variant", "accuracy", "n_rows"]]
+        .to_string(index=False)
     )
-    print("Per-dataset Accuracy (not combined):")
-    print(display_df.to_string(index=False))
 
-    n_rows = min(3, max(1, len(categories)))
-    fig, axes = plt.subplots(
-        n_rows,
-        1,
-        figsize=(max(14, len(strategy_order) * 1.4), 5 * n_rows),
-        sharex=False,
-    )
-    if n_rows == 1:
-        axes = [axes]
+    out_dir = repo_root / "result" / "embedding_model_benchmark_quick" / "dataset_top10"
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    for idx, category in enumerate(categories[:n_rows]):
-        ax = axes[idx]
-        sub = df[df["category"] == category].copy()
+    for dataset_name, g in ranked.groupby("dataset", sort=True):
+        top = g.head(10).copy()
+        if top.empty:
+            continue
 
-        piv = (
-            sub.pivot_table(index="strategy", columns="model_variant", values="accuracy", aggfunc="mean")
-            .reindex(index=[s for s in strategy_order if s in set(sub["strategy"])])
-        )
+        # Show highest at top
+        top = top.sort_values("accuracy", ascending=True)
 
-        model_cols = [m for m in model_order if m in piv.columns]
-        piv = piv[model_cols]
+        fig_h = max(4.5, 0.55 * len(top) + 1.8)
+        fig, ax = plt.subplots(figsize=(12, fig_h))
+        bars = ax.barh(top["model_variant"], top["accuracy"], color="#4C78A8")
 
-        piv.plot(kind="bar", ax=ax, width=0.85)
-        ax.set_title(f"{category} Accuracy by Strategy - dataset-first non-combined", fontsize=13)
-        ax.set_ylabel("Accuracy")
-        ax.set_xlabel("Strategy")
-        ax.set_ylim(0, 1.05)
-        ax.grid(axis="y", linestyle="--", alpha=0.6)
-        ax.axhline(0.5, color="red", linestyle=":", alpha=0.5)
-        ax.legend(title="Model", ncol=min(4, max(1, len(model_cols))), loc="upper right")
-        ax.tick_params(axis="x", rotation=0)
+        for b, val in zip(bars, top["accuracy"]):
+            ax.text(
+                min(1.02, float(val) + 0.01),
+                b.get_y() + b.get_height() / 2,
+                f"{float(val):.3f}",
+                va="center",
+                ha="left",
+                fontsize=9,
+            )
 
-    plt.tight_layout()
+        category = top["category"].iloc[0] if "category" in top.columns else "Unknown"
+        strategy = top["strategy"].iloc[0] if "strategy" in top.columns else "Unknown"
+        ax.set_title(f"Top 10 model*preprocess - {dataset_name} ({category} {strategy})", fontsize=12)
+        ax.set_xlabel("Accuracy")
+        ax.set_ylabel("Model [preprocess]")
+        ax.set_xlim(0, 1.08)
+        ax.grid(axis="x", linestyle="--", alpha=0.5)
+        ax.axvline(0.5, color="red", linestyle=":", alpha=0.5)
+        plt.tight_layout()
 
-    out_file = repo_root / "result" / "embedding_model_benchmark" / "accuracy_dataset_first_rows.png"
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(out_file, dpi=300)
-    print(f"\nVisualization saved to {out_file}")
+        safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", str(dataset_name)).strip("_")
+        out_file = out_dir / f"top10__{safe_name}.png"
+        fig.savefig(out_file, dpi=300)
+        plt.close(fig)
+        print(f"Saved: {out_file}")
 
 
 if __name__ == "__main__":

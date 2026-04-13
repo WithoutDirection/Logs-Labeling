@@ -58,17 +58,17 @@ def get_files(directory: str, extension: str) -> List[str]:
     """獲取目錄下指定副檔名的所有檔案列表"""
     if not os.path.exists(directory):
         return []
-    return [f for f in os.listdir(directory) if f.endswith(extension)]
+    return sorted(f for f in os.listdir(directory) if f.endswith(extension))
 
 
 def get_dirs(directory: str, suffix: str = "") -> List[str]:
     """獲取目錄下符合後綴條件的所有子目錄名稱"""
     if not os.path.exists(directory):
         return []
-    return [
+    return sorted([
         d for d in os.listdir(directory)
         if os.path.isdir(os.path.join(directory, d)) and d.endswith(suffix)
-    ]
+    ])
 
 
 def get_filtered_files(
