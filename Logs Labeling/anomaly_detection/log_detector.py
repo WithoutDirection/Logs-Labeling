@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
+from collections import Counter
 from datasets import Dataset
 import pandas as pd
 from scipy import stats
@@ -20,7 +21,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from utils.path import join_path, ensure_dir, get_dirs
-from utils.dataset import load_dataset
+from utils.dataset import load_dataset, _infer_vector_dim
 
 import config
 from anomaly_dection.isolation_forest import IsolationForestDetector, IsolationForestConfig
@@ -415,10 +416,14 @@ class LogDetector:
                     embedding_col = col_name
                     break
             
-            if embedding_col is None:
+            if embedding_col is not None:
+                embeddings = np.array(dataset[embedding_col])
+            elif "template_embedding" in dataset.column_names:
+                # For anomaly detection, prefer the stable parser template signal.
+                embeddings = np.array(dataset["template_embedding"])
+            else:
                 raise ValueError(f"資料集 {name} 找不到嵌入向量欄位，可用欄位: {dataset.column_names}")
-            
-            embeddings = np.array(dataset[embedding_col])
+
             all_embeddings.append(embeddings)
             all_datasets.append(dataset)
             
@@ -522,6 +527,7 @@ class LogDetector:
 def run_detection_pipeline(
     input_dir: str = None,
     output_dir: str = None,
+    dataset_ids: Optional[List[str]] = None,
     models: List[str] = None,
     verbose: bool = True
 ) -> Dict[str, Dataset]:
@@ -546,6 +552,12 @@ def run_detection_pipeline(
     
     # 取得所有 embedding 資料夾
     embedding_dirs = get_dirs(input_dir)
+    if dataset_ids is not None:
+        allowed = set(dataset_ids)
+        embedding_dirs = [
+            d for d in embedding_dirs
+            if d.replace("_embeddings", "").replace("_logvectors", "") in allowed
+        ]
     if not embedding_dirs:
         print(f"警告：在 {input_dir} 中找不到任何資料夾")
         return {}
@@ -558,15 +570,48 @@ def run_detection_pipeline(
         print(f"處理模式: 批次模式（合併訓練）")
         print("=" * 60)
     
-    # 準備資料集路徑和名稱列表
-    dataset_paths = []
-    dataset_names = []
-    
+    # 準備資料集路徑和名稱列表，並自動排除維度不一致的資料集
+    dataset_records = []
+    dim_counter: Counter[int] = Counter()
+
     for embed_dir in embedding_dirs:
         dataset_path = join_path(input_dir, embed_dir)
         dataset_name = embed_dir.replace("_embeddings", "").replace("_logvectors", "")
-        dataset_paths.append(dataset_path)
-        dataset_names.append(dataset_name)
+        try:
+            ds = load_dataset(dataset_path)
+            _, vector_dim = _infer_vector_dim(ds)
+        except Exception as e:
+            if verbose:
+                print(f"[Skip] 無法載入資料集 {dataset_name}: {e}")
+            continue
+
+        if vector_dim is None:
+            if verbose:
+                print(f"[Skip] 無法推斷向量維度: {dataset_name}")
+            continue
+
+        dataset_records.append((dataset_path, dataset_name, vector_dim))
+        dim_counter[vector_dim] += 1
+
+    if not dataset_records:
+        print("警告：沒有可用的 embedding 資料集")
+        return {}
+
+    target_dim, target_count = dim_counter.most_common(1)[0]
+    skipped_records = [r for r in dataset_records if r[2] != target_dim]
+    kept_records = [r for r in dataset_records if r[2] == target_dim]
+
+    if verbose and len(dim_counter) > 1:
+        dim_summary = ", ".join(
+            f"{dim}維={count}" for dim, count in sorted(dim_counter.items())
+        )
+        print(f"[Info] 偵測到混合向量維度，將僅使用主維度資料集: {dim_summary}")
+        print(f"[Info] 保留 {target_dim} 維資料集: {target_count} 個")
+        for _, name, dim in skipped_records:
+            print(f"[Skip] 維度不符，略過 {name}: {dim} 維")
+
+    dataset_paths = [path for path, _, _ in kept_records]
+    dataset_names = [name for _, name, _ in kept_records]
     
     # 建立偵測器設定並執行批次處理
     detector_config = LogDetectorConfig()
@@ -589,7 +634,7 @@ def run_detection_pipeline(
         
         if verbose:
             print("\n" + "=" * 60)
-            print(f"完成！共處理 {len(results)}/{len(embedding_dirs)} 個資料集")
+            print(f"完成！共處理 {len(results)}/{len(dataset_records)} 個資料集")
             print("=" * 60)
         
         return results

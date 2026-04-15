@@ -119,6 +119,8 @@ class AutoEncoderDetector:
             total_loss = 0.0
             for batch in dataloader:
                 batch_x = batch[0].to(self.device)
+                if batch_x.shape[0] < 2:
+                    continue
                 
                 optimizer.zero_grad()
                 reconstructed = self.model(batch_x)

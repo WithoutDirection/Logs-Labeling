@@ -49,6 +49,7 @@ __all__ = [
 def run_detection(
     input_dir: str = None,
     output_dir: str = None,
+    dataset_ids: list = None,
     viz_dir: str = None,
     models: list = None,
     generate_viz: bool = True,
@@ -89,6 +90,7 @@ def run_detection(
     results = run_detection_pipeline(
         input_dir=input_dir,
         output_dir=output_dir,
+        dataset_ids=dataset_ids,
         models=models,
         verbose=verbose
     )
