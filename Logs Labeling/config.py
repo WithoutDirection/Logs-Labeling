@@ -20,7 +20,7 @@ RESULT_DIR = str(_REPO_ROOT / "result")  # 總輸出根目錄
 
 # ==================== 預處理階段 ====================
 ENABLE_PARSER = True  # 是否對原始事件進行樣板解析（False 則保留原字串）
-PARSER_LIST = ["drain", "spell", "lenma"]  # 可用的解析器模組名稱（小寫）
+PARSER_LIST = ["ants", "drain", "spell", "lenma", "logmine", "lke"]  # 可用的解析器模組名稱（小寫）
 DEFAULT_PARSER = "drain"  # 預設採用的解析器
 ZIPF_PERCENTILE = 0.05  # 依 Zipf 法則移除高頻詞的百分位（前 5%）
 USE_LOG_HIGH_FREQ = True  # 是否保留常見日誌詞彙（如 Authority、System 等）

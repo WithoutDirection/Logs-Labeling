@@ -143,6 +143,10 @@ class ConceptExtractor:
         for col in ["embedding", "vector", "log_vector", "concept_vector"]:
             if col in table.column_names:
                 return np.array(table[col].to_pylist())
+        if "template_embedding" in table.column_names:
+            return np.array(table["template_embedding"].to_pylist())
+        if "param_embedding" in table.column_names:
+            return np.array(table["param_embedding"].to_pylist())
         return table.to_pandas().values
     
     def load_external_knowledge(

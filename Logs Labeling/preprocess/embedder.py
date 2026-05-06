@@ -103,11 +103,13 @@ class LogEmbedder:
         """
         df = pd.read_csv(file_path, encoding='utf-8')
         template_texts, param_texts, has_parsing = self._prepare_text(df)
+        dataset_name = split_extension(file_path.split("/")[-1])[0]
         
         template_embeddings = self.bert_model.embed(
             template_texts, 
             batch_size=self.batch_size, 
-            normalize=self.normalize
+            normalize=self.normalize,
+            dataset_name=dataset_name,
         )
         
         param_embeddings = None
@@ -115,7 +117,8 @@ class LogEmbedder:
             param_embeddings = self.bert_model.embed(
                 param_texts,
                 batch_size=self.batch_size,
-                normalize=self.normalize
+                normalize=self.normalize,
+                dataset_name=dataset_name,
             )
         
         return df, template_embeddings, param_embeddings, has_parsing

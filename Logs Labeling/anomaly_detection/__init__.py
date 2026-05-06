@@ -10,17 +10,22 @@
     run_detection(verbose=True) - 執行完整異常偵測流程
 """
 import config
-from anomaly_dection.isolation_forest import IsolationForestDetector, IsolationForestConfig
-from anomaly_dection.copod import COPODDetector, COPODConfig
-from anomaly_dection.autoencoder import AutoEncoderDetector, AutoEncoderConfig
-from anomaly_dection.pca_gmm import PCAGMMDetector, PCAGMMConfig
-from anomaly_dection.log_detector import (
+from anomaly_detection.isolation_forest import IsolationForestDetector, IsolationForestConfig
+from anomaly_detection.autoencoder import AutoEncoderDetector, AutoEncoderConfig
+from anomaly_detection.pca_gmm import PCAGMMDetector, PCAGMMConfig
+from anomaly_detection.log_detector import (
     LogDetector, 
     LogDetectorConfig, 
     ScalerType, 
     ThresholdMethod,
     run_detection_pipeline
 )
+
+try:
+    from anomaly_detection.copod import COPODDetector, COPODConfig
+except ModuleNotFoundError:
+    COPODDetector = None
+    COPODConfig = None
 
 __all__ = [
     # Isolation Forest
@@ -75,7 +80,7 @@ def run_detection(
         - models: 使用的模型列表
         
     Example:
-        >>> from anomaly_dection import run_detection
+        >>> from anomaly_detection import run_detection
         >>> result = run_detection()
         >>> print(f"處理了 {result['n_datasets']} 個資料集")
     """

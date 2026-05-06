@@ -28,6 +28,7 @@ def run_preprocessing(
     n_datasets: int = None,
     enable_parser: bool = False,
     model_name: str = None,  # None → resolved from config.BERT_MODEL_NAME at call time
+    max_rows: int = None,
     normalize: bool = False,
     enable_chunking: bool = False,
     verbose: bool = True,
@@ -37,6 +38,7 @@ def run_preprocessing(
     """
     import config as _config
     model_name = model_name or _config.BERT_MODEL_NAME
+    max_rows = max_rows if max_rows is not None else getattr(_config, "PREPROCESS_MAX_ROWS", 30000)
     results = {
         "n_loaded": 0,
         "n_embedded": 0,
@@ -47,9 +49,9 @@ def run_preprocessing(
     
     # Step 1: 載入日誌
     if verbose:
-        print("[Log Process] 1. 載入並解析日誌...")
+        print(f"[Log Process] 1. 載入並解析日誌... (max_rows={max_rows})")
     loader = LogLoader(enable_parser=enable_parser)
-    parsed_dfs = loader.load_logs(num=n_datasets, max_rows=30000)
+    parsed_dfs = loader.load_logs(num=n_datasets, max_rows=max_rows)
     results["n_loaded"] = len(parsed_dfs) if parsed_dfs else 0
     
     # Step 2: 計算嵌入
@@ -75,6 +77,7 @@ def process_all_inputs(
     n_datasets: int = None,
     enable_parser: bool = False,
     model_name: str = None,  # None → resolved from config.BERT_MODEL_NAME at call time
+    max_rows: int = None,
     enable_chunking: bool = False,
     enable_tfidf: bool = True,
     verbose: bool = True
@@ -99,6 +102,7 @@ def process_all_inputs(
         n_datasets=n_datasets,
         enable_parser=enable_parser,
         model_name=model_name,
+        max_rows=max_rows,
         enable_chunking=enable_chunking,
         verbose=verbose
     )

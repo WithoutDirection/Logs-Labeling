@@ -300,7 +300,7 @@ class LogLoader:
         
         num = kwargs.get("num")
         ratio = kwargs.get("ratio")
-        max_rows = kwargs.get("max_rows", 40000)
+        max_rows = kwargs.get("max_rows", 100000)
         files = get_filtered_files(self.input_dir, ".csv", num=num, ratio=ratio)
 
         # Skip oversized datasets if max_rows is set
