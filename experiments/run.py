@@ -17,6 +17,7 @@ Outputs:
 from __future__ import annotations
 
 import argparse
+import ast
 import gc
 import importlib.util
 import os
@@ -69,6 +70,38 @@ class EvalResult:
 	p10_margin: float
 
 
+PREPROCESS_MODES = (
+	"raw",
+	"drain",
+	"drain-params",
+	"ants",
+	"spell",
+	"spell-params",
+	"logmine",
+	"lke",
+)
+DEFAULT_ALL_PREPROCESS_MODES = tuple(m for m in PREPROCESS_MODES if m != "lke")
+PREPROCESS_ALIASES = {"none": "raw"}
+SUMMARY_COLUMNS = [
+	"model",
+	"preprocess",
+	"dataset",
+	"n_rows",
+	"accuracy",
+	"ties",
+	"mean_margin",
+	"median_margin",
+	"p10_margin",
+	"category",
+	"strategy",
+]
+CATEGORY_TO_ANTS_TYPE = {
+	"File": "file",
+	"Registry": "registry",
+	"Network": "network",
+}
+
+
 def _parse_dataset_meta(dataset_name: str) -> tuple[str, str]:
 	"""Parse dataset filename into (category, strategy)."""
 	name = dataset_name.lower()
@@ -98,18 +131,25 @@ def _resolve_models(models_arg: str) -> List[str]:
 	return requested
 
 
-def _resolve_preprocesses(pre_arg: str) -> List[str]:
-	valid = {"raw", "none", "drain", "ants", "spell", "logmine", "lke"}
+def _resolve_preprocesses(pre_arg: str, include_lke_in_all: bool = False) -> List[str]:
 	if pre_arg.strip().lower() == "all":
-		return ["raw", "drain", "ants", "spell", "logmine", "lke"]
+		if include_lke_in_all:
+			return list(PREPROCESS_MODES)
+		return list(DEFAULT_ALL_PREPROCESS_MODES)
 
-	requested = [p.strip().lower() for p in pre_arg.split(",") if p.strip()]
-	for p in requested:
-		if p not in valid:
-			raise ValueError(
-				f"Unknown preprocess mode: {p}. Valid: raw, none, drain, ants, spell, logmine, lke, all"
-			)
-	return ["raw" if p == "none" else p for p in requested]
+	requested: List[str] = []
+	for mode in (p.strip().lower() for p in pre_arg.split(",")):
+		if not mode:
+			continue
+		resolved = PREPROCESS_ALIASES.get(mode, mode)
+		if resolved not in PREPROCESS_MODES:
+			valid = ", ".join([*PREPROCESS_MODES, *PREPROCESS_ALIASES.keys(), "all"])
+			raise ValueError(f"Unknown preprocess mode: {mode}. Valid: {valid}")
+		requested.append(resolved)
+
+	if not requested:
+		raise ValueError("No preprocess mode provided.")
+	return requested
 
 
 def _iter_csvs(dataset_dir: Path) -> Iterable[Path]:
@@ -124,7 +164,31 @@ def _safe_cosine(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 	return np.sum(a * b, axis=1) / denom
 
 
-def _template_with_logpai(texts: List[str], parser_name: str) -> List[str]:
+def _format_template_with_params(template: str, params: List[str]) -> str:
+	params_text = " | ".join(str(p) for p in params if str(p).strip())
+	if not params_text:
+		return str(template)
+	return f"{template} | params: {params_text}"
+
+
+def _parse_parameter_list_cell(v) -> List[str]:
+	if v is None or (isinstance(v, float) and pd.isna(v)):
+		return []
+	if isinstance(v, list):
+		return [str(x) for x in v]
+	s = str(v).strip()
+	if not s:
+		return []
+	try:
+		parsed = ast.literal_eval(s)
+		if isinstance(parsed, (list, tuple)):
+			return [str(x) for x in parsed]
+		return [str(parsed)]
+	except Exception:
+		return [s]
+
+
+def _template_with_logpai(texts: List[str], parser_name: str, include_params: bool = False) -> List[str]:
 	"""Run LogPai-style parser (Spell/LogMine/LKE) on an in-memory text list."""
 	with tempfile.TemporaryDirectory(prefix=f"pre_{parser_name}_") as td:
 		tmp_dir = Path(td)
@@ -156,6 +220,19 @@ def _template_with_logpai(texts: List[str], parser_name: str) -> List[str]:
 		df = pd.read_csv(structured_path)
 		if "EventTemplate" not in df.columns:
 			raise ValueError(f"EventTemplate column missing in {structured_path}")
+
+		if include_params:
+			if parser_name != "spell":
+				raise ValueError(f"include_params is only supported for spell, got: {parser_name}")
+			if "ParameterList" not in df.columns:
+				raise ValueError(f"ParameterList column missing in {structured_path}")
+			out = []
+			for _, row in df.iterrows():
+				tmpl = str(row["EventTemplate"])
+				params = _parse_parameter_list_cell(row["ParameterList"])
+				out.append(_format_template_with_params(tmpl, params))
+			return out
+
 		return df["EventTemplate"].astype(str).tolist()
 
 
@@ -171,33 +248,107 @@ def _preprocess_texts(texts: List[str], dataset_name: str, mode: str) -> List[st
 		parser = DrainParser(depth=6, st=0.5, registry_mode=(category == "Registry"))
 		return [parser.parse(str(t))[0] for t in texts]
 
+	if mode == "drain-params":
+		from preprocess.drain import DrainParser
+		parser = DrainParser(depth=6, st=0.5, registry_mode=(category == "Registry"))
+		out = []
+		for t in texts:
+			tmpl, params = parser.parse(str(t))
+			out.append(_format_template_with_params(tmpl, params))
+		return out
+
 	if mode in ("spell", "logmine", "lke"):
 		return _template_with_logpai(texts, mode)
+
+	if mode == "spell-params":
+		return _template_with_logpai(texts, "spell", include_params=True)
 
 	if mode == "ants":
 		ants_dir = REPO_ROOT / "ANTS_Share_Preprocessing_Embedding"
 		if str(ants_dir) not in sys.path:
 			sys.path.insert(0, str(ants_dir))
 		from standardizer import standardize
-
-		if category == "File":
-			std_type = "file"
-		elif category == "Registry":
-			std_type = "registry"
-		elif category == "Network":
-			std_type = "network"
-		else:
+		std_type = CATEGORY_TO_ANTS_TYPE.get(category)
+		if std_type is None:
 			raise ValueError(f"Cannot infer ANTS preprocessing type for dataset: {dataset_name}")
-
-		out = []
-		for t in texts:
-			if std_type in ("file", "registry", "network"):
-				out.append(str(standardize(str(t), std_type, mapping_collector=[])))
-			else:
-				out.append(str(standardize(str(t), std_type)))
-		return out
+		return [str(standardize(str(t), std_type, mapping_collector=[])) for t in texts]
 
 	raise ValueError(f"Unsupported preprocess mode: {mode}")
+
+
+def _load_or_init_summary(summary_path: Path, append_summary: bool) -> pd.DataFrame:
+	if not append_summary or not summary_path.exists():
+		return pd.DataFrame(columns=SUMMARY_COLUMNS)
+
+	summary = pd.read_csv(summary_path)
+	required_columns = {
+		"model",
+		"preprocess",
+		"dataset",
+		"n_rows",
+		"accuracy",
+		"ties",
+		"mean_margin",
+		"median_margin",
+		"p10_margin",
+	}
+	missing = sorted(required_columns - set(summary.columns))
+	if missing:
+		raise ValueError(f"summary.csv missing required columns: {missing}")
+
+	if "category" not in summary.columns or "strategy" not in summary.columns:
+		parsed = summary["dataset"].astype(str).apply(_parse_dataset_meta)
+		summary["category"] = parsed.map(lambda x: x[0])
+		summary["strategy"] = parsed.map(lambda x: x[1])
+
+	return summary.reindex(columns=SUMMARY_COLUMNS)
+
+
+def _upsert_summary_row(summary: pd.DataFrame, result: EvalResult) -> pd.DataFrame:
+	category, strategy = _parse_dataset_meta(result.dataset)
+	new_row = pd.DataFrame(
+		[
+			{
+				"model": result.model,
+				"preprocess": result.preprocess,
+				"dataset": result.dataset,
+				"n_rows": result.n_rows,
+				"accuracy": result.accuracy,
+				"ties": result.ties,
+				"mean_margin": result.mean_margin,
+				"median_margin": result.median_margin,
+				"p10_margin": result.p10_margin,
+				"category": category,
+				"strategy": strategy,
+			}
+		]
+	)
+	if summary.empty:
+		combined = new_row
+	else:
+		combined = pd.concat([summary, new_row], ignore_index=True)
+	return combined.drop_duplicates(subset=["model", "preprocess", "dataset"], keep="last")
+
+
+def _build_model_ranking(summary: pd.DataFrame) -> pd.DataFrame:
+	rows = []
+	for (model, preprocess), group in summary.groupby(["model", "preprocess"], as_index=False):
+		weights = group["n_rows"].to_numpy(dtype=float)
+		rows.append(
+			{
+				"model": model,
+				"preprocess": preprocess,
+				"total_rows": int(group["n_rows"].sum()),
+				"weighted_accuracy": float(np.average(group["accuracy"], weights=weights)),
+				"weighted_mean_margin": float(np.average(group["mean_margin"], weights=weights)),
+			}
+		)
+
+	ranking = pd.DataFrame(rows)
+	if ranking.empty:
+		return ranking
+
+	return ranking.sort_values(["weighted_accuracy", "weighted_mean_margin"], ascending=False).reset_index(drop=True)
 
 
 def evaluate_one_file(
@@ -219,6 +370,9 @@ def evaluate_one_file(
 	arr = df[["Base", "Near", "Far"]].astype(str).values
 	texts = arr.reshape(-1).tolist()
 	texts = _preprocess_texts(texts, csv_path.name, preprocess_mode)
+	n_rows = len(df)
+	if n_rows == 0:
+		raise ValueError(f"Dataset has no rows: {csv_path}")
 
 	embs = model.embed(
 		texts,
@@ -228,7 +382,6 @@ def evaluate_one_file(
 		dataset_name=csv_path.name,
 	)
 
-	n_rows = len(df)
 	dim = embs.shape[1]
 	trip = embs.reshape(n_rows, 3, dim)
 
@@ -328,7 +481,12 @@ def main() -> None:
 		"--preprocess",
 		type=str,
 		default="raw",
-		help="Preprocessing mode(s): raw, drain, ants, spell, logmine, lke, or comma list, or 'all'",
+		help="Preprocessing mode(s): raw, drain, drain-params, ants, spell, spell-params, logmine, lke, comma list, or 'all' (all excludes lke unless --include-lke-in-all)",
+	)
+	parser.add_argument(
+		"--include-lke-in-all",
+		action="store_true",
+		help="When --preprocess all is used, include lke as well (disabled by default because lke is very slow).",
 	)
 	args = parser.parse_args()
 
@@ -344,9 +502,13 @@ def main() -> None:
 		raise FileNotFoundError(f"No CSV files found in: {dataset_dir}")
 
 	model_keys = _resolve_models(args.models)
-	preprocess_modes = _resolve_preprocesses(args.preprocess)
+	preprocess_modes = _resolve_preprocesses(args.preprocess, include_lke_in_all=args.include_lke_in_all)
 	normalize = not args.no_normalize
 	max_rows = args.max_rows if args.max_rows > 0 else None
+	summary_path = output_dir / "summary.csv"
+	summary = _load_or_init_summary(summary_path, args.append_summary)
+	if args.preprocess.strip().lower() == "all" and not args.include_lke_in_all:
+		print("[Info] Skipping lke in '--preprocess all' for speed. Use --include-lke-in-all to include it.")
 
 	print("=" * 90)
 	print("Embedding Model Benchmark (Base/Near/Far)")
@@ -361,86 +523,43 @@ def main() -> None:
 		print(f"Max rows    : {max_rows} per CSV")
 	print("=" * 90)
 
-	all_rows: List[EvalResult] = []
-
 	for mkey in model_keys:
 		print(f"\n[Model] {mkey}")
-		try:
-			model = get_bert_model(mkey, cache_dir=config.BERT_CACHE_DIR, auto_load=True)
-		except Exception as exc:
-			print(f"  ! load failed: {exc}")
-			continue
+		model = get_bert_model(mkey, cache_dir=config.BERT_CACHE_DIR, auto_load=True)
 
 		for pre in preprocess_modes:
 			print(f"  [Preprocess] {pre}")
 			for csv_path in csv_files:
-				try:
-					r = evaluate_one_file(
-						model=model,
-						model_key=mkey,
-						preprocess_mode=pre,
-						csv_path=csv_path,
-						batch_size=args.batch_size,
-						normalize=normalize,
-						max_rows=max_rows,
-						show_progress=args.show_progress,
-						save_details=args.save_details,
-						output_dir=output_dir,
-					)
-					all_rows.append(r)
-					print(
-						f"    - {csv_path.name:<43} "
-						f"acc={r.accuracy:.4f} | mean_margin={r.mean_margin:.4f} | n={r.n_rows}"
-					)
-				except Exception as exc:
-					print(f"    ! eval failed on {csv_path.name}: {exc}")
+				r = evaluate_one_file(
+					model=model,
+					model_key=mkey,
+					preprocess_mode=pre,
+					csv_path=csv_path,
+					batch_size=args.batch_size,
+					normalize=normalize,
+					max_rows=max_rows,
+					show_progress=args.show_progress,
+					save_details=args.save_details,
+					output_dir=output_dir,
+				)
+				print(
+					f"    - {csv_path.name:<43} "
+					f"acc={r.accuracy:.4f} | mean_margin={r.mean_margin:.4f} | n={r.n_rows}"
+				)
+				summary = _upsert_summary_row(summary, r)
+				summary.to_csv(summary_path, index=False)
 
 		# free model memory before next model
 		del model
 		gc.collect()
 
-	if not all_rows:
-		raise RuntimeError("No successful model evaluations.")
-
-	new_summary = pd.DataFrame([r.__dict__ for r in all_rows])
-	new_summary[["category", "strategy"]] = new_summary["dataset"].apply(
-		lambda d: pd.Series(_parse_dataset_meta(d))
-	)
-	summary_path = output_dir / "summary.csv"
-
-	if args.append_summary and summary_path.exists():
-		old_summary = pd.read_csv(summary_path)
-		if "category" not in old_summary.columns or "strategy" not in old_summary.columns:
-			old_summary[["category", "strategy"]] = old_summary["dataset"].apply(
-				lambda d: pd.Series(_parse_dataset_meta(d))
-			)
-		if "preprocess" not in old_summary.columns:
-			old_summary["preprocess"] = "raw"
-		summary = pd.concat([old_summary, new_summary], ignore_index=True)
-		# keep latest result for each model x preprocess x dataset combination
-		summary = summary.drop_duplicates(subset=["model", "preprocess", "dataset"], keep="last")
-	else:
-		summary = new_summary
-
-	summary.to_csv(summary_path, index=False)
+	if summary.empty:
+		raise RuntimeError("No evaluations were written to summary.csv.")
 
 	# Weighted global ranking by row count
-	ranking = (
-		summary
-		.groupby(["model", "preprocess"], as_index=False)
-		.apply(
-			lambda g: pd.Series(
-				{
-					"total_rows": int(g["n_rows"].sum()),
-					"weighted_accuracy": float(np.average(g["accuracy"], weights=g["n_rows"])),
-					"weighted_mean_margin": float(np.average(g["mean_margin"], weights=g["n_rows"])),
-				}
-			),
-			include_groups=False
-		)
-		.reset_index(drop=True)
-		.sort_values(["weighted_accuracy", "weighted_mean_margin"], ascending=False)
-	)
+	ranking = _build_model_ranking(summary)
+	if ranking.empty:
+		raise RuntimeError("Unable to compute model ranking from summary.csv.")
 	ranking_path = output_dir / "model_ranking.csv"
 	ranking.to_csv(ranking_path, index=False)
 
